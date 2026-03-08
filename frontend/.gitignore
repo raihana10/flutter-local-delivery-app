@@ -16,7 +16,7 @@ migrate_working_dir/
 *.iml
 *.ipr
 *.iws
-frontend/.idea/
+.idea/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
@@ -40,6 +40,6 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/frontend/android/app/debug
-/frontend/android/app/profile
-/frontend/android/app/release
+/android/app/debug
+/android/app/profile
+/android/app/release
