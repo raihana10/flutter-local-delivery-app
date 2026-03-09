@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/core/app_theme.dart';
 import 'package:app/core/providers/theme_provider.dart';
-import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
+import 'package:app/presentation/screens/client/client_home_screen.dart';
+
+import 'package:app/core/providers/auth_provider.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -25,7 +30,7 @@ class MyApp extends StatelessWidget {
       theme:                    AppTheme.lightTheme,
       darkTheme:                AppTheme.darkTheme,
       themeMode:                themeProvider.themeMode,
-      home:                     const DashboardScreen(),
+      home:                     const ClientHomeScreen(),
     );
   }
 }

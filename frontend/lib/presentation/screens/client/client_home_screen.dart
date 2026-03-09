@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
-
-
+import 'restaurant_detail_screen.dart';
+import 'cart_screen.dart';
+import 'client_profile_screen.dart';
+import 'client_notifications_screen.dart';
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
 
@@ -212,15 +214,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                     ),
                                     GestureDetector(
                                       onTap: () {
-                                        // Handle notifications with animation
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: const Text('Notifications - Fonctionnalité à venir'),
-                                            backgroundColor: AppColors.primary,
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const ClientNotificationsScreen(),
                                           ),
                                         );
                                       },
@@ -911,7 +908,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Navigate to restaurant details
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RestaurantDetailScreen(
+                  restaurantName: restaurant['name'] as String,
+                  heroTag: 'restaurant_${restaurant['image']}_$index',
+                ),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(20),
           splashColor: AppColors.primary.withOpacity(0.08),
@@ -1160,23 +1165,34 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-        // Add navigation logic here
+        if (index == 0) {
+          setState(() {
+            _currentIndex = 0;
+          });
+          return;
+        }
+        
+        // Navigation logic for other tabs
+        Widget? targetScreen;
         switch (index) {
-          case 0:
-            // Already on home
-            break;
-          case 1:
-            // Navigate to search
-            break;
           case 2:
-            // Navigate to cart
+            targetScreen = const CartScreen();
             break;
           case 3:
-            // Navigate to profile
+            targetScreen = const ClientProfileScreen();
             break;
+        }
+
+        if (targetScreen != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => targetScreen!),
+          ).then((_) {
+            // Reset to home tab when returning
+            setState(() {
+              _currentIndex = 0;
+            });
+          });
         }
       },
       child: AnimatedContainer(
