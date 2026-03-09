@@ -7,14 +7,14 @@ class AppTheme {
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.background,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.yellow,
-      primary:   AppColors.yellow,
-      secondary: AppColors.navyDark,
+      seedColor: AppColors.accent,
+      primary:   AppColors.primary,
+      secondary: AppColors.secondary,
     ),
 
     // AppBar
     appBarTheme: const AppBarTheme(
-      backgroundColor:    AppColors.navyDark,
+      backgroundColor:    AppColors.primary,
       foregroundColor:    AppColors.textWhite,
       elevation:          0,
       centerTitle:        false,
@@ -26,29 +26,29 @@ class AppTheme {
 
     // Bottom Navigation
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor:      AppColors.navyDark,
-      selectedItemColor:    AppColors.yellow,
-      unselectedItemColor:  AppColors.textSecondary,
+      backgroundColor:      AppColors.primary,
+      selectedItemColor:    AppColors.accent,
+      unselectedItemColor:  AppColors.secondary,
       elevation:            0,
       type:                 BottomNavigationBarType.fixed,
     ),
 
     // Cards
     cardTheme: CardThemeData(
-      color:       AppColors.cardWhite,
+      color:       AppColors.card,
       elevation:   2,
       shadowColor: Colors.black12,
       shape:       RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
     ),
 
     // ElevatedButton
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.navyDark,
-        foregroundColor: AppColors.textWhite,
-        minimumSize:     const Size(double.infinity, 52),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.accent,
+        minimumSize:     const Size(double.infinity, 56),
         shape:           RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -59,9 +59,9 @@ class AppTheme {
     // OutlinedButton
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.navyDark,
-        minimumSize:     const Size(double.infinity, 52),
-        side:            const BorderSide(color: AppColors.navyDark, width: 1.5),
+        foregroundColor: AppColors.primary,
+        minimumSize:     const Size(double.infinity, 56),
+        side:            const BorderSide(color: AppColors.primary, width: 1.5),
         shape:           RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
