@@ -1,7 +1,6 @@
 -- ============================================================
 --  SCHÉMA POSTGRESQL – Application de Livraison
 --  Généré depuis MCDLivraison_drawio.html
---  Inclut : created_at, updated_at, deleted_at sur chaque table
 -- ============================================================
 
 -- Extension utile pour les UUID (optionnel)
@@ -189,18 +188,6 @@ CREATE TABLE promotion (
 );
 
 -- ============================================================
--- TABLE : promotion_variante  (promotion concerne des variantes)
--- ============================================================
-CREATE TABLE promotion_variante (
-    id_promotion  INT NOT NULL REFERENCES promotion(id_promotion)  ON DELETE CASCADE,
-    id_variante   INT NOT NULL REFERENCES variante_produit(id_variante) ON DELETE CASCADE,
-    PRIMARY KEY (id_promotion, id_variante),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at    TIMESTAMPTZ
-);
-
--- ============================================================
 -- TABLE : commande
 -- ============================================================
 CREATE TABLE commande (
@@ -317,6 +304,20 @@ CREATE TABLE notification (
     deleted_at   TIMESTAMPTZ
 );
 
+-- ============================================================
+-- TABLE : use_notification
+-- ============================================================
+CREATE TABLE user_notification (
+    id_user_notification SERIAL PRIMARY KEY,
+    id_user  INT NOT NULL REFERENCES "user"(id_user) ON DELETE CASCADE,
+    id_not   INT NOT NULL REFERENCES notification(id_not) ON DELETE CASCADE,
+    est_lu   BOOLEAN     NOT NULL DEFAULT FALSE,
+    lu_at    TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
+    UNIQUE (id_user, id_not)
+);
 -- ============================================================
 -- TABLE : reclamation
 -- ============================================================
