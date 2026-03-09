@@ -3,69 +3,71 @@ import 'package:flutter/services.dart';
 import 'constants/app_colors.dart';
 
 class AppTheme {
-  static ThemeData get theme => ThemeData(
+
+  // ── LIGHT THEME ───────────────────────────────────────────
+  static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
+    brightness: Brightness.light,
     scaffoldBackgroundColor: AppColors.background,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.yellow,
-      primary:   AppColors.yellow,
-      secondary: AppColors.navyDark,
+      seedColor:   AppColors.yellow,
+      primary:     AppColors.yellow,
+      secondary:   AppColors.navyDark,
+      brightness:  Brightness.light,
     ),
-
-    // AppBar
     appBarTheme: const AppBarTheme(
       backgroundColor:    AppColors.navyDark,
       foregroundColor:    AppColors.textWhite,
       elevation:          0,
-      centerTitle:        false,
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor:           Colors.transparent,
-        statusBarIconBrightness:  Brightness.light,
+        statusBarColor:          Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
       ),
     ),
-
-    // Bottom Navigation
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor:      AppColors.navyDark,
-      selectedItemColor:    AppColors.yellow,
-      unselectedItemColor:  AppColors.textSecondary,
-      elevation:            0,
-      type:                 BottomNavigationBarType.fixed,
+      backgroundColor:     AppColors.navyDark,
+      selectedItemColor:   AppColors.yellow,
+      unselectedItemColor: AppColors.textSecondary,
+      type:                BottomNavigationBarType.fixed,
     ),
-
-    // Cards
     cardTheme: CardThemeData(
-      color:       AppColors.cardWhite,
-      elevation:   2,
-      shadowColor: Colors.black12,
-      shape:       RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+      color:     AppColors.cardWhite,
+      elevation: 2,
+      shape:     RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+
+  // ── DARK THEME ────────────────────────────────────────────
+  static ThemeData get darkTheme => ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: const Color(0xFF0F1626), // fond très sombre
+    colorScheme: ColorScheme.fromSeed(
+      seedColor:  AppColors.yellow,
+      primary:    AppColors.yellow,
+      secondary:  AppColors.navyDark,
+      brightness: Brightness.dark,
+      surface:    const Color(0xFF1A2340),
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor:    Color(0xFF0F1626),
+      foregroundColor:    AppColors.textWhite,
+      elevation:          0,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor:          Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
       ),
     ),
-
-    // ElevatedButton
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.navyDark,
-        foregroundColor: AppColors.textWhite,
-        minimumSize:     const Size(double.infinity, 52),
-        shape:           RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        elevation: 0,
-      ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor:     Color(0xFF0F1626),
+      selectedItemColor:   AppColors.yellow,
+      unselectedItemColor: Color(0xFF4A5568),
+      type:                BottomNavigationBarType.fixed,
     ),
-
-    // OutlinedButton
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.navyDark,
-        minimumSize:     const Size(double.infinity, 52),
-        side:            const BorderSide(color: AppColors.navyDark, width: 1.5),
-        shape:           RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+    cardTheme: CardThemeData(
+      color:     const Color(0xFF1A2340),
+      elevation: 0,
+      shape:     RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 
