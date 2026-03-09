@@ -27,6 +27,9 @@ dependencies:
   # State management
   provider: ^6.1.5+1
 
+  # Stockage local pour l'authentification
+  shared_preferences: ^2.2.2
+
   # Icons
   cupertino_icons: ^1.0.2
   google_fonts: ^8.0.2

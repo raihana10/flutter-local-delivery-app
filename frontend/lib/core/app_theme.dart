@@ -4,53 +4,48 @@ import 'package:google_fonts/google_fonts.dart';
 import 'constants/app_colors.dart';
 
 class AppTheme {
-  static ThemeData get theme => ThemeData(
+
+  // ── LIGHT THEME ───────────────────────────────────────────
+  static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
+    brightness: Brightness.light,
     scaffoldBackgroundColor: AppColors.background,
     textTheme: GoogleFonts.poppinsTextTheme(),
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.forest,
-      primary:   AppColors.forest,
-      secondary: AppColors.amber,
-      surface: AppColors.cardWhite,
-      error: AppColors.destructive,
+      seedColor:   AppColors.primary,
+      primary:     AppColors.primary,
+      secondary:   AppColors.accent,
+      surface:     AppColors.card,
+      error:       AppColors.destructive,
+      brightness:  Brightness.light,
     ),
-
-    // AppBar
     appBarTheme: const AppBarTheme(
-      backgroundColor:    AppColors.forest,
+      backgroundColor:    AppColors.primary,
       foregroundColor:    AppColors.textWhite,
       elevation:          0,
-      centerTitle:        false,
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor:           Colors.transparent,
-        statusBarIconBrightness:  Brightness.light,
+        statusBarColor:          Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
       ),
     ),
-
-    // Bottom Navigation
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor:      AppColors.forest,
-      selectedItemColor:    AppColors.amber,
-      unselectedItemColor:  AppColors.mutedForeground,
-      elevation:            0,
-      type:                 BottomNavigationBarType.fixed,
+      backgroundColor:     AppColors.primary,
+      selectedItemColor:   AppColors.accent,
+      unselectedItemColor: AppColors.mutedForeground,
+      elevation:           0,
+      type:                BottomNavigationBarType.fixed,
     ),
-
-    // Cards
     cardTheme: CardThemeData(
-      color:       AppColors.cardWhite,
-      elevation:   0, // We use BoxShadow manually for "card-shadow"
-      shape:       RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      color:     AppColors.card,
+      elevation: 0,
+      shape:     RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     ),
 
     // ElevatedButton
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.forest,
-        foregroundColor: AppColors.amber,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.accent,
         minimumSize:     const Size(double.infinity, 56),
         textStyle: const TextStyle(fontWeight: FontWeight.bold),
         shape:           RoundedRectangleBorder(
@@ -72,6 +67,44 @@ class AppTheme {
       ),
     ),
   );
+
+  // ── DARK THEME ────────────────────────────────────────────
+  static ThemeData get darkTheme => ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: const Color(0xFF0F1626), // fond très sombre
+    colorScheme: ColorScheme.fromSeed(
+      seedColor:  AppColors.accent,
+      primary:    AppColors.accent,
+      secondary:  AppColors.secondary,
+      brightness: Brightness.dark,
+      surface:    const Color(0xFF1A2340),
+      error:      AppColors.destructive,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor:    Color(0xFF0F1626),
+      foregroundColor:    AppColors.textWhite,
+      elevation:          0,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor:          Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor:     Color(0xFF0F1626),
+      selectedItemColor:   AppColors.accent,
+      unselectedItemColor: Color(0xFF4A5568),
+      type:                BottomNavigationBarType.fixed,
+    ),
+    cardTheme: CardThemeData(
+      color:     const Color(0xFF1A2340),
+      elevation: 0,
+      shape:     RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
+
+  // Legacy alias for compatibility with code that used "AppTheme.theme"
+  static ThemeData get theme => lightTheme;
 
   AppTheme._();
 }
