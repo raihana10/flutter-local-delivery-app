@@ -10,18 +10,21 @@
 .history
 .svn/
 .swiftpm/
-migrate_working_dir/
+*.xlsx
+*.txt
+**/node_modules/
+**/.env
 
 # IntelliJ related
 *.iml
 *.ipr
 *.iws
-frontend/.idea/
+.idea/
+**/frontend/.idea/
+**/backend/.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code related
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -33,13 +36,21 @@ frontend/.idea/
 /build/
 /coverage/
 
-# Symbolication related
-app.*.symbols
+# Android related
+**/android/local.properties
+**/android/key.properties
+**/android/app/src/main/res/raw/google_services.json
+**/android/.gradle/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
 
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/frontend/android/app/debug
-/frontend/android/app/profile
-/frontend/android/app/release
+# iOS/macOS related
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/ios/Pods/
+**/macos/Pods/
+**/ios/DerivedData/
+**/macos/DerivedData/
+# Podfile.lock is often kept in Flutter to ensure consistent pod versions
+# **/Podfile.lock
