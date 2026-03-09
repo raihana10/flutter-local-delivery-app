@@ -16,7 +16,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
-
+  
   late AnimationController _headerController;
   late Animation<double> _headerAnimation;
   late AnimationController _searchAnimationController;
@@ -26,11 +26,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
   bool _isSearching = false;
   int _currentPromoPage = 0;
-
+  String _selectedCategory = 'all';
+  String _searchQuery = '';
+  
+  // Mock data
+  List<Map<String, dynamic>> _allRestaurants = [];
+  List<Map<String, dynamic>> _filteredRestaurants = [];
+  
   @override
   void initState() {
     super.initState();
-
+    _initializeMockData();
+    
     _headerController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -76,6 +83,152 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
     // Auto-scroll promos
     _startPromoAutoScroll();
+  }
+  
+  void _initializeMockData() {
+    _allRestaurants = [
+      {
+        'name': 'Pizza Palace',
+        'rating': 4.5,
+        'time': '25-35 min',
+        'image': '🍕',
+        'distance': '1.2 km',
+        'isOpen': true,
+        'category': 'burgers',
+        'deliveryFee': '15 DH',
+        'minOrder': '50 DH',
+        'cuisine': 'Italienne',
+      },
+      {
+        'name': 'Burger House',
+        'rating': 4.2,
+        'time': '20-30 min',
+        'image': '🍔',
+        'distance': '0.8 km',
+        'isOpen': true,
+        'category': 'burgers',
+        'deliveryFee': '12 DH',
+        'minOrder': '40 DH',
+        'cuisine': 'Américaine',
+      },
+      {
+        'name': 'Sushi Bar',
+        'rating': 4.8,
+        'time': '30-40 min',
+        'image': '🍱',
+        'distance': '2.1 km',
+        'isOpen': false,
+        'category': 'asian',
+        'deliveryFee': '20 DH',
+        'minOrder': '80 DH',
+        'cuisine': 'Japonaise',
+      },
+      {
+        'name': 'Tacos Place',
+        'rating': 4.3,
+        'time': '15-25 min',
+        'image': '🌮',
+        'distance': '1.5 km',
+        'isOpen': true,
+        'category': 'burgers',
+        'deliveryFee': '10 DH',
+        'minOrder': '35 DH',
+        'cuisine': 'Mexicaine',
+      },
+      {
+        'name': 'Pasta Corner',
+        'rating': 4.6,
+        'time': '25-35 min',
+        'image': '🍝',
+        'distance': '1.8 km',
+        'isOpen': true,
+        'category': 'healthy',
+        'deliveryFee': '18 DH',
+        'minOrder': '60 DH',
+        'cuisine': 'Italienne',
+      },
+      {
+        'name': 'Green Salad',
+        'rating': 4.4,
+        'time': '15-20 min',
+        'image': '🥗',
+        'distance': '0.5 km',
+        'isOpen': true,
+        'category': 'healthy',
+        'deliveryFee': '8 DH',
+        'minOrder': '30 DH',
+        'cuisine': 'Healthy',
+      },
+      {
+        'name': 'Sweet Dreams',
+        'rating': 4.7,
+        'time': '20-30 min',
+        'image': '🍰',
+        'distance': '1.0 km',
+        'isOpen': true,
+        'category': 'desserts',
+        'deliveryFee': '12 DH',
+        'minOrder': '25 DH',
+        'cuisine': 'Pâtisserie',
+      },
+      {
+        'name': 'Juice Bar',
+        'rating': 4.1,
+        'time': '10-15 min',
+        'image': '🥤',
+        'distance': '0.3 km',
+        'isOpen': true,
+        'category': 'drinks',
+        'deliveryFee': '5 DH',
+        'minOrder': '20 DH',
+        'cuisine': 'Boissons',
+      },
+    ];
+    
+    _filteredRestaurants = List.from(_allRestaurants);
+  }
+  
+  void _filterByCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _applyFilters();
+    });
+    
+    // Animation feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Filtré par: ${_getCategoryName(category)}'),
+        backgroundColor: AppColors.primary,
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+  
+  void _applyFilters() {
+    _filteredRestaurants = _allRestaurants.where((restaurant) {
+      bool matchesCategory = _selectedCategory == 'all' || restaurant['category'] == _selectedCategory;
+      bool matchesSearch = _searchQuery.isEmpty || 
+          restaurant['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          restaurant['cuisine'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+      
+      return matchesCategory && matchesSearch;
+    }).toList();
+  }
+  
+  String _getCategoryName(String category) {
+    switch (category) {
+      case 'all': return 'Tout';
+      case 'burgers': return 'Burgers';
+      case 'asian': return 'Asiatique';
+      case 'healthy': return 'Healthy';
+      case 'desserts': return 'Desserts';
+      case 'drinks': return 'Boissons';
+      default: return category;
+    }
   }
 
   void _startPromoAutoScroll() {
@@ -297,6 +450,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                           });
                                           _searchAnimationController.reverse();
                                         },
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _searchQuery = value;
+                                            _applyFilters();
+                                          });
+                                        },
                                         decoration: InputDecoration(
                                           hintText: _isSearching
                                             ? 'Rechercher un restaurant, un plat...'
@@ -327,6 +486,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                                   _searchTextController.clear();
                                                   setState(() {
                                                     _isSearching = false;
+                                                    _searchQuery = '';
+                                                    _applyFilters();
                                                   });
                                                   _searchAnimationController.reverse();
                                                 },
@@ -356,18 +517,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
                 // Category Chips
                 Container(
-                  height: 60,
+                  height: 80,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     children: [
-                      _buildCategoryChip('🍕 Tout', true, () {}),
-                      _buildCategoryChip('🍔 Burgers', false, () {}),
-                      _buildCategoryChip('🍜 Asiatique', false, () {}),
-                      _buildCategoryChip('🥗 Healthy', false, () {}),
-                      _buildCategoryChip('🍰 Desserts', false, () {}),
-                      _buildCategoryChip('🥤 Boissons', false, () {}),
+                      _buildCategoryChip('🍕 Tout', true, () => _filterByCategory('all')),
+                      _buildCategoryChip('🍔 Burgers', false, () => _filterByCategory('burgers')),
+                      _buildCategoryChip('🍜 Asiatique', false, () => _filterByCategory('asian')),
+                      _buildCategoryChip('🥗 Healthy', false, () => _filterByCategory('healthy')),
+                      _buildCategoryChip('🍰 Desserts', false, () => _filterByCategory('desserts')),
+                      _buildCategoryChip('🥤 Boissons', false, () => _filterByCategory('drinks')),
                     ],
                   ),
                 ),
@@ -438,9 +599,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                         ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: 5,
+                          itemCount: _filteredRestaurants.length,
                           itemBuilder: (context, index) {
-                            return _buildRestaurantCard(index);
+                            return _buildRestaurantCard(_filteredRestaurants[index], index);
                           },
                         ),
 
@@ -894,17 +1055,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
     );
   }
 
-  Widget _buildRestaurantCard(int index) {
-    final restaurants = [
-      {'name': 'Pizza Palace', 'rating': 4.5, 'time': '25-35 min', 'image': '🍕', 'distance': '1.2 km', 'isOpen': true},
-      {'name': 'Burger House', 'rating': 4.2, 'time': '20-30 min', 'image': '🍔', 'distance': '0.8 km', 'isOpen': true},
-      {'name': 'Sushi Bar', 'rating': 4.8, 'time': '30-40 min', 'image': '🍱', 'distance': '2.1 km', 'isOpen': false},
-      {'name': 'Tacos Place', 'rating': 4.3, 'time': '15-25 min', 'image': '🌮', 'distance': '1.5 km', 'isOpen': true},
-      {'name': 'Pasta Corner', 'rating': 4.6, 'time': '25-35 min', 'image': '🍝', 'distance': '1.8 km', 'isOpen': true},
-    ];
-
-    final restaurant = restaurants[index % restaurants.length];
-
+  Widget _buildRestaurantCard(Map<String, dynamic> restaurant, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -912,6 +1063,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         child: InkWell(
           onTap: () {
             // Navigate to restaurant details
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Détails de ${restaurant['name']} - Fonctionnalité à venir'),
+                backgroundColor: AppColors.accent,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(20),
           splashColor: AppColors.primary.withOpacity(0.08),
@@ -1092,21 +1253,35 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
                         const SizedBox(height: 10),
 
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.gold.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Livraison gratuite',
-                            style: TextStyle(
-                              color: AppColors.gold,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                restaurant['cuisine'] as String,
+                                style: TextStyle(
+                                  color: AppColors.mutedForeground,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.gold.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                'Livraison ${restaurant['deliveryFee']}',
+                                style: TextStyle(
+                                  color: AppColors.gold,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

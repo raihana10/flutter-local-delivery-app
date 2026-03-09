@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../core/constants/app_colors.dart';
@@ -27,6 +28,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   String? _selectedBusinessType;
   DateTime? _selectedDateNaissance;
   bool _obscurePassword = true;
+  bool _isLoadingGoogle = false;
 
   late AnimationController _logoController;
   late AnimationController _formController;
@@ -34,6 +36,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late Animation<Offset> _formAnimation;
   late AnimationController _roleSelectionController;
   late Animation<double> _roleSelectionAnimation;
+
+  // Google Sign-In
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email'],
+  );
 
   @override
   void initState() {
@@ -148,6 +155,58 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         break;
       default:
         Navigator.of(context).pushReplacementNamed('/client/home');
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoadingGoogle = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      if (googleUser != null) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        
+        // Pour l'instant, nous simulerons une connexion réussie avec Google
+        // Plus tard, vous pourrez intégrer avec votre backend
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connexion Google réussie: ${googleUser.email}'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+
+        // Simuler une navigation après connexion réussie
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            _navigateToHome();
+          }
+        });
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur de connexion Google: $error'),
+          backgroundColor: AppColors.destructive,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingGoogle = false;
+        });
+      }
     }
   }
 
@@ -441,6 +500,49 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                           ),
                                   );
                                 },
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Google Sign-In button
+                              Container(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isLoadingGoogle ? null : _signInWithGoogle,
+                                  icon: _isLoadingGoogle
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                        ),
+                                      )
+                                    : Image.asset(
+                                        'assets/google_logo.png',
+                                        height: 20,
+                                        width: 20,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Icon(Icons.search, color: AppColors.primary, size: 20);
+                                        },
+                                      ),
+                                  label: Text(
+                                    'Continuer avec Google',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.foreground,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    side: BorderSide(color: AppColors.border, width: 1.5),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    backgroundColor: AppColors.card,
+                                  ),
+                                ),
                               ),
 
                               const SizedBox(height: 24),

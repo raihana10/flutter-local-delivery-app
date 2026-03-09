@@ -30,6 +30,9 @@ dependencies:
   # Stockage local pour l'authentification
   shared_preferences: ^2.2.2
 
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+
   # Icons
   cupertino_icons: ^1.0.2
 
