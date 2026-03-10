@@ -25,7 +25,7 @@ dependencies:
   dio: ^5.4.0
 
   # State management
-  provider: ^6.1.2
+  provider: ^6.1.5+1
 
   # Stockage local pour l'authentification
   shared_preferences: ^2.2.2
@@ -35,6 +35,13 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.2
+  google_fonts: ^8.0.2
+  lucide_icons_flutter: ^3.1.10
+  flutter_svg: ^2.2.4
+  file_picker: ^10.3.10
+  csv: ^6.0.0
+  excel: ^4.0.6
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
