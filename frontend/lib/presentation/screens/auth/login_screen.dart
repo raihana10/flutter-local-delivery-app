@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,9 +23,44 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin(BuildContext context) {
-    // TODO: Implement real authentication
-    Navigator.of(context).pushReplacementNamed('/client/home');
+  Future<void> _handleLogin(BuildContext context) async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+      );
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(email, password);
+
+    if (success) {
+      if (mounted) {
+        final role = authProvider.user?.role.value;
+        switch (role) {
+          case 'client':
+            Navigator.of(context).pushReplacementNamed('/client/home');
+            break;
+          case 'livreur':
+            Navigator.of(context).pushReplacementNamed('/livreur/dashboard');
+            break;
+          case 'business':
+            Navigator.of(context).pushReplacementNamed('/business/dashboard');
+            break;
+          default:
+            Navigator.of(context).pushReplacementNamed('/client/home');
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage ?? 'Erreur de connexion')),
+        );
+      }
+    }
   }
 
   @override

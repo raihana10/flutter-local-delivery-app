@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:provider/provider.dart';
+import 'package:app/data/models/auth_models.dart' as auth;
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/auth_provider.dart';
 
 enum UserRole { client, livreur, business }
 
@@ -143,17 +146,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _handleSubmit() {
+  Future<void> _handleSubmit() async {
     // Validation basique
+    if (_selectedRole == null) return;
+    
+    if (_emailController.text.trim().isEmpty || 
+        _passwordController.text.trim().isEmpty || 
+        _fullNameController.text.trim().isEmpty) {
+      _showErrorSnackBar('Veuillez remplir les informations obligatoires');
+      return;
+    }
+
     if (_selectedRole == UserRole.livreur) {
       if (_vehicleType == null) {
         _showErrorSnackBar('Veuillez sélectionner un type de véhicule');
         return;
       }
     }
-    
-    // TODO: Implement real registration with file upload
-    Navigator.of(context).pushReplacementNamed('/client/home');
+
+    final auth.UserRole mappedRole;
+    switch (_selectedRole!) {
+      case UserRole.client: mappedRole = auth.UserRole.client; break;
+      case UserRole.livreur: mappedRole = auth.UserRole.livreur; break;
+      case UserRole.business: mappedRole = auth.UserRole.business; break;
+    }
+
+    final request = auth.RegisterRequest(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+      nom: _fullNameController.text.trim(),
+      numTl: _phoneController.text.trim(),
+      role: mappedRole,
+      businessType: _businessCategory,
+      businessDescription: _businessDescriptionController.text.trim(),
+      cni: _licenseNumberController.text.trim(),
+    );
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.register(request);
+
+    if (success) {
+      if (mounted) {
+        final role = authProvider.user?.role.value;
+        switch (role) {
+          case 'client':
+            Navigator.of(context).pushReplacementNamed('/client/home');
+            break;
+          case 'livreur':
+            Navigator.of(context).pushReplacementNamed('/livreur/dashboard');
+            break;
+          case 'business':
+            Navigator.of(context).pushReplacementNamed('/business/dashboard');
+            break;
+          default:
+            Navigator.of(context).pushReplacementNamed('/client/home');
+        }
+      }
+    }
+ else {
+      if (mounted) {
+        _showErrorSnackBar(authProvider.errorMessage ?? 'Erreur lors de l\'inscription');
+      }
+    }
   }
 
   @override

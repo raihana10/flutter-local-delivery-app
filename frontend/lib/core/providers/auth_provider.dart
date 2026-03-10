@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/auth_models.dart';
@@ -20,17 +21,7 @@ class AuthProvider extends ChangeNotifier {
     
     if (token != null && userJson != null) {
       try {
-        // In a real app, you'd validate the token with the server
-        // For now, we'll just restore the user data
-        _user = User.fromJson({
-          'id_user': 1,
-          'email': 'user@example.com',
-          'nom': 'User',
-          'role': 'client',
-          'est_actif': true,
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+        _user = User.fromJson(jsonDecode(userJson));
         notifyListeners();
       } catch (e) {
         await logout();
@@ -82,7 +73,7 @@ class AuthProvider extends ChangeNotifier {
         // Save to local storage
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
-        await prefs.setString('user_data', _user!.toJson().toString());
+        await prefs.setString('user_data', jsonEncode(_user!.toJson()));
         
         notifyListeners();
         return true;
@@ -131,7 +122,7 @@ class AuthProvider extends ChangeNotifier {
       // Save to local storage
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
-      await prefs.setString('user_data', _user!.toJson().toString());
+      await prefs.setString('user_data', jsonEncode(_user!.toJson()));
       
       notifyListeners();
       return true;
