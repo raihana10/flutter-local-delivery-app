@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -31,6 +33,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
   // Mock data
   List<Map<String, dynamic>> _allRestaurants = [];
   List<Map<String, dynamic>> _filteredRestaurants = [];
+  
+  // Categories with Lucide icons
+  List<Map<String, dynamic>> _categories = [
+    {'name': 'Tout', 'icon': LucideIcons.utensils, 'key': 'all'},
+    {'name': 'Burgers', 'icon': LucideIcons.hamburger, 'key': 'burgers'},
+    {'name': 'Pizza', 'icon': LucideIcons.pizza, 'key': 'pizza'},
+    {'name': 'Asiatique', 'icon': LucideIcons.coffee, 'key': 'asian'},
+    {'name': 'Healthy', 'icon': LucideIcons.leaf, 'key': 'healthy'},
+    {'name': 'Desserts', 'icon': LucideIcons.cake, 'key': 'desserts'},
+    {'name': 'Boissons', 'icon': LucideIcons.coffee, 'key': 'drinks'},
+  ];
   
   @override
   void initState() {
@@ -90,10 +103,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         'name': 'Pizza Palace',
         'rating': 4.5,
         'time': '25-35 min',
-        'image': Icons.local_pizza,
+        'image': 'https://images.unsplash.com/photo-1565299624946-b28f40a0cae4?w=200&h=200&fit=crop',
         'distance': '1.2 km',
         'isOpen': true,
-        'category': 'burgers',
+        'category': 'pizza',
         'deliveryFee': '15 DH',
         'minOrder': '50 DH',
         'cuisine': 'Italienne',
@@ -102,7 +115,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         'name': 'Burger House',
         'rating': 4.2,
         'time': '20-30 min',
-        'image': Icons.lunch_dining,
+        'image': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop',
         'distance': '0.8 km',
         'isOpen': true,
         'category': 'burgers',
@@ -114,43 +127,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         'name': 'Sushi Bar',
         'rating': 4.8,
         'time': '30-40 min',
-        'image': Icons.set_meal,
+        'image': 'https://images.unsplash.com/photo-1579584423803-5a0037156b24?w=200&h=200&fit=crop',
         'distance': '2.1 km',
-        'isOpen': false,
+        'isOpen': true,
         'category': 'asian',
         'deliveryFee': '20 DH',
         'minOrder': '80 DH',
         'cuisine': 'Japonaise',
       },
       {
-        'name': 'Tacos Place',
-        'rating': 4.3,
-        'time': '15-25 min',
-        'image': Icons.takeout_dining,
-        'distance': '1.5 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '10 DH',
-        'minOrder': '35 DH',
-        'cuisine': 'Mexicaine',
-      },
-      {
-        'name': 'Pasta Corner',
-        'rating': 4.6,
-        'time': '25-35 min',
-        'image': Icons.ramen_dining,
-        'distance': '1.8 km',
-        'isOpen': true,
-        'category': 'healthy',
-        'deliveryFee': '18 DH',
-        'minOrder': '60 DH',
-        'cuisine': 'Italienne',
-      },
-      {
         'name': 'Green Salad',
         'rating': 4.4,
         'time': '15-20 min',
-        'image': Icons.health_and_safety,
+        'image': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=200&fit=crop',
         'distance': '0.5 km',
         'isOpen': true,
         'category': 'healthy',
@@ -162,7 +151,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         'name': 'Sweet Dreams',
         'rating': 4.7,
         'time': '20-30 min',
-        'image': Icons.cake,
+        'image': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=200&h=200&fit=crop',
         'distance': '1.0 km',
         'isOpen': true,
         'category': 'desserts',
@@ -174,13 +163,37 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
         'name': 'Juice Bar',
         'rating': 4.1,
         'time': '10-15 min',
-        'image': Icons.local_cafe,
+        'image': 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=200&h=200&fit=crop',
         'distance': '0.3 km',
         'isOpen': true,
         'category': 'drinks',
         'deliveryFee': '5 DH',
         'minOrder': '20 DH',
         'cuisine': 'Boissons',
+      },
+      {
+        'name': 'Tacos Place',
+        'rating': 4.3,
+        'time': '15-25 min',
+        'image': 'https://images.unsplash.com/photo-1557492717-97f2d4083f5e?w=200&h=200&fit=crop',
+        'distance': '1.5 km',
+        'isOpen': true,
+        'category': 'burgers',
+        'deliveryFee': '10 DH',
+        'minOrder': '35 DH',
+        'cuisine': 'Mexicaine',
+      },
+      {
+        'name': 'Pasta Corner',
+        'rating': 4.6,
+        'time': '25-35 min',
+        'image': 'https://images.unsplash.com/photo-1563245372-f21724e385678?w=200&h=200&fit=crop',
+        'distance': '1.8 km',
+        'isOpen': true,
+        'category': 'pizza',
+        'deliveryFee': '18 DH',
+        'minOrder': '60 DH',
+        'cuisine': 'Italienne',
       },
     ];
     
@@ -208,58 +221,26 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
   }
   
   void _applyFilters() {
-    setState(() {
-      _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' || restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty || 
-            restaurant['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-        
-        return matchesCategory && matchesSearch;
-      }).toList();
-    });
-  }
-
-  void _performSearch() {
-    _applyFilters();
-    // Fermer le clavier après la recherche
-    FocusScope.of(context).unfocus();
-    
-    // Animation feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Recherche: "${_searchQuery}" - ${_filteredRestaurants.length} résultats'),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
+    _filteredRestaurants = _allRestaurants.where((restaurant) {
+      bool matchesCategory = _selectedCategory == 'all' || restaurant['category'] == _selectedCategory;
+      bool matchesSearch = _searchQuery.isEmpty || 
+          restaurant['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          restaurant['cuisine'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+      
+      return matchesCategory && matchesSearch;
+    }).toList();
   }
   
   String _getCategoryName(String category) {
     switch (category) {
       case 'all': return 'Tout';
+      case 'pizza': return 'Pizza';
       case 'burgers': return 'Burgers';
       case 'asian': return 'Asiatique';
       case 'healthy': return 'Healthy';
       case 'desserts': return 'Desserts';
       case 'drinks': return 'Boissons';
       default: return category;
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'all': return Icons.apps;
-      case 'burgers': return Icons.lunch_dining;
-      case 'asian': return Icons.set_meal;
-      case 'healthy': return Icons.health_and_safety;
-      case 'desserts': return Icons.cake;
-      case 'drinks': return Icons.local_cafe;
-      default: return Icons.restaurant;
     }
   }
 
@@ -272,17 +253,32 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
-        _setCurrentPromoPage(nextPage);
+        _currentPromoPage = nextPage;
         _startPromoAutoScroll();
       }
     });
   }
 
-  void _setCurrentPromoPage(int page) {
-    if (mounted) {
-      setState(() {
-        _currentPromoPage = page;
-      });
+  IconData _getRestaurantIcon(String imageName) {
+    switch (imageName) {
+      case 'pizza':
+        return LucideIcons.pizza;
+      case 'burger':
+        return LucideIcons.hamburger;
+      case 'sushi':
+        return LucideIcons.utensils;
+      case 'taco':
+        return LucideIcons.triangle;
+      case 'pasta':
+        return LucideIcons.utensils;
+      case 'salad':
+        return LucideIcons.leaf;
+      case 'cake':
+        return LucideIcons.cake;
+      case 'drink':
+        return LucideIcons.coffee;
+      default:
+        return LucideIcons.utensils;
     }
   }
 
@@ -355,26 +351,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                         children: [
                                           AnimatedSwitcher(
                                             duration: const Duration(milliseconds: 300),
-                                            child: Row(
+                                            child: Text(
+                                              'Bonjour, ${user?.nom ?? 'Client'} 👋',
                                               key: ValueKey(user?.nom),
-                                              children: [
-                                                Text(
-                                                  'Bonjour, ${user?.nom ?? 'Client'}',
-                                                  style: const TextStyle(
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.textWhite,
-                                                    height: 1.2,
-                                                    letterSpacing: -0.5,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                const Icon(
-                                                  Icons.waving_hand,
-                                                  color: AppColors.accent,
-                                                  size: 28,
-                                                ),
-                                              ],
+                                              style: const TextStyle(
+                                                fontSize: 28,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textWhite,
+                                                height: 1.2,
+                                                letterSpacing: -0.5,
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(height: 8),
@@ -413,94 +399,57 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                         ],
                                       ),
                                     ),
-                                    Row(
-                                      children: [
-                                        GestureDetector(
-                                          onTap: () {
-                                            // Handle notifications with animation
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: const Text('Notifications - Fonctionnalité à venir'),
-                                                backgroundColor: AppColors.primary,
-                                                behavior: SnackBarBehavior.floating,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.accent,
-                                              borderRadius: BorderRadius.circular(16),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: AppColors.accent.withOpacity(0.4),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Stack(
-                                              alignment: Alignment.center,
-                                              children: [
-                                                const Icon(
-                                                  Icons.notifications_none,
-                                                  color: AppColors.primary,
-                                                  size: 24,
-                                                ),
-                                                Positioned(
-                                                  top: 8,
-                                                  right: 8,
-                                                  child: Container(
-                                                    width: 8,
-                                                    height: 8,
-                                                    decoration: const BoxDecoration(
-                                                      color: AppColors.destructive,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                    GestureDetector(
+                                      onTap: () {
+                                        // Handle notifications with animation
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Notifications - Fonctionnalité à venir'),
+                                            backgroundColor: AppColors.primary,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
                                             ),
                                           ),
+                                        );
+                                      },
+                                      child: Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.accent,
+                                          borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppColors.accent.withOpacity(0.4),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(width: 12),
-                                        PopupMenuButton<String>(
-                                          onSelected: (value) async {
-                                            if (value == 'logout') {
-                                              await context.read<AuthProvider>().logout();
-                                              if (mounted) {
-                                                Navigator.of(context).pushReplacementNamed('/');
-                                              }
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                            const PopupMenuItem(
-                                              value: 'logout',
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.logout, color: Colors.red, size: 20),
-                                                  SizedBox(width: 8),
-                                                  Text('Déconnexion'),
-                                                ],
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.notifications_none,
+                                              color: AppColors.primary,
+                                              size: 24,
+                                            ),
+                                            Positioned(
+                                              top: 8,
+                                              right: 8,
+                                              child: Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: const BoxDecoration(
+                                                  color: AppColors.destructive,
+                                                  shape: BoxShape.circle,
+                                                ),
                                               ),
                                             ),
                                           ],
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.primary.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(16),
-                                              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-                                            ),
-                                            child: const Icon(Icons.person, color: AppColors.textWhite),
-                                          ),
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -531,12 +480,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                           });
                                           _searchAnimationController.forward();
                                         },
-                                        onSubmitted: (value) {
-                                          _performSearch();
+                                        onEditingComplete: () {
+                                          setState(() {
+                                            _isSearching = false;
+                                          });
+                                          _searchAnimationController.reverse();
                                         },
                                         onChanged: (value) {
                                           setState(() {
                                             _searchQuery = value;
+                                            _applyFilters();
                                           });
                                         },
                                         decoration: InputDecoration(
@@ -559,34 +512,21 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                                             ),
                                           ),
                                           suffixIcon: _searchAnimation.value > 0.5
-                                            ? Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.search,
-                                                      color: AppColors.primary,
-                                                      size: 22,
-                                                    ),
-                                                    onPressed: _performSearch,
-                                                  ),
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.clear,
-                                                      color: AppColors.mutedForeground,
-                                                      size: 20,
-                                                    ),
-                                                    onPressed: () {
-                                                      _searchTextController.clear();
-                                                      setState(() {
-                                                        _isSearching = false;
-                                                        _searchQuery = '';
-                                                      });
-                                                      _applyFilters();
-                                                      _searchAnimationController.reverse();
-                                                    },
-                                                  ),
-                                                ],
+                                            ? IconButton(
+                                                icon: Icon(
+                                                  Icons.clear,
+                                                  color: AppColors.mutedForeground,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () {
+                                                  _searchTextController.clear();
+                                                  setState(() {
+                                                    _isSearching = false;
+                                                    _searchQuery = '';
+                                                    _applyFilters();
+                                                  });
+                                                  _searchAnimationController.reverse();
+                                                },
                                               )
                                             : null,
                                           border: OutlineInputBorder(
@@ -613,19 +553,62 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
                 // Category Chips
                 Container(
-                  height: 80,
+                  height: 90,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: ListView(
+                  child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _buildCategoryChip('Tout', _getCategoryIcon('all'), _selectedCategory == 'all', () => _filterByCategory('all')),
-                      _buildCategoryChip('Burgers', _getCategoryIcon('burgers'), _selectedCategory == 'burgers', () => _filterByCategory('burgers')),
-                      _buildCategoryChip('Asiatique', _getCategoryIcon('asian'), _selectedCategory == 'asian', () => _filterByCategory('asian')),
-                      _buildCategoryChip('Healthy', _getCategoryIcon('healthy'), _selectedCategory == 'healthy', () => _filterByCategory('healthy')),
-                      _buildCategoryChip('Desserts', _getCategoryIcon('desserts'), _selectedCategory == 'desserts', () => _filterByCategory('desserts')),
-                      _buildCategoryChip('Boissons', _getCategoryIcon('drinks'), _selectedCategory == 'drinks', () => _filterByCategory('drinks')),
-                    ],
+                    itemCount: _categories.length,
+                    itemBuilder: (context, index) {
+                      final category = _categories[index];
+                      final isSelected = _selectedCategory == category['key'];
+                      
+                      return GestureDetector(
+                        onTap: () => _filterByCategory(category['key']),
+                        child: Container(
+                          width: 80,
+                          margin: const EdgeInsets.only(left: 20, right: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppColors.accent : AppColors.card,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.accent.withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                category['icon'],
+                                size: 24,
+                                color: isSelected ? AppColors.primary : AppColors.mutedForeground,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                category['name'],
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? AppColors.primary : AppColors.mutedForeground,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
 
@@ -655,7 +638,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                           child: PageView.builder(
                             controller: _promoPageController,
                             onPageChanged: (page) {
-                              _setCurrentPromoPage(page);
+                              setState(() {
+                                _currentPromoPage = page;
+                              });
                             },
                             itemCount: 3,
                             itemBuilder: (context, index) {
@@ -687,84 +672,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
                         const SizedBox(height: 24),
 
-                        // Results count
-                        if (_searchQuery.isNotEmpty || _selectedCategory != 'all')
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              '${_filteredRestaurants.length} restaurant${_filteredRestaurants.length > 1 ? 's' : ''} trouvé${_filteredRestaurants.length > 1 ? 's' : ''}',
-                              style: TextStyle(
-                                color: AppColors.mutedForeground,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-
                         // Nearby Restaurants Section
                         _buildSectionTitle('Restaurants proches', 'Voir tout', () {}),
                         const SizedBox(height: 12),
-                        
-                        // Display message if no restaurants found
-                        if (_filteredRestaurants.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.restaurant_menu,
-                                  size: 64,
-                                  color: AppColors.mutedForeground.withOpacity(0.3),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Aucun restaurant trouvé',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.foreground,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Essayez de modifier vos filtres ou votre recherche',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.mutedForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedCategory = 'all';
-                                      _searchQuery = '';
-                                      _searchTextController.clear();
-                                      _applyFilters();
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.textWhite,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: const Text('Réinitialiser les filtres'),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _filteredRestaurants.length,
-                            itemBuilder: (context, index) {
-                              return _buildRestaurantCard(_filteredRestaurants[index], index);
-                            },
-                          ),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _filteredRestaurants.length,
+                          itemBuilder: (context, index) {
+                            return _buildRestaurantCard(_filteredRestaurants[index], index);
+                          },
+                        ),
 
                         const SizedBox(height: 120), // Bottom nav padding
                       ],
@@ -984,22 +902,22 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
     );
   }
 
-  Widget _buildCategoryChip(String label, IconData icon, bool isActive, VoidCallback onTap) {
+  Widget _buildCategoryChip(String label, bool isActive, VoidCallback onTap) {
     return Container(
       margin: const EdgeInsets.only(right: 12),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           splashColor: AppColors.primary.withOpacity(0.1),
           highlightColor: AppColors.primary.withOpacity(0.05),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: isActive ? AppColors.accent : AppColors.card,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isActive ? AppColors.accent : AppColors.border,
                 width: 1.5,
@@ -1014,25 +932,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                   ]
                 : null,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  color: isActive ? AppColors.primary : AppColors.mutedForeground,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isActive ? AppColors.primary : AppColors.mutedForeground,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppColors.primary : AppColors.mutedForeground,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 14,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ),
@@ -1093,9 +1000,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
 
   Widget _buildPromoCard(int index) {
     final promos = [
-      {'title': 'Pizza 50%', 'subtitle': 'Pizza Palace', 'color': AppColors.destructive, 'icon': Icons.local_pizza},
-      {'title': 'Burger -20%', 'subtitle': 'Burger House', 'color': AppColors.accent, 'icon': Icons.lunch_dining},
-      {'title': 'Sushi -30%', 'subtitle': 'Sushi Bar', 'color': AppColors.primary, 'icon': Icons.set_meal},
+      {'title': 'Pizza 50%', 'subtitle': 'Pizza Palace', 'color': AppColors.destructive, 'emoji': '🍕'},
+      {'title': 'Burger -20%', 'subtitle': 'Burger House', 'color': AppColors.accent, 'emoji': '🍔'},
+      {'title': 'Sushi -30%', 'subtitle': 'Sushi Bar', 'color': AppColors.primary, 'emoji': '🍱'},
     ];
 
     final promo = promos[index % promos.length];
@@ -1153,27 +1060,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                     children: [
                       Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              promo['icon'] as IconData,
-                              color: promo['color'] as Color,
-                              size: 20,
-                            ),
+                          Text(
+                            promo['emoji'] as String,
+                            style: const TextStyle(fontSize: 24),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -1290,7 +1181,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                       height: 80,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        color: AppColors.background,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
@@ -1300,124 +1190,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> with TickerProvider
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: AppColors.background,
-                          child: Center(
-                            child: Icon(
-                              restaurant['image'] as IconData,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // Restaurant Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                restaurant['name'] as String,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.foreground,
-                                  height: 1.2,
-                                  letterSpacing: -0.1,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool) ? Colors.green.withOpacity(0.1) : AppColors.destructive.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                (restaurant['isOpen'] as bool) ? 'Ouvert' : 'Fermé',
-                                style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool) ? Colors.green : AppColors.destructive,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.accent.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.star,
-                                    color: AppColors.accent,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${restaurant['rating']}',
-                                    style: TextStyle(
-                                      color: AppColors.accent,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    restaurant['time'] as String,
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [

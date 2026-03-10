@@ -30,12 +30,21 @@ dependencies:
   # Stockage local pour l'authentification
   shared_preferences: ^2.2.2
 
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+
+  # Cached Network Images
+  cached_network_image: ^3.3.1
+
+  # File Picker for document import
+  file_picker: ^10.3.10
+  image_picker: ^1.0.4
+
   # Icons
   cupertino_icons: ^1.0.2
   google_fonts: ^8.0.2
   lucide_icons_flutter: ^3.1.10
   flutter_svg: ^2.2.4
-  file_picker: ^10.3.10
   csv: ^6.0.0
   excel: ^4.0.6
   path_provider: ^2.1.5

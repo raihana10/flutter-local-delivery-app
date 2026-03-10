@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../core/constants/app_colors.dart';
@@ -20,6 +22,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   final _cniController = TextEditingController();
   final _businessDescriptionController = TextEditingController();
   final _businessTypeController = TextEditingController();
+  String? _selectedVehicleType;
+  List<String> _documentPaths = [];
 
   bool _isLogin = true;
   UserRole _selectedRole = UserRole.client;
@@ -27,6 +31,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   String? _selectedBusinessType;
   DateTime? _selectedDateNaissance;
   bool _obscurePassword = true;
+  bool _isLoadingGoogle = false;
 
   late AnimationController _logoController;
   late AnimationController _formController;
@@ -34,6 +39,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late Animation<Offset> _formAnimation;
   late AnimationController _roleSelectionController;
   late Animation<double> _roleSelectionAnimation;
+
+  // Google Sign-In
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email'],
+  );
 
   @override
   void initState() {
@@ -93,6 +103,52 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _pickDocuments() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        allowMultiple: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          _documentPaths.addAll(result.files.map((file) => file.path!).toList());
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${result.files.length} document(s) importé(s)'),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de l\'importation: $e'),
+          backgroundColor: AppColors.destructive,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _removeDocument(int index) {
+    setState(() {
+      _documentPaths.removeAt(index);
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -120,6 +176,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         cni: _selectedRole == UserRole.livreur ? _cniController.text.trim() : null,
         businessType: _selectedRole == UserRole.business ? _selectedBusinessType : null,
         businessDescription: _selectedRole == UserRole.business ? _businessDescriptionController.text.trim() : null,
+        vehicleType: _selectedRole == UserRole.livreur ? _selectedVehicleType : null,
+        documents: _documentPaths.isNotEmpty ? _documentPaths : null,
       );
 
       final success = await authProvider.register(request);
@@ -148,6 +206,58 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         break;
       default:
         Navigator.of(context).pushReplacementNamed('/client/home');
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoadingGoogle = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      if (googleUser != null) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        
+        // Pour l'instant, nous simulerons une connexion réussie avec Google
+        // Plus tard, vous pourrez intégrer avec votre backend
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connexion Google réussie: ${googleUser.email}'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+
+        // Simuler une navigation après connexion réussie
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            _navigateToHome();
+          }
+        });
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur de connexion Google: $error'),
+          backgroundColor: AppColors.destructive,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingGoogle = false;
+        });
+      }
     }
   }
 
@@ -443,6 +553,49 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                 },
                               ),
 
+                              const SizedBox(height: 16),
+
+                              // Google Sign-In button
+                              Container(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isLoadingGoogle ? null : _signInWithGoogle,
+                                  icon: _isLoadingGoogle
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                        ),
+                                      )
+                                    : Image.asset(
+                                        'assets/google_logo.png',
+                                        height: 20,
+                                        width: 20,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Icon(Icons.search, color: AppColors.primary, size: 20);
+                                        },
+                                      ),
+                                  label: Text(
+                                    'Continuer avec Google',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.foreground,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    side: BorderSide(color: AppColors.border, width: 1.5),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    backgroundColor: AppColors.card,
+                                  ),
+                                ),
+                              ),
+
                               const SizedBox(height: 24),
 
                               // Error message
@@ -728,6 +881,27 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // TEST VISIBLE - Conteneur rouge pour confirmer que la méthode est appelée
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red, width: 2),
+          ),
+          child: Text(
+            '🔴 TEST: Vous êtes bien en mode LIVREUR - Les nouvelles fonctionnalités sont ci-dessous',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 20),
+        
         Text(
           'Informations du livreur',
           style: TextStyle(
@@ -775,6 +949,175 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             return null;
           },
         ),
+        const SizedBox(height: 20),
+        
+        // Type de véhicule
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primary, width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '🚗 Type de véhicule',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildDropdownField(
+                label: 'Type de véhicule',
+                icon: Icons.motorcycle,
+                value: _selectedVehicleType,
+                items: const [
+                  DropdownMenuItem(value: 'moto', child: Text('🏍️ Moto')),
+                  DropdownMenuItem(value: 'scooter', child: Text('🛵 Scooter')),
+                  DropdownMenuItem(value: 'voiture', child: Text('🚗 Voiture')),
+                  DropdownMenuItem(value: 'velo', child: Text('🚲 Vélo')),
+                  DropdownMenuItem(value: 'camionnette', child: Text('🚐 Camionnette')),
+                ],
+                onChanged: (value) => setState(() => _selectedVehicleType = value),
+                validator: (value) {
+                  if (value == null || value!.isEmpty) {
+                    return 'Le type de véhicule est requis';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // Importation de documents
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.accent, width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '📄 Documents requis',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accent,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Documents upload area
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Importez vos documents (CNI, permis, etc.)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.mutedForeground,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _pickDocuments,
+                          icon: const Icon(Icons.upload_file, size: 18),
+                          label: const Text('Importer', style: TextStyle(fontSize: 14)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.accent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Documents list
+                    if (_documentPaths.isNotEmpty) ...[
+                      Text(
+                        'Documents importés:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._documentPaths.asMap().entries.map((entry) {
+                        final fileName = entry.value.split('/').last;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border, width: 1),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.description,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  fileName,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.foreground,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _removeDocument(entry.key),
+                                icon: Icon(
+                                  Icons.close,
+                                  color: AppColors.destructive,
+                                  size: 18,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
         const SizedBox(height: 20),
         _buildTextField(
           controller: _cniController,
