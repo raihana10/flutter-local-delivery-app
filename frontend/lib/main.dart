@@ -4,6 +4,8 @@ import 'package:app/core/app_theme.dart';
 import 'package:app/core/providers/theme_provider.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/presentation/screens/auth/auth_screen.dart';
+import 'package:app/presentation/screens/auth/login_screen.dart';
+import 'package:app/presentation/screens/auth/register_screen.dart';
 import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/client/client_home_screen.dart';
 
@@ -35,8 +37,10 @@ class MyApp extends StatelessWidget {
       themeMode: themeProvider.themeMode,
       home: authProvider.isAuthenticated 
         ? _getHomeScreen(authProvider.user?.role.value)
-        : const AuthScreen(),
+        : const LoginScreen(),
       routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
         '/client/home': (context) => const ClientHomeScreen(),
         '/livreur/dashboard': (context) => const DashboardScreen(),
         '/auth': (context) => const AuthScreen(),

@@ -159,6 +159,8 @@ class RegisterRequest {
   final String? cni; // For livreur
   final String? businessType; // For business
   final String? businessDescription; // For business
+  final String? vehicleType; // For livreur
+  final List<String>? documents; // For livreur
 
   const RegisterRequest({
     required this.email,
@@ -171,6 +173,8 @@ class RegisterRequest {
     this.cni,
     this.businessType,
     this.businessDescription,
+    this.vehicleType,
+    this.documents,
   });
 
   Map<String, dynamic> toJson() {
@@ -185,7 +189,73 @@ class RegisterRequest {
       'cni': cni,
       'business_type': businessType,
       'business_description': businessDescription,
+      'vehicle_type': vehicleType,
+      'documents': documents,
     };
+  }
+}
+
+class Livreur {
+  final int id;
+  final int idUser;
+  final String? vehicleType;
+  final List<String>? documents;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final User? user;
+
+  const Livreur({
+    required this.id,
+    required this.idUser,
+    this.vehicleType,
+    this.documents,
+    required this.createdAt,
+    required this.updatedAt,
+    this.user,
+  });
+
+  factory Livreur.fromJson(Map<String, dynamic> json) {
+    return Livreur(
+      id: json['id_livreur'] ?? 0,
+      idUser: json['id_user'] ?? 0,
+      vehicleType: json['vehicle_type'],
+      documents: json['documents'] != null ? List<String>.from(json['documents']) : null,
+      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
+      user: json['user'] != null ? User.fromJson(json['user']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id_livreur': id,
+      'id_user': idUser,
+      'vehicle_type': vehicleType,
+      'documents': documents,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'user': user?.toJson(),
+    };
+  }
+
+  Livreur copyWith({
+    int? id,
+    int? idUser,
+    String? vehicleType,
+    List<String>? documents,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    User? user,
+  }) {
+    return Livreur(
+      id: id ?? this.id,
+      idUser: idUser ?? this.idUser,
+      vehicleType: vehicleType ?? this.vehicleType,
+      documents: documents ?? this.documents,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      user: user ?? this.user,
+    );
   }
 }
 
