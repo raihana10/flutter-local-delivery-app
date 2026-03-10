@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../../../../core/constants/app_colors.dart';
+import 'package:app/core/providers/auth_provider.dart';
 import '../../../../models/business_product.dart';
 import '../../../../providers/product_provider.dart';
 
@@ -102,17 +103,17 @@ class _DashboardView extends StatelessWidget {
                       child: const Icon(LucideIcons.utensils, color: AppColors.amber, size: 20),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Dar Zitoun',
                             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                           ),
                           Text(
                             'Restaurant Marocain',
-                            style: TextStyle(color: Colors.white60, fontSize: 12),
+                            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
                           ),
                         ],
                       ),
@@ -133,6 +134,37 @@ class _DashboardView extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        if (value == 'logout') {
+                          await context.read<AuthProvider>().logout();
+                          if (context.mounted) {
+                            Navigator.of(context).pushReplacementNamed('/');
+                          }
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(Icons.logout, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('Déconnexion'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.more_vert, color: Colors.white, size: 20),
                       ),
                     ),
                   ],

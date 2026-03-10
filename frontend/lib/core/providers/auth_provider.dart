@@ -52,18 +52,33 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      if (email == 'test@test.com' && password == 'password') {
-        // Mock successful login
-        _user = User(
-          id: 1,
-          email: email,
-          nom: 'Utilisateur Test',
-          role: UserRole.client,
-          estActif: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+      // --- MOCK VALIDATION FOR TESTING WITHOUT DATABASE ---
+      User? mockUser;
+      
+      if (password == 'password') {
+        if (email == 'test@test.com') {
+          mockUser = User(
+            id: 1, email: email, nom: 'Client Test',
+            role: UserRole.client, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
+        } else if (email == 'livreur@test.com') {
+          mockUser = User(
+            id: 10, email: email, nom: 'Livreur Test',
+            role: UserRole.livreur, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
+        } else if (email == 'business@test.com') {
+          mockUser = User(
+            id: 100, email: email, nom: 'Business Test',
+            role: UserRole.business, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
+        }
+      }
 
+      if (mockUser != null) {
+        _user = mockUser;
         // Save to local storage
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
@@ -72,7 +87,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _setError('Email ou mot de passe incorrect');
+        _setError('Email ou mot de passe incorrect. Essayez test@test.com, livreur@test.com ou business@test.com avec "password"');
         return false;
       }
     } catch (e) {
@@ -102,9 +117,9 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // Mock successful registration
+      // --- MOCK REGISTRATION FOR TESTING WITHOUT DATABASE ---
       _user = User(
-        id: 2,
+        id: (DateTime.now().millisecondsSinceEpoch % 10000),
         email: request.email,
         nom: request.nom,
         role: request.role,
