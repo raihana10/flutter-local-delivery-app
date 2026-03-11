@@ -36,17 +36,294 @@ class _CartScreenState extends State<CartScreen> {
     super.dispose();
   }
 
+  // ─── Product Detail Dialog ───────────────────────────────────────────────────
+
+  void _showProductDetail(Map<String, dynamic> item) {
+    final List<String> availableOptions = [
+      'Taille standard',
+      'Grande (+15 DH)',
+      'Sauce Algérienne',
+      'Sauce Harissa',
+      'Extra fromage (+8 DH)',
+      'Sans oignon',
+    ];
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        int tempQty = item['quantity'] as int;
+        List<String> selectedOptions = (item['options'] as String)
+            .split(', ')
+            .where((o) => o.isNotEmpty)
+            .toList();
+
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Dialog(
+              backgroundColor: AppColors.card,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header row: image + name + close
+                    Row(
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Center(
+                            child: Text(
+                              item['image'] as String,
+                              style: const TextStyle(fontSize: 36),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item['name'] as String,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.foreground,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${item['price']} DH / unité',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.gold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close,
+                              color: AppColors.mutedForeground),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    const Divider(color: AppColors.border),
+                    const SizedBox(height: 16),
+
+                    // Options section
+                    const Text(
+                      'Options',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.foreground),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: availableOptions.map((opt) {
+                        final isSelected = selectedOptions.contains(opt);
+                        return GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              if (isSelected) {
+                                selectedOptions.remove(opt);
+                              } else {
+                                selectedOptions.add(opt);
+                              }
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Text(
+                              opt,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? AppColors.card
+                                    : AppColors.foreground,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Quantity section
+                    const Text(
+                      'Quantité',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.foreground),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  if (tempQty > 1) {
+                                    setModalState(() => tempQty--);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  child: const Icon(Icons.remove,
+                                      size: 18, color: AppColors.primary),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14),
+                                child: Text(
+                                  '$tempQty',
+                                  style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => setModalState(() => tempQty++),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  child: const Icon(Icons.add,
+                                      size: 18, color: AppColors.primary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          'Total: ${((item['price'] as double) * tempQty).toStringAsFixed(1)} DH',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Action buttons — Column avoids Expanded-in-Row inside ScrollView
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            item['quantity'] = tempQty;
+                            item['options'] = selectedOptions.join(', ');
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text(
+                          'Confirmer les modifications',
+                          style: TextStyle(
+                              color: AppColors.card,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() => _cartItems.remove(item));
+                          Navigator.pop(ctx);
+                        },
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.destructive, size: 18),
+                        label: const Text("Supprimer l'article",
+                            style:
+                                TextStyle(color: AppColors.destructive)),
+                        style: OutlinedButton.styleFrom(
+                          side:
+                              const BorderSide(color: AppColors.destructive),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ─── Build ───────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    double subtotal = _cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
+    double subtotal =
+        _cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
     double deliveryFee = 10.0;
-    double discount = _isCouponApplied ? subtotal * 0.1 : 0; // 10% discount
+    double discount = _isCouponApplied ? subtotal * 0.1 : 0;
     double total = subtotal + deliveryFee - discount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mon Panier', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Mon Panier',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -60,39 +337,36 @@ class _CartScreenState extends State<CartScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      // Cart Items
-                      ..._cartItems.map((item) => _buildCartItem(item)).toList(),
-                      
+                      ..._cartItems.map((item) => _buildCartItem(item)),
                       const SizedBox(height: 24),
-                      
-                      // Coupon Section
                       _buildCouponSection(),
-                      
                       const SizedBox(height: 24),
-                      
-                      // Order Summary
                       _buildOrderSummary(subtotal, deliveryFee, discount, total),
                     ],
                   ),
                 ),
-                
-                // Checkout Bottom Bar
                 _buildCheckoutBar(total),
               ],
             ),
     );
   }
 
+  // ─── Widgets ─────────────────────────────────────────────────────────────────
+
   Widget _buildEmptyCart() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.shopping_cart_outlined, size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
+          Icon(Icons.shopping_cart_outlined,
+              size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
           const SizedBox(height: 20),
           const Text(
             'Votre panier est vide',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.foreground),
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.foreground),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -104,11 +378,14 @@ class _CartScreenState extends State<CartScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.card,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
             onPressed: () => Navigator.pop(context),
-            child: const Text('Parcourir les restaurants', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Parcourir les restaurants',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -116,128 +393,137 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildCartItem(Map<String, dynamic> item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Item Image
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: () => _showProductDetail(item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: Center(
-              child: Text(
-                item['image'],
-                style: const TextStyle(fontSize: 35),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Item Image
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  item['image'],
+                  style: const TextStyle(fontSize: 35),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
-          
-          // Item Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['name'],
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.foreground,
-                  ),
-                ),
-                if (item['options'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 4),
+            const SizedBox(width: 16),
+
+            // Item Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    item['options'],
+                    item['name'],
                     style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.mutedForeground,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.foreground,
+                    ),
+                  ),
+                  if (item['options'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item['options'],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '${item['price']} DH',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.gold,
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            // Quantity Controls
+            Column(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close,
+                      size: 20, color: AppColors.mutedForeground),
+                  onPressed: () {
+                    setState(() {
+                      _cartItems.remove(item);
+                    });
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
                 const SizedBox(height: 8),
-                Text(
-                  '${item['price']} DH',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.gold,
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (item['quantity'] > 1) item['quantity']--;
+                          });
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          child:
+                              Icon(Icons.remove, size: 16, color: AppColors.primary),
+                        ),
+                      ),
+                      Text(
+                        '${item['quantity']}',
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            item['quantity']++;
+                          });
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          child: Icon(Icons.add,
+                              size: 16, color: AppColors.primary),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          
-          // Quantity Controls
-          Column(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.close, size: 20, color: AppColors.mutedForeground),
-                onPressed: () {
-                  setState(() {
-                    _cartItems.remove(item);
-                  });
-                },
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          if (item['quantity'] > 1) item['quantity']--;
-                        });
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Icon(Icons.remove, size: 16, color: AppColors.primary),
-                      ),
-                    ),
-                    Text(
-                      '${item['quantity']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          item['quantity']++;
-                        });
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Icon(Icons.add, size: 16, color: AppColors.primary),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -266,15 +552,15 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ),
           if (_isCouponApplied)
-             IconButton(
-               icon: const Icon(Icons.close, color: AppColors.destructive),
-               onPressed: () {
-                 setState(() {
-                   _isCouponApplied = false;
-                   _couponController.clear();
-                 });
-               },
-             )
+            IconButton(
+              icon: const Icon(Icons.close, color: AppColors.destructive),
+              onPressed: () {
+                setState(() {
+                  _isCouponApplied = false;
+                  _couponController.clear();
+                });
+              },
+            )
           else
             TextButton(
               onPressed: () {
@@ -283,18 +569,24 @@ class _CartScreenState extends State<CartScreen> {
                     _isCouponApplied = true;
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Coupon appliqué avec succès!'), backgroundColor: Colors.green),
+                    const SnackBar(
+                        content: Text('Coupon appliqué avec succès!'),
+                        backgroundColor: Colors.green),
                   );
                 }
               },
-              child: const Text('Appliquer', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              child: const Text('Appliquer',
+                  style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold)),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildOrderSummary(double subtotal, double deliveryFee, double discount, double total) {
+  Widget _buildOrderSummary(
+      double subtotal, double deliveryFee, double discount, double total) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -325,7 +617,8 @@ class _CartScreenState extends State<CartScreen> {
           _buildSummaryRow('Frais de livraison', '$deliveryFee DH'),
           if (_isCouponApplied) ...[
             const SizedBox(height: 8),
-            _buildSummaryRow('Remise (10%)', '-$discount DH', isDiscount: true),
+            _buildSummaryRow('Remise (10%)', '-$discount DH',
+                isDiscount: true),
           ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -337,7 +630,8 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, {bool isDiscount = false, bool isTotal = false}) {
+  Widget _buildSummaryRow(String label, String value,
+      {bool isDiscount = false, bool isTotal = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -354,7 +648,9 @@ class _CartScreenState extends State<CartScreen> {
           style: TextStyle(
             fontSize: isTotal ? 18 : 14,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-            color: isTotal ? AppColors.primary : (isDiscount ? AppColors.destructive : AppColors.foreground),
+            color: isTotal
+                ? AppColors.primary
+                : (isDiscount ? AppColors.destructive : AppColors.foreground),
           ),
         ),
       ],
@@ -421,7 +717,8 @@ class _CartScreenState extends State<CartScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const OrderConfirmationScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const OrderConfirmationScreen()),
                   );
                 },
                 child: const Row(
