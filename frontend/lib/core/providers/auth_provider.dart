@@ -59,6 +59,12 @@ class AuthProvider extends ChangeNotifier {
             role: UserRole.livreur, estActif: true,
             createdAt: DateTime.now(), updatedAt: DateTime.now(),
           );
+        } else if (email == 'admin@test.com') {
+          mockUser = User(
+            id: 999, email: email, nom: 'Super Admin',
+            role: UserRole.superAdmin, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
         } else if (email == 'business@test.com') {
           mockUser = User(
             id: 100, email: email, nom: 'Business Test',
@@ -78,7 +84,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _setError('Email ou mot de passe incorrect. Essayez test@test.com, livreur@test.com ou business@test.com avec "password"');
+        _setError('Email ou mot de passe incorrect. Essayez admin@test.com, test@test.com, livreur@test.com ou business@test.com avec "password"');
         return false;
       }
     } catch (e) {

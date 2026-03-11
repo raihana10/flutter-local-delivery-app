@@ -9,6 +9,7 @@ import 'package:app/presentation/screens/auth/register_screen.dart';
 import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/client/client_home_screen.dart';
 import 'package:app/presentation/screens/business/business_main_screen.dart';
+import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
 import 'package:app/providers/product_provider.dart';
 
 void main() {
@@ -47,6 +48,7 @@ class MyApp extends StatelessWidget {
         '/client/home': (context) => const ClientHomeScreen(),
         '/livreur/dashboard': (context) => const DashboardScreen(),
         '/business/dashboard': (context) => const BusinessMainScreen(),
+        '/super_admin/dashboard': (context) => const SuperAdminMainScreen(),
         '/auth': (context) => const AuthScreen(),
       },
     );
@@ -60,6 +62,8 @@ class MyApp extends StatelessWidget {
         return const DashboardScreen();
       case 'business':
         return const BusinessMainScreen();
+      case 'super_admin':
+        return const SuperAdminMainScreen();
       default:
         return const AuthScreen();
     }

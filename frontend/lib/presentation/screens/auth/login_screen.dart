@@ -50,6 +50,9 @@ class _LoginScreenState extends State<LoginScreen> {
           case 'business':
             Navigator.of(context).pushReplacementNamed('/business/dashboard');
             break;
+          case 'super_admin':
+            Navigator.of(context).pushReplacementNamed('/super-admin');
+            break;
           default:
             Navigator.of(context).pushReplacementNamed('/client/home');
         }
