@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/constants/app_strings.dart';
 import 'package:app/core/providers/theme_provider.dart';
+import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/data/datasources/livreur_mock_datasource.dart';
 import 'package:app/data/models/commande_model.dart';
 import 'package:app/data/models/gains_model.dart';
@@ -196,11 +197,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ),
-                  // Avatar
-                  const CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.navyMedium,
-                    child: Icon(Icons.person, color: AppColors.textSecondary, size: 28),
+                  // Avatar + Logout
+                  PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'logout') {
+                        await context.read<AuthProvider>().logout();
+                        if (mounted) {
+                          Navigator.of(context).pushReplacementNamed('/');
+                        }
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text('Déconnexion'),
+                          ],
+                        ),
+                      ),
+                    ],
+                    child: const CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.navyMedium,
+                      child: Icon(Icons.person, color: AppColors.textSecondary, size: 28),
+                    ),
                   ),
                 ],
               ),
