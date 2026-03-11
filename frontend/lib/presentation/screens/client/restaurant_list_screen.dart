@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import 'order_history_screen.dart';
+import 'order_tracking_screen.dart';
+import 'support_screen.dart';
 
 class RestaurantListScreen extends StatefulWidget {
   const RestaurantListScreen({super.key});
@@ -15,6 +20,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
+  
+  bool _isMapViewOpen = false;
+  double _maxDistance = 10.0;
+  RangeValues _priceRange = const RangeValues(0, 500);
+  final MapController _mapController = MapController();
+  final LatLng _userLocation = const LatLng(35.5740, -5.3680); // Mock user location
   
   late AnimationController _headerController;
   late Animation<double> _headerAnimation;
@@ -215,27 +226,101 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
             restaurant['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
             restaurant['cuisine'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
         
-        return matchesCategory && matchesSearch;
+        // Filter by distance
+        double dist = double.parse(restaurant['distance'].toString().split(' ')[0]);
+        bool matchesDistance = dist <= _maxDistance;
+
+        // Filter by price (mocking minOrder as a proxy for price level)
+        double price = double.parse(restaurant['minOrder'].toString().split(' ')[0]);
+        bool matchesPrice = price >= _priceRange.start && price <= _priceRange.end;
+        
+        return matchesCategory && matchesSearch && matchesDistance && matchesPrice;
       }).toList();
     });
   }
 
-  void _performSearch() {
-    _applyFilters();
-    // Fermer le clavier après la recherche
-    FocusScope.of(context).unfocus();
-    
-    // Animation feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Recherche: "${_searchQuery}" - ${_filteredRestaurants.length} résultats'),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Filtres', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            _maxDistance = 10.0;
+                            _priceRange = const RangeValues(0, 500);
+                          });
+                          _applyFilters();
+                        },
+                        child: const Text('Réinitialiser'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Distance Max (km)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Slider(
+                    value: _maxDistance,
+                    min: 0.5,
+                    max: 20,
+                    divisions: 19,
+                    label: '${_maxDistance.toStringAsFixed(1)} km',
+                    activeColor: AppColors.primary,
+                    inactiveColor: AppColors.secondary.withOpacity(0.2),
+                    onChanged: (value) {
+                      setModalState(() => _maxDistance = value);
+                      _applyFilters();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Budget Min (MAD)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  RangeSlider(
+                    values: _priceRange,
+                    min: 0,
+                    max: 500,
+                    divisions: 10,
+                    labels: RangeLabels('${_priceRange.start.round()} MAD', '${_priceRange.end.round()} MAD'),
+                    activeColor: AppColors.accent,
+                    inactiveColor: AppColors.secondary.withOpacity(0.2),
+                    onChanged: (values) {
+                      setModalState(() => _priceRange = values);
+                      _applyFilters();
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Text('Voir ${_filteredRestaurants.length} résultats', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
   
@@ -366,14 +451,17 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
                                             child: Row(
                                               key: ValueKey(user?.nom),
                                               children: [
-                                                Text(
-                                                  'Bonjour, ${user?.nom ?? 'Client'}',
-                                                  style: const TextStyle(
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.textWhite,
-                                                    height: 1.2,
-                                                    letterSpacing: -0.5,
+                                                Expanded(
+                                                  child: Text(
+                                                    'Bonjour, ${user?.nom ?? 'Client'}',
+                                                    style: const TextStyle(
+                                                      fontSize: 28,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: AppColors.textWhite,
+                                                      height: 1.2,
+                                                      letterSpacing: -0.5,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                                 const SizedBox(width: 8),
@@ -534,81 +622,31 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
                                           ),
                                         ],
                                       ),
-                                      child: TextField(
-                                        controller: _searchTextController,
-                                        onTap: () {
-                                          setState(() {
-                                            _isSearching = true;
-                                          });
-                                          _searchAnimationController.forward();
-                                        },
-                                        onSubmitted: (value) {
-                                          _performSearch();
-                                        },
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _searchQuery = value;
-                                          });
-                                        },
-                                        decoration: InputDecoration(
-                                          hintText: _isSearching
-                                            ? 'Rechercher un restaurant, un plat...'
-                                            : 'Que désirez-vous manger aujourd\'hui ?',
-                                          hintStyle: TextStyle(
-                                            color: AppColors.mutedForeground.withOpacity(0.7),
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          prefixIcon: Container(
-                                            padding: const EdgeInsets.all(12),
-                                            child: Icon(
-                                              Icons.search,
-                                              color: _isSearching
-                                                ? AppColors.primary
-                                                : AppColors.mutedForeground,
-                                              size: 22,
+                                      child: Row(
+                                        children: [
+                                          const SizedBox(width: 16),
+                                          const Icon(Icons.search, color: AppColors.mutedForeground, size: 22),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _searchTextController,
+                                              onChanged: (val) => setState(() { _searchQuery = val; _applyFilters(); }),
+                                              decoration: const InputDecoration(
+                                                hintText: 'Rechercher...',
+                                                border: InputBorder.none,
+                                                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                                              ),
                                             ),
                                           ),
-                                          suffixIcon: _searchAnimation.value > 0.5
-                                            ? Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.search,
-                                                      color: AppColors.primary,
-                                                      size: 22,
-                                                    ),
-                                                    onPressed: _performSearch,
-                                                  ),
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.clear,
-                                                      color: AppColors.mutedForeground,
-                                                      size: 20,
-                                                    ),
-                                                    onPressed: () {
-                                                      _searchTextController.clear();
-                                                      setState(() {
-                                                        _isSearching = false;
-                                                        _searchQuery = '';
-                                                      });
-                                                      _applyFilters();
-                                                      _searchAnimationController.reverse();
-                                                    },
-                                                  ),
-                                                ],
-                                              )
-                                            : null,
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(20),
-                                            borderSide: BorderSide.none,
+                                          IconButton(
+                                            icon: const Icon(Icons.tune, color: AppColors.primary),
+                                            onPressed: _showFilterSheet,
                                           ),
-                                          contentPadding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 16,
+                                          IconButton(
+                                            icon: Icon(_isMapViewOpen ? Icons.list : Icons.map_outlined, color: AppColors.primary),
+                                            onPressed: () => setState(() => _isMapViewOpen = !_isMapViewOpen),
                                           ),
-                                        ),
+                                          const SizedBox(width: 8),
+                                        ],
                                       ),
                                     );
                                   },
@@ -642,9 +680,11 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
 
                 // Main Content
                 Expanded(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _isMapViewOpen 
+                    ? _buildMapView()
+                    : SingleChildScrollView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -921,16 +961,16 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
                 'Historique',
                 Icons.history,
                 AppColors.primary,
-                () {},
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
-                'Favoris',
-                Icons.favorite,
+                'Suivi',
+                Icons.local_shipping_outlined,
                 AppColors.destructive,
-                () {},
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderTrackingScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -939,7 +979,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
                 'Support',
                 Icons.support_agent,
                 AppColors.secondary,
-                () {},
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
               ),
             ),
           ],
@@ -1608,6 +1648,56 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
             ),
           ],
         ),
+      ),
+    );
+  }
+  Widget _buildMapView() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
+          initialCenter: _userLocation,
+          initialZoom: 13.0,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.example.app',
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: _userLocation,
+                width: 40,
+                height: 40,
+                child: Container(
+                  decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                  child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 20),
+                ),
+              ),
+              ..._filteredRestaurants.map((res) {
+                // Mock coordinates based on name/distance for visualization
+                double lat = _userLocation.latitude + (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                double lng = _userLocation.longitude + (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                return Marker(
+                  point: LatLng(lat, lng),
+                  width: 50,
+                  height: 50,
+                  child: GestureDetector(
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['name'])));
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)]),
+                      child: Center(child: Icon(res['image'] as IconData, color: AppColors.primary, size: 24)),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ],
       ),
     );
   }
