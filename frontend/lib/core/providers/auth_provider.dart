@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/auth_models.dart';
@@ -20,17 +21,7 @@ class AuthProvider extends ChangeNotifier {
     
     if (token != null && userJson != null) {
       try {
-        // In a real app, you'd validate the token with the server
-        // For now, we'll just restore the user data
-        _user = User.fromJson({
-          'id_user': 1,
-          'email': 'user@example.com',
-          'nom': 'User',
-          'role': 'client',
-          'est_actif': true,
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+        _user = User.fromJson(jsonDecode(userJson));
         notifyListeners();
       } catch (e) {
         await logout();
@@ -52,27 +43,42 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      if (email == 'test@test.com' && password == 'password') {
-        // Mock successful login
-        _user = User(
-          id: 1,
-          email: email,
-          nom: 'Utilisateur Test',
-          role: UserRole.client,
-          estActif: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+      // --- MOCK VALIDATION FOR TESTING WITHOUT DATABASE ---
+      User? mockUser;
+      
+      if (password == 'password') {
+        if (email == 'test@test.com') {
+          mockUser = User(
+            id: 1, email: email, nom: 'Client Test',
+            role: UserRole.client, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
+        } else if (email == 'livreur@test.com') {
+          mockUser = User(
+            id: 10, email: email, nom: 'Livreur Test',
+            role: UserRole.livreur, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
+        } else if (email == 'business@test.com') {
+          mockUser = User(
+            id: 100, email: email, nom: 'Business Test',
+            role: UserRole.business, estActif: true,
+            createdAt: DateTime.now(), updatedAt: DateTime.now(),
+          );
+        }
+      }
 
+      if (mockUser != null) {
+        _user = mockUser;
         // Save to local storage
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
-        await prefs.setString('user_data', _user!.toJson().toString());
+        await prefs.setString('user_data', jsonEncode(_user!.toJson()));
         
         notifyListeners();
         return true;
       } else {
-        _setError('Email ou mot de passe incorrect');
+        _setError('Email ou mot de passe incorrect. Essayez test@test.com, livreur@test.com ou business@test.com avec "password"');
         return false;
       }
     } catch (e) {
@@ -102,9 +108,9 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // Mock successful registration
+      // --- MOCK REGISTRATION FOR TESTING WITHOUT DATABASE ---
       _user = User(
-        id: 2,
+        id: (DateTime.now().millisecondsSinceEpoch % 10000),
         email: request.email,
         nom: request.nom,
         role: request.role,
@@ -116,7 +122,7 @@ class AuthProvider extends ChangeNotifier {
       // Save to local storage
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
-      await prefs.setString('user_data', _user!.toJson().toString());
+      await prefs.setString('user_data', jsonEncode(_user!.toJson()));
       
       notifyListeners();
       return true;
