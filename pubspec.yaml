@@ -48,6 +48,9 @@ dependencies:
   csv: ^6.0.0
   excel: ^4.0.6
   path_provider: ^2.1.5
+  supabase_flutter: ^2.12.0
+  flutter_dotenv: ^6.0.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -56,3 +59,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
