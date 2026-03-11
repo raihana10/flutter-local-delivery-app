@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import 'restaurant_detail_screen.dart';
+import 'cart_screen.dart';
+import 'client_profile_screen.dart';
 
 class PharmacyListScreen extends StatefulWidget {
   const PharmacyListScreen({super.key});
@@ -10,12 +13,13 @@ class PharmacyListScreen extends StatefulWidget {
   State<PharmacyListScreen> createState() => _PharmacyListScreenState();
 }
 
-class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProviderStateMixin {
+class _PharmacyListScreenState extends State<PharmacyListScreen>
+    with TickerProviderStateMixin {
   int _currentIndex = 0;
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
-  
+
   late AnimationController _headerController;
   late Animation<double> _headerAnimation;
   late AnimationController _searchAnimationController;
@@ -27,16 +31,16 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
   int _currentPromoPage = 0;
   String _selectedCategory = 'all';
   String _searchQuery = '';
-  
+
   // Mock data
   List<Map<String, dynamic>> _allRestaurants = [];
   List<Map<String, dynamic>> _filteredRestaurants = [];
-  
+
   @override
   void initState() {
     super.initState();
     _initializeMockData();
-    
+
     _headerController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -83,7 +87,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
     // Auto-scroll promos
     _startPromoAutoScroll();
   }
-  
+
   void _initializeMockData() {
     _allRestaurants = [
       {
@@ -135,16 +139,16 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
         'cuisine': 'Spécialisée',
       },
     ];
-    
+
     _filteredRestaurants = List.from(_allRestaurants);
   }
-  
+
   void _filterByCategory(String category) {
     setState(() {
       _selectedCategory = category;
       _applyFilters();
     });
-    
+
     // Animation feedback
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -158,15 +162,22 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
       ),
     );
   }
-  
+
   void _applyFilters() {
     setState(() {
       _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' || restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty || 
-            restaurant['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-        
+        bool matchesCategory = _selectedCategory == 'all' ||
+            restaurant['category'] == _selectedCategory;
+        bool matchesSearch = _searchQuery.isEmpty ||
+            restaurant['name']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()) ||
+            restaurant['cuisine']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase());
+
         return matchesCategory && matchesSearch;
       }).toList();
     });
@@ -176,11 +187,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
     _applyFilters();
     // Fermer le clavier après la recherche
     FocusScope.of(context).unfocus();
-    
+
     // Animation feedback
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Recherche: "${_searchQuery}" - ${_filteredRestaurants.length} résultats'),
+        content: Text(
+            'Recherche: "${_searchQuery}" - ${_filteredRestaurants.length} résultats'),
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
@@ -190,26 +202,38 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
       ),
     );
   }
-  
+
   String _getCategoryName(String category) {
     switch (category) {
-      case 'all': return 'Tout';
-      case 'medicaments': return 'Médicaments';
-      case 'soins': return 'Soins';
-      case 'bebe': return 'Bébé';
-      case 'premiers_secours': return '1ers Secours';
-      default: return category;
+      case 'all':
+        return 'Tout';
+      case 'medicaments':
+        return 'Médicaments';
+      case 'soins':
+        return 'Soins';
+      case 'bebe':
+        return 'Bébé';
+      case 'premiers_secours':
+        return '1ers Secours';
+      default:
+        return category;
     }
   }
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'all': return Icons.apps;
-      case 'medicaments': return Icons.medical_services;
-      case 'soins': return Icons.face;
-      case 'bebe': return Icons.child_care;
-      case 'premiers_secours': return Icons.healing;
-      default: return Icons.local_pharmacy;
+      case 'all':
+        return Icons.apps;
+      case 'medicaments':
+        return Icons.medical_services;
+      case 'soins':
+        return Icons.face;
+      case 'bebe':
+        return Icons.child_care;
+      case 'premiers_secours':
+        return Icons.healing;
+      default:
+        return Icons.local_pharmacy;
     }
   }
 
@@ -296,175 +320,220 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Greeting and Location
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.arrow_back_ios, color: AppColors.textWhite),
-                                        onPressed: () => Navigator.of(context).maybePop(),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.arrow_back_ios,
+                                          color: AppColors.textWhite),
+                                      onPressed: () =>
+                                          Navigator.of(context).maybePop(),
+                                    ),
+                                    const SizedBox(width: 8),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
-                                          AnimatedSwitcher(
-                                            duration: const Duration(milliseconds: 300),
-                                            child: Row(
-                                              key: ValueKey(user?.nom),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  'Bonjour, ${user?.nom ?? 'Client'}',
-                                                  style: const TextStyle(
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.textWhite,
-                                                    height: 1.2,
-                                                    letterSpacing: -0.5,
+                                                AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                      milliseconds: 300),
+                                                  child: Row(
+                                                    key: ValueKey(user?.nom),
+                                                    children: [
+                                                      Text(
+                                                        'Bonjour, ${user?.nom ?? 'Client'}',
+                                                        style: const TextStyle(
+                                                          fontSize: 28,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: AppColors
+                                                              .textWhite,
+                                                          height: 1.2,
+                                                          letterSpacing: -0.5,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      const Icon(
+                                                        Icons.waving_hand,
+                                                        color: AppColors.accent,
+                                                        size: 28,
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                const SizedBox(width: 8),
-                                                const Icon(
-                                                  Icons.waving_hand,
-                                                  color: AppColors.accent,
-                                                  size: 28,
+                                                const SizedBox(height: 8),
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.accent
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
+                                                    border: Border.all(
+                                                      color: AppColors.accent
+                                                          .withOpacity(0.3),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.location_on,
+                                                        color: AppColors.accent,
+                                                        size: 16,
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        'Tétouan, Maroc',
+                                                        style: TextStyle(
+                                                          color:
+                                                              AppColors.accent,
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ],
                                             ),
                                           ),
-                                          const SizedBox(height: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.accent.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: AppColors.accent.withOpacity(0.3),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.location_on,
-                                                  color: AppColors.accent,
-                                                  size: 16,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Tétouan, Maroc',
-                                                  style: TextStyle(
+                                          Row(
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () {
+                                                  // Handle notifications with animation
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: const Text(
+                                                          'Notifications - Fonctionnalité à venir'),
+                                                      backgroundColor:
+                                                          AppColors.primary,
+                                                      behavior: SnackBarBehavior
+                                                          .floating,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(10),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 48,
+                                                  height: 48,
+                                                  decoration: BoxDecoration(
                                                     color: AppColors.accent,
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w600,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: AppColors.accent
+                                                            .withOpacity(0.4),
+                                                        blurRadius: 12,
+                                                        offset:
+                                                            const Offset(0, 4),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      const Icon(
+                                                        Icons
+                                                            .notifications_none,
+                                                        color:
+                                                            AppColors.primary,
+                                                        size: 24,
+                                                      ),
+                                                      Positioned(
+                                                        top: 8,
+                                                        right: 8,
+                                                        child: Container(
+                                                          width: 8,
+                                                          height: 8,
+                                                          decoration:
+                                                              const BoxDecoration(
+                                                            color: AppColors
+                                                                .destructive,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                              ],
-                                            ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              PopupMenuButton<String>(
+                                                onSelected: (value) async {
+                                                  if (value == 'logout') {
+                                                    await context
+                                                        .read<AuthProvider>()
+                                                        .logout();
+                                                    if (mounted) {
+                                                      Navigator.of(context)
+                                                          .pushReplacementNamed(
+                                                              '/');
+                                                    }
+                                                  }
+                                                },
+                                                itemBuilder: (context) => [
+                                                  const PopupMenuItem(
+                                                    value: 'logout',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.logout,
+                                                            color: Colors.red,
+                                                            size: 20),
+                                                        SizedBox(width: 8),
+                                                        Text('Déconnexion'),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                                child: Container(
+                                                  width: 48,
+                                                  height: 48,
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
+                                                    border: Border.all(
+                                                        color: AppColors.primary
+                                                            .withOpacity(0.3)),
+                                                  ),
+                                                  child: const Icon(
+                                                      Icons.person,
+                                                      color:
+                                                          AppColors.textWhite),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
                                     ),
-                                    Row(
-                                      children: [
-                                        GestureDetector(
-                                          onTap: () {
-                                            // Handle notifications with animation
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: const Text('Notifications - Fonctionnalité à venir'),
-                                                backgroundColor: AppColors.primary,
-                                                behavior: SnackBarBehavior.floating,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.accent,
-                                              borderRadius: BorderRadius.circular(16),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: AppColors.accent.withOpacity(0.4),
-                                                  blurRadius: 12,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Stack(
-                                              alignment: Alignment.center,
-                                              children: [
-                                                const Icon(
-                                                  Icons.notifications_none,
-                                                  color: AppColors.primary,
-                                                  size: 24,
-                                                ),
-                                                Positioned(
-                                                  top: 8,
-                                                  right: 8,
-                                                  child: Container(
-                                                    width: 8,
-                                                    height: 8,
-                                                    decoration: const BoxDecoration(
-                                                      color: AppColors.destructive,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        PopupMenuButton<String>(
-                                          onSelected: (value) async {
-                                            if (value == 'logout') {
-                                              await context.read<AuthProvider>().logout();
-                                              if (mounted) {
-                                                Navigator.of(context).pushReplacementNamed('/');
-                                              }
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                            const PopupMenuItem(
-                                              value: 'logout',
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.logout, color: Colors.red, size: 20),
-                                                  SizedBox(width: 8),
-                                                  Text('Déconnexion'),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: AppColors.primary.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(16),
-                                              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-                                            ),
-                                            child: const Icon(Icons.person, color: AppColors.textWhite),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  ],
+                                ),
 
                                 const SizedBox(height: 24),
 
@@ -478,7 +547,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                                         borderRadius: BorderRadius.circular(20),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.1),
+                                            color:
+                                                Colors.black.withOpacity(0.1),
                                             blurRadius: 15,
                                             offset: const Offset(0, 4),
                                           ),
@@ -502,10 +572,11 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                                         },
                                         decoration: InputDecoration(
                                           hintText: _isSearching
-                                            ? 'Rechercher un médicament, un soin...'
-                                            : 'De quel soin avez-vous besoin ?',
+                                              ? 'Rechercher un médicament, un soin...'
+                                              : 'De quel soin avez-vous besoin ?',
                                           hintStyle: TextStyle(
-                                            color: AppColors.mutedForeground.withOpacity(0.7),
+                                            color: AppColors.mutedForeground
+                                                .withOpacity(0.7),
                                             fontSize: 15,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -514,47 +585,55 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                                             child: Icon(
                                               Icons.search,
                                               color: _isSearching
-                                                ? AppColors.primary
-                                                : AppColors.mutedForeground,
+                                                  ? AppColors.primary
+                                                  : AppColors.mutedForeground,
                                               size: 22,
                                             ),
                                           ),
-                                          suffixIcon: _searchAnimation.value > 0.5
-                                            ? Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.search,
-                                                      color: AppColors.primary,
-                                                      size: 22,
+                                          suffixIcon: _searchAnimation.value >
+                                                  0.5
+                                              ? Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        Icons.search,
+                                                        color:
+                                                            AppColors.primary,
+                                                        size: 22,
+                                                      ),
+                                                      onPressed: _performSearch,
                                                     ),
-                                                    onPressed: _performSearch,
-                                                  ),
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      Icons.clear,
-                                                      color: AppColors.mutedForeground,
-                                                      size: 20,
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        Icons.clear,
+                                                        color: AppColors
+                                                            .mutedForeground,
+                                                        size: 20,
+                                                      ),
+                                                      onPressed: () {
+                                                        _searchTextController
+                                                            .clear();
+                                                        setState(() {
+                                                          _isSearching = false;
+                                                          _searchQuery = '';
+                                                        });
+                                                        _applyFilters();
+                                                        _searchAnimationController
+                                                            .reverse();
+                                                      },
                                                     ),
-                                                    onPressed: () {
-                                                      _searchTextController.clear();
-                                                      setState(() {
-                                                        _isSearching = false;
-                                                        _searchQuery = '';
-                                                      });
-                                                      _applyFilters();
-                                                      _searchAnimationController.reverse();
-                                                    },
-                                                  ),
-                                                ],
-                                              )
-                                            : null,
+                                                  ],
+                                                )
+                                              : null,
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
                                             borderSide: BorderSide.none,
                                           ),
-                                          contentPadding: const EdgeInsets.symmetric(
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
                                             horizontal: 20,
                                             vertical: 16,
                                           ),
@@ -580,11 +659,31 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     children: [
-                      _buildCategoryChip('Tout', _getCategoryIcon('all'), _selectedCategory == 'all', () => _filterByCategory('all')),
-                      _buildCategoryChip('Médicaments', _getCategoryIcon('medicaments'), _selectedCategory == 'medicaments', () => _filterByCategory('medicaments')),
-                      _buildCategoryChip('Soins', _getCategoryIcon('soins'), _selectedCategory == 'soins', () => _filterByCategory('soins')),
-                      _buildCategoryChip('Bébé', _getCategoryIcon('bebe'), _selectedCategory == 'bebe', () => _filterByCategory('bebe')),
-                      _buildCategoryChip('1ers Secours', _getCategoryIcon('premiers_secours'), _selectedCategory == 'premiers_secours', () => _filterByCategory('premiers_secours')),
+                      _buildCategoryChip(
+                          'Tout',
+                          _getCategoryIcon('all'),
+                          _selectedCategory == 'all',
+                          () => _filterByCategory('all')),
+                      _buildCategoryChip(
+                          'Médicaments',
+                          _getCategoryIcon('medicaments'),
+                          _selectedCategory == 'medicaments',
+                          () => _filterByCategory('medicaments')),
+                      _buildCategoryChip(
+                          'Soins',
+                          _getCategoryIcon('soins'),
+                          _selectedCategory == 'soins',
+                          () => _filterByCategory('soins')),
+                      _buildCategoryChip(
+                          'Bébé',
+                          _getCategoryIcon('bebe'),
+                          _selectedCategory == 'bebe',
+                          () => _filterByCategory('bebe')),
+                      _buildCategoryChip(
+                          '1ers Secours',
+                          _getCategoryIcon('premiers_secours'),
+                          _selectedCategory == 'premiers_secours',
+                          () => _filterByCategory('premiers_secours')),
                     ],
                   ),
                 ),
@@ -608,7 +707,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                         const SizedBox(height: 24),
 
                         // Promotions Section
-                        _buildSectionTitle('Promos du jour', 'Voir tout', () {}),
+                        _buildSectionTitle(
+                            'Promos du jour', 'Voir tout', () {}),
                         const SizedBox(height: 12),
                         SizedBox(
                           height: 180,
@@ -637,8 +737,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                               height: 8,
                               decoration: BoxDecoration(
                                 color: _currentPromoPage == index
-                                  ? AppColors.primary
-                                  : AppColors.border,
+                                    ? AppColors.primary
+                                    : AppColors.border,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
@@ -648,7 +748,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                         const SizedBox(height: 24),
 
                         // Results count
-                        if (_searchQuery.isNotEmpty || _selectedCategory != 'all')
+                        if (_searchQuery.isNotEmpty ||
+                            _selectedCategory != 'all')
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Text(
@@ -662,9 +763,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                           ),
 
                         // Nearby Restaurants Section
-                        _buildSectionTitle('Pharmacies proches', 'Voir tout', () {}),
+                        _buildSectionTitle(
+                            'Pharmacies proches', 'Voir tout', () {}),
                         const SizedBox(height: 12),
-                        
+
                         // Display message if no restaurants found
                         if (_filteredRestaurants.isEmpty)
                           Container(
@@ -674,7 +776,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                                 Icon(
                                   Icons.restaurant_menu,
                                   size: 64,
-                                  color: AppColors.mutedForeground.withOpacity(0.3),
+                                  color: AppColors.mutedForeground
+                                      .withOpacity(0.3),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -711,7 +814,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Réinitialiser les filtres'),
+                                  child:
+                                      const Text('Réinitialiser les filtres'),
                                 ),
                               ],
                             ),
@@ -722,7 +826,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _filteredRestaurants.length,
                             itemBuilder: (context, index) {
-                              return _buildRestaurantCard(_filteredRestaurants[index], index);
+                              return _buildRestaurantCard(
+                                  _filteredRestaurants[index], index);
                             },
                           ),
 
@@ -748,7 +853,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                         // Quick order action
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('Commande rapide - Fonctionnalité à venir'),
+                            content: const Text(
+                                'Commande rapide - Fonctionnalité à venir'),
                             backgroundColor: AppColors.accent,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
@@ -897,7 +1003,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -944,7 +1051,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
     );
   }
 
-  Widget _buildCategoryChip(String label, IconData icon, bool isActive, VoidCallback onTap) {
+  Widget _buildCategoryChip(
+      String label, IconData icon, bool isActive, VoidCallback onTap) {
     return Container(
       margin: const EdgeInsets.only(right: 12),
       child: Material(
@@ -965,28 +1073,31 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                 width: 1.5,
               ),
               boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: AppColors.accent.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+                  ? [
+                      BoxShadow(
+                        color: AppColors.accent.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   icon,
-                  color: isActive ? AppColors.primary : AppColors.mutedForeground,
+                  color:
+                      isActive ? AppColors.primary : AppColors.mutedForeground,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   label,
                   style: TextStyle(
-                    color: isActive ? AppColors.primary : AppColors.mutedForeground,
+                    color: isActive
+                        ? AppColors.primary
+                        : AppColors.mutedForeground,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                     fontSize: 14,
                     letterSpacing: 0.2,
@@ -1000,7 +1111,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
     );
   }
 
-  Widget _buildSectionTitle(String title, String actionText, VoidCallback onActionTap) {
+  Widget _buildSectionTitle(
+      String title, String actionText, VoidCallback onActionTap) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
@@ -1053,9 +1165,24 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
 
   Widget _buildPromoCard(int index) {
     final promos = [
-      {'title': 'Vitamine C -20%', 'subtitle': 'Soin & Santé', 'color': Colors.orange, 'icon': Icons.health_and_safety},
-      {'title': 'Hygiène -15%', 'subtitle': 'Para Pharma', 'color': Colors.blue, 'icon': Icons.clean_hands},
-      {'title': 'Bébé -10%', 'subtitle': 'Univers Bébé', 'color': Colors.pinkAccent, 'icon': Icons.child_care},
+      {
+        'title': 'Vitamine C -20%',
+        'subtitle': 'Soin & Santé',
+        'color': Colors.orange,
+        'icon': Icons.health_and_safety
+      },
+      {
+        'title': 'Hygiène -15%',
+        'subtitle': 'Para Pharma',
+        'color': Colors.blue,
+        'icon': Icons.clean_hands
+      },
+      {
+        'title': 'Bébé -10%',
+        'subtitle': 'Univers Bébé',
+        'color': Colors.pinkAccent,
+        'icon': Icons.child_care
+      },
     ];
 
     final promo = promos[index % promos.length];
@@ -1162,9 +1289,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                           ),
                         ],
                       ),
-
                       const Spacer(),
-
                       Text(
                         promo['subtitle'] as String,
                         style: const TextStyle(
@@ -1174,11 +1299,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                           height: 1.2,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.card.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
@@ -1210,14 +1334,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Navigate to restaurant details
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Détails de ${restaurant['name']} - Fonctionnalité à venir'),
-                backgroundColor: AppColors.accent,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RestaurantDetailScreen(
+                  restaurantName: restaurant['name'] as String,
+                  heroTag: 'restaurant_${restaurant['image']}_$index',
                 ),
               ),
             );
@@ -1297,15 +1419,22 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool) ? Colors.green.withOpacity(0.1) : AppColors.destructive.withOpacity(0.1),
+                                color: (restaurant['isOpen'] as bool)
+                                    ? Colors.green.withOpacity(0.1)
+                                    : AppColors.destructive.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                (restaurant['isOpen'] as bool) ? 'Ouvert' : 'Fermé',
+                                (restaurant['isOpen'] as bool)
+                                    ? 'Ouvert'
+                                    : 'Fermé',
                                 style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool) ? Colors.green : AppColors.destructive,
+                                  color: (restaurant['isOpen'] as bool)
+                                      ? Colors.green
+                                      : AppColors.destructive,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -1313,15 +1442,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 8),
-
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.accent.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -1347,7 +1475,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -1373,7 +1502,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.secondary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -1400,9 +1530,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 10),
-
                         Row(
                           children: [
                             Expanded(
@@ -1416,7 +1544,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: AppColors.gold.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(10),
@@ -1485,30 +1614,44 @@ class _PharmacyListScreenState extends State<PharmacyListScreen> with TickerProv
 
     return GestureDetector(
       onTap: () {
+        if (index == 0) {
+          Navigator.of(context).pop();
+          return;
+        }
+
         setState(() {
           _currentIndex = index;
         });
-        // Add navigation logic here
+
+        Widget? targetScreen;
         switch (index) {
-          case 0:
-            // Already on home
-            break;
-          case 1:
-            // Navigate to search
-            break;
           case 2:
-            // Navigate to cart
+            targetScreen = const CartScreen();
             break;
           case 3:
-            // Navigate to profile
+            targetScreen = const ClientProfileScreen();
             break;
+        }
+
+        if (targetScreen != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => targetScreen!),
+          ).then((_) {
+            if (mounted) {
+              setState(() {
+                _currentIndex = 0; // Return visual state to current screen icon
+              });
+            }
+          });
         }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.accent.withOpacity(0.2) : Colors.transparent,
+          color:
+              isActive ? AppColors.accent.withOpacity(0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

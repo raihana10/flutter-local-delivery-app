@@ -32,16 +32,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final authProvider = context.watch<AuthProvider>();
-    
+
     return MaterialApp(
       title: 'LivrApp',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: authProvider.isAuthenticated 
-        ? _getHomeScreen(authProvider.user?.role.value)
-        : const LoginScreen(),
+      home: authProvider.isAuthenticated
+          ? _getHomeScreen(authProvider.user?.role.value)
+          : const LoginScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
