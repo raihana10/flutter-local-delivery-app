@@ -1,0 +1,1 @@
+﻿{"error":"PostgrestException(message: column commande.statut does not exist, code: 42703, details: Bad Request, hint: null)"}
