@@ -4,15 +4,13 @@ import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/constants/app_strings.dart';
 import 'package:app/core/providers/theme_provider.dart';
 import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/data/datasources/livreur_mock_datasource.dart';
-import 'package:app/data/models/commande_model.dart';
-import 'package:app/data/models/gains_model.dart';
+import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/presentation/widgets/livreur/status_toggle_button.dart';
-import 'package:app/presentation/widgets/livreur/gains_stat_card.dart';
 import 'package:app/presentation/widgets/livreur/nouvelle_commande_card.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
-import 'package:app/presentation/screens/livreur/gains_screen.dart';
+import 'package:app/presentation/screens/livreur/historique_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,92 +20,64 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool _isOnline    = false;
-  bool _hasCommande = false;
-  bool _isLoading   = true;
   int  _navIndex    = 0;
-
-  CommandeModel? _commande;
-  GainsModel?   _gains;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
   }
 
-  Future<void> _loadData() async {
-    final gains = await LivreurMockDatasource.withDelay(LivreurMockDatasource.mockGains);
-    if (mounted) {
-      setState(() {
-        _gains     = gains;
-        _isLoading = false;
-      });
+  Future<void> _onAccepter(BuildContext context, dynamic commande) async {
+    final provider = context.read<LivreurDashboardProvider>();
+    final success = await provider.accepterCommande(commande);
+    
+    if (success && mounted) {
+       Navigator.push(
+         context,
+         MaterialPageRoute(
+           builder: (_) => LivraisonActiveScreen(commande: commande),
+         ),
+       );
+    } else if (!success && mounted) {
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(provider.errorMessage ?? 'Erreur lors de l\'acceptation')),
+       );
     }
   }
 
-  void _toggleStatus() {
-    setState(() {
-      _isOnline = !_isOnline;
-      if (_isOnline) {
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted && _isOnline) {
-            setState(() {
-              _commande    = LivreurMockDatasource.mockCommande;
-              _hasCommande = true;
-            });
-          }
-        });
-      } else {
-        _commande    = null;
-        _hasCommande = false;
-      }
-    });
-  }
-
-  void _onAccepter() {
-    final commande = _commande;
-    setState(() => _hasCommande = false);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LivraisonActiveScreen(commande: commande),
-      ),
-    );
-  }
-
   void _onRefuser() {
-    setState(() {
-      _hasCommande = false;
-      _commande    = null;
-    });
+     // A refuser implies ignoring it or removing it from the local list.
+     // For now, doing nothing lets it timeout or someone else take it. 
+     // We could also add a 'ignoredCommandes' list in provider but let's keep it simple.
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dashboardProvider = context.watch<LivreurDashboardProvider>();
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F1626) : AppColors.background,
       body: Column(
         children: [
-          _buildHeader(isDark),
+          _buildHeader(isDark, dashboardProvider),
           Expanded(
-            child: _isLoading
+            child: dashboardProvider.isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.yellow))
                 : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  if (_gains != null) _buildStatsRow(),
                   const SizedBox(height: 16),
-                  if (_isOnline && _hasCommande && _commande != null)
+                  
+                  if (dashboardProvider.isOnline && dashboardProvider.availableCommandes.isNotEmpty)
                     NouvelleCommandeCard(
-                      commande:   _commande!,
-                      onAccepter: _onAccepter,
+                      commande:   dashboardProvider.availableCommandes.first,
+                      onAccepter: () => _onAccepter(context, dashboardProvider.availableCommandes.first),
                       onRefuser:  _onRefuser,
                     ),
-                  if (_isOnline && !_hasCommande)
+                    
+                  if (dashboardProvider.isOnline && dashboardProvider.availableCommandes.isEmpty)
                     _buildWaitingMessage(),
                 ],
               ),
@@ -117,14 +87,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             currentIndex: _navIndex,
             onTap: (i) {
               setState(() => _navIndex = i);
-              if (i == 1 && _commande != null) {
+              if (i == 1 && dashboardProvider.activeCommande != null) {
                 Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => LivraisonActiveScreen(commande: _commande),
+                  builder: (_) => LivraisonActiveScreen(commande: dashboardProvider.activeCommande),
                 ));
               }
               if (i == 2) {
                 Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const GainsScreen(),
+                  builder: (_) => const HistoriqueScreen(),
+                ));
+              }
+              if (i == 3) {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const LivreurProfileScreen(),
                 ));
               }
             },
@@ -134,7 +109,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildHeader(bool isDark) {
+  Widget _buildHeader(bool isDark, LivreurDashboardProvider dashboardProvider) {
+    final authProvider = context.watch<AuthProvider>();
+    final nom = authProvider.user?.nom ?? 'Livreur';
+    
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -153,23 +131,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // Bonjour + nom
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     AppStrings.bonjour,
                     style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
                   ),
                   Row(
                     children: [
                       Text(
-                        'Mohammed',
-                        style: TextStyle(
+                        nom,
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textWhite,
                         ),
                       ),
-                      SizedBox(width: 6),
-                      Text('🛵', style: TextStyle(fontSize: 20)),
+                      const SizedBox(width: 6),
+                      const Text('🛵', style: TextStyle(fontSize: 20)),
                     ],
                   ),
                 ],
@@ -200,7 +178,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Avatar + Logout
                   PopupMenuButton<String>(
                     onSelected: (value) async {
-                      if (value == 'logout') {
+                      if (value == 'profile') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LivreurProfileScreen()),
+                        );
+                      } else if (value == 'logout') {
                         await context.read<AuthProvider>().logout();
                         if (mounted) {
                           Navigator.of(context).pushReplacementNamed('/');
@@ -208,6 +191,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       }
                     },
                     itemBuilder: (context) => [
+                      const PopupMenuItem(
+                         value: 'profile',
+                         child: Row(
+                            children: [
+                               Icon(Icons.person, color: AppColors.navyDark, size: 20),
+                               SizedBox(width: 8),
+                               Text('Mon Profil'),
+                            ],
+                         ),
+                      ),
                       const PopupMenuItem(
                         value: 'logout',
                         child: Row(
@@ -231,29 +224,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 16),
           StatusToggleButton(
-            isOnline: _isOnline,
-            onToggle: _toggleStatus,
+            isOnline: dashboardProvider.isOnline,
+            onToggle: () => dashboardProvider.toggleOnlineStatus(),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatsRow() {
-    return Row(
-      children: [
-        GainsStatCard(
-          label:    AppStrings.aujourdhui,
-          montant:  _gains!.aujourdhui,
-          dotColor: AppColors.yellow,
-        ),
-        const SizedBox(width: 12),
-        GainsStatCard(
-          label:    AppStrings.cetteSemaine,
-          montant:  _gains!.semaine,
-          dotColor: Colors.blueAccent,
-        ),
-      ],
     );
   }
 
