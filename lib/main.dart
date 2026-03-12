@@ -12,6 +12,7 @@ import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/client/client_home_screen.dart';
 import 'package:app/presentation/screens/business/business_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
+import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
 import 'package:app/providers/product_provider.dart';
 
 Future<void> main() async {
@@ -65,6 +66,7 @@ class MyApp extends StatelessWidget {
         '/livreur/dashboard': (context) => const DashboardScreen(),
         '/business/dashboard': (context) => const BusinessMainScreen(),
         '/super_admin/dashboard': (context) => const SuperAdminMainScreen(),
+        '/super_admin/login': (context) => const SuperAdminLoginScreen(),
         '/auth': (context) => const AuthScreen(),
       },
     );

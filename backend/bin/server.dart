@@ -16,6 +16,25 @@ import '../lib/routes/paiements_routes.dart';
 import '../lib/routes/stats_routes.dart';
 import '../lib/routes/notifications_routes.dart';
 
+Middleware corsMiddleware() {
+  return (Handler handler) {
+    return (Request request) async {
+      if (request.method == 'OPTIONS') {
+        return Response.ok('', headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, x-admin-id',
+        });
+      }
+      final response = await handler(request);
+      return response.change(headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, x-admin-id',
+      });
+    };
+  };
+}
 
 void main(List<String> args) async {
   // 1. Initialize Supabase
@@ -45,6 +64,7 @@ void main(List<String> args) async {
 
   // 3. Assemble Pipeline
   final pipeline = Pipeline()
+      .addMiddleware(corsMiddleware())
       .addMiddleware(logRequests())
       .addMiddleware(authMiddleware()) // Protect all routes under /admin except /admin/login (handled in middleware)
       .addHandler(router);

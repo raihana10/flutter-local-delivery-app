@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/mock_super_admin_data.dart';
+import 'package:app/data/datasources/super_admin_api_service.dart';
 
 class OrdersManagementScreen extends StatefulWidget {
   const OrdersManagementScreen({super.key});
@@ -11,12 +11,38 @@ class OrdersManagementScreen extends StatefulWidget {
 }
 
 class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
+  final _apiService = SuperAdminApiService();
+  bool _isLoading = true;
   List<Map<String, dynamic>> orders = [];
 
   @override
   void initState() {
     super.initState();
-    orders = List.from(MockSuperAdminData.orders);
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await _apiService.getCommandes();
+      if (mounted) {
+        setState(() {
+          orders = data.map((e) {
+             final map = Map<String, dynamic>.from(e);
+             // map postgres schema to ui model
+             map['statut'] = map['statut_commande'] ?? 'confirmee';
+             map['type'] = map['type_commande'] ?? 'food_delivery';
+             map['date'] = map['created_at'] ?? DateTime.now().toIso8601String();
+             map['client'] = 'Client #${map['id_client']}';
+             map['business'] = 'Store #${map['id_business'] ?? ''}';
+             return map;
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch(e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -205,26 +231,28 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
-          PaginatedDataTable(
-            header: const Text('Toutes les commandes', style: TextStyle(fontWeight: FontWeight.bold)),
-            rowsPerPage: orders.length > 5 ? 5 : (orders.isEmpty ? 1 : orders.length),
-            columns: const [
-              DataColumn(label: Text('ID')),
-              DataColumn(label: Text('Client')),
-              DataColumn(label: Text('Restaurant/Boutique')),
-              DataColumn(label: Text('Livreur')),
-              DataColumn(label: Text('Montant payé')),
-              DataColumn(label: Text('Statut')),
-              DataColumn(label: Text('Actions')),
-            ],
-            source: _OrderDataTableSource(
-              data: orders,
-              onViewDetails: _showOrderDetails,
-              onRefund: _showRefundDialog,
-              getStatusColor: _getStatusColor,
-              formatStatus: _formatStatus,
-            ),
-          )
+          _isLoading 
+            ? const Center(child: CircularProgressIndicator())
+            : PaginatedDataTable(
+              header: const Text('Toutes les commandes', style: TextStyle(fontWeight: FontWeight.bold)),
+              rowsPerPage: orders.length > 5 ? 5 : (orders.isEmpty ? 1 : orders.length),
+              columns: const [
+                DataColumn(label: Text('ID')),
+                DataColumn(label: Text('Client')),
+                DataColumn(label: Text('Restaurant/Boutique')),
+                DataColumn(label: Text('Livreur')),
+                DataColumn(label: Text('Montant payé')),
+                DataColumn(label: Text('Statut')),
+                DataColumn(label: Text('Actions')),
+              ],
+              source: _OrderDataTableSource(
+                data: orders,
+                onViewDetails: _showOrderDetails,
+                onRefund: _showRefundDialog,
+                getStatusColor: _getStatusColor,
+                formatStatus: _formatStatus,
+              ),
+            )
         ],
       )
     );

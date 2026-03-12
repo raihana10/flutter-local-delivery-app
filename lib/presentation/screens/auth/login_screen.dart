@@ -413,6 +413,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
+                  
+                  // Admin Login Link
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 24),
+                    child: Center(
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pushNamed('/super_admin/login');
+                        },
+                        icon: Icon(LucideIcons.shieldCheck, size: 16, color: AppColors.destructive),
+                        label: Text(
+                          'Espace Administrateur',
+                          style: TextStyle(color: AppColors.destructive),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

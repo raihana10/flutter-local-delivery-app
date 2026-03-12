@@ -53,6 +53,7 @@ class AuthController {
       );
 
     } catch (e) {
+      print('LOGIN ERROR: $e');
       return Response(500, body: jsonEncode({'success': false, 'error': 'Internal server error'}),
         headers: {'content-type': 'application/json'}
       );
