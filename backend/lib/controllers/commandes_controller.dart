@@ -10,16 +10,16 @@ class CommandesController {
       var query = SupabaseConfig.client.from('commande').select().isFilter('deleted_at', null);
 
       if (params.containsKey('statut')) {
-        query = query.eq('statut', params['statut']!);
+        query = query.eq('statut_commande', params['statut']!);
       }
       if (params.containsKey('type_commande')) {
-        query = query.eq('type', params['type_commande']!);
+        query = query.eq('type_commande', params['type_commande']!);
       }
       if (params.containsKey('date_debut')) {
-        query = query.gte('date', params['date_debut']!);
+        query = query.gte('created_at', params['date_debut']!);
       }
       if (params.containsKey('date_fin')) {
-        query = query.lte('date', params['date_fin']!);
+        query = query.lte('created_at', params['date_fin']!);
       }
 
       final commandes = await query;
@@ -34,7 +34,7 @@ class CommandesController {
       // NOTE: Dependent on actual DB relations.
       final commande = await SupabaseConfig.client
           .from('commande')
-          .select('*, ligne_commande(*), timeline(*), user(*)')
+          .select('*, ligne_commande(*), timeline(*), client(*)')
           .eq('id_commande', id)
           .isFilter('deleted_at', null)
           .maybeSingle();

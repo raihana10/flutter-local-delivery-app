@@ -7,10 +7,10 @@ class StatsController {
   Future<Response> getRevenus(Request request) async {
     try {
       final params = request.url.queryParameters;
-      var query = SupabaseConfig.client.from('commande').select('prix_donne, type, date').isFilter('deleted_at', null);
+      var query = SupabaseConfig.client.from('commande').select('prix_donne, type_commande, created_at').isFilter('deleted_at', null);
 
-      if (params.containsKey('date_debut')) query = query.gte('date', params['date_debut']!);
-      if (params.containsKey('date_fin')) query = query.lte('date', params['date_fin']!);
+      if (params.containsKey('date_debut')) query = query.gte('created_at', params['date_debut']!);
+      if (params.containsKey('date_fin')) query = query.lte('created_at', params['date_fin']!);
 
       final commandes = await query;
       
@@ -19,7 +19,7 @@ class StatsController {
 
       for (var cmd in commandes) {
         double prix = (cmd['prix_donne'] as num).toDouble();
-        String type = cmd['type'] ?? 'unknown';
+        String type = cmd['type_commande'] ?? 'unknown';
         totalRevenu += prix;
         parType[type] = (parType[type] ?? 0.0) + prix;
       }
@@ -37,7 +37,7 @@ class StatsController {
     try {
       final livreurs = await SupabaseConfig.client
           .from('user')
-          .select('id_user, nom, role, livreur(rating, courses_count)')
+          .select('id_user, nom, role')
           .eq('role', 'livreur')
           .isFilter('deleted_at', null);
 
@@ -51,7 +51,7 @@ class StatsController {
     try {
       final businesses = await SupabaseConfig.client
           .from('user')
-          .select('id_user, nom, role, business(revenue, rating)')
+          .select('id_user, nom, role')
           .eq('role', 'business')
           .isFilter('deleted_at', null);
 

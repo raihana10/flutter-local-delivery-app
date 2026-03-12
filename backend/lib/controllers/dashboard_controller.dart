@@ -13,15 +13,15 @@ class DashboardController {
       final activeOrdersRes = await SupabaseConfig.client
           .from('commande')
           .select('id_commande')
-          .neq('statut', 'livree')
-          .neq('statut', 'annulee')
+          .neq('statut_commande', 'livree')
+          .neq('statut_commande', 'annulee')
           .isFilter('deleted_at', null);
       
       // Today's Revenue
       final revenueRes = await SupabaseConfig.client
           .from('commande')
           .select('prix_donne')
-          .gte('date', todayStart)
+          .gte('created_at', todayStart)
           .isFilter('deleted_at', null);
       
       double dailyRevenue = 0.0;
@@ -31,9 +31,8 @@ class DashboardController {
 
       // Active Drivers
       final activeDriversRes = await SupabaseConfig.client
-          .from('user')
+          .from('livreur')
           .select('id_user')
-          .eq('role', 'livreur')
           .eq('est_actif', true)
           .isFilter('deleted_at', null);
 
@@ -64,8 +63,8 @@ class DashboardController {
       
       final recentOrders = await SupabaseConfig.client
           .from('commande')
-          .select('date, prix_donne')
-          .gte('date', sevenDaysAgo)
+          .select('created_at, prix_donne')
+          .gte('created_at', sevenDaysAgo)
           .isFilter('deleted_at', null);
 
       // Simple aggregation logic would exist here
@@ -84,19 +83,18 @@ class DashboardController {
     try {
       // Drivers pending validation
       final pendingDocs = await SupabaseConfig.client
-          .from('user')
-          .select('id_user, nom, role')
-          .isFilter('documents_validation', null) // or false based on DB spec
-          .inFilter('role', ['livreur', 'business'])
+          .from('livreur')
+          .select('id_user')
+          .eq('est_actif', false)
           .isFilter('deleted_at', null);
 
       // Blocked orders > 30min (simulated check here, DB usually has a created_at)
       final thirtyMinsAgo = DateTime.now().subtract(const Duration(minutes: 30)).toIso8601String();
       final blockedOrders = await SupabaseConfig.client
           .from('commande')
-          .select('id_commande, statut, date')
-          .eq('statut', 'confirmee')
-          .lte('date', thirtyMinsAgo)
+          .select('id_commande, statut_commande, created_at')
+          .eq('statut_commande', 'confirmee')
+          .lte('created_at', thirtyMinsAgo)
           .isFilter('deleted_at', null);
 
       return Response.ok(jsonEncode({
@@ -113,7 +111,7 @@ class DashboardController {
     try {
       final liveDrivers = await SupabaseConfig.client
           .from('timeline')
-          .select('id_user, position_order')
+          .select('id_livreur, position_order')
           .eq('statut_tmlne', 'en_livraison')
           .isFilter('deleted_at', null);
 

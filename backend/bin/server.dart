@@ -51,7 +51,7 @@ void main(List<String> args) async {
 
   // 4. Start Server
   final env = DotEnv()..load();
-  final port = int.parse(Platform.environment['PORT'] ?? '8082');
+  final port = int.parse(Platform.environment['PORT'] ?? '8084');
 
   final server = await serve(pipeline, InternetAddress.anyIPv4, port);
   print('Server listening on port ${server.port}');

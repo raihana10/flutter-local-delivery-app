@@ -11,7 +11,7 @@ Middleware authMiddleware() {
 
       final adminId = request.headers['x-admin-id'];
       if (adminId == null || adminId.isEmpty) {
-        return Response.forbidden('{"error": "Unauthorized access. Missing x-admin-id header"}',
+        return Response(403, body: '{"error": "Unauthorized access. Missing x-admin-id header"}',
             headers: {'content-type': 'application/json'});
       }
 

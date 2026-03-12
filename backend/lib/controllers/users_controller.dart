@@ -71,10 +71,9 @@ class UsersController {
 
   Future<Response> toggleUserStatus(Request request, String id) async {
     try {
-      // First get current status
       final user = await SupabaseConfig.client
           .from('user')
-          .select('est_actif')
+          .select('role')
           .eq('id_user', id)
           .isFilter('deleted_at', null)
           .maybeSingle();
@@ -83,10 +82,28 @@ class UsersController {
         return Response.notFound(jsonEncode({'error': 'User not found'}));
       }
 
-      final newStatus = !(user['est_actif'] as bool);
+      final role = user['role'] as String;
+      if (role == 'client') {
+        return Response(400, body: jsonEncode({'error': 'Clients cannot be suspended in this schema.'}));
+      }
+
+      final table = role == 'livreur' ? 'livreur' : 'business';
+
+      final roleRecord = await SupabaseConfig.client
+          .from(table)
+          .select('est_actif')
+          .eq('id_user', id)
+          .isFilter('deleted_at', null)
+          .maybeSingle();
+
+      if (roleRecord == null) {
+        return Response.notFound(jsonEncode({'error': '$table record not found'}));
+      }
+
+      final newStatus = !(roleRecord['est_actif'] as bool);
 
       final updatedUser = await SupabaseConfig.client
-          .from('user')
+          .from(table)
           .update({'est_actif': newStatus})
           .eq('id_user', id)
           .select();
@@ -99,12 +116,32 @@ class UsersController {
 
   Future<Response> validateUser(Request request, String id) async {
     try {
-      final updatedUser = await SupabaseConfig.client
+      final user = await SupabaseConfig.client
           .from('user')
-          .update({
-            'est_actif': true,
-            'documents_validation': true
-          })
+          .select('role')
+          .eq('id_user', id)
+          .isFilter('deleted_at', null)
+          .maybeSingle();
+          
+      if (user == null) {
+        return Response.notFound(jsonEncode({'error': 'User not found'}));
+      }
+      
+      final role = user['role'] as String;
+      if (role == 'client') {
+        return Response(400, body: jsonEncode({'error': 'Clients do not need validation'}));
+      }
+
+      final table = role == 'livreur' ? 'livreur' : 'business';
+      final Map<String, dynamic> updateData = {'est_actif': true};
+      
+      if (role == 'business') {
+        updateData['documents_validation'] = 'validated'; // in schema this is a varchar
+      }
+
+      final updatedUser = await SupabaseConfig.client
+          .from(table)
+          .update(updateData)
           .eq('id_user', id)
           .isFilter('deleted_at', null)
           .select();
