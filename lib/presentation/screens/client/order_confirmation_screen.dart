@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
+import 'package:provider/provider.dart';
+import '../../../core/providers/client_data_provider.dart';
+
 class OrderConfirmationScreen extends StatefulWidget {
   const OrderConfirmationScreen({super.key});
 
@@ -11,19 +14,7 @@ class OrderConfirmationScreen extends StatefulWidget {
 class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   int _selectedAddressIndex = 0;
   int _selectedPaymentMethod = 0;
-
-  final List<Map<String, dynamic>> _addresses = [
-    {
-      'title': 'Maison',
-      'address': 'Appt 12, Résidence El Fath, Tétouan',
-      'icon': Icons.home
-    },
-    {
-      'title': 'Travail',
-      'address': 'Bureau 4, Centre Ville, Tétouan',
-      'icon': Icons.work
-    },
-  ];
+  bool _isSubmitting = false;
 
   final List<Map<String, dynamic>> _paymentMethods = [
     {
@@ -40,6 +31,14 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clientData = context.watch<ClientDataProvider>();
+    final addresses = clientData.addresses;
+    final cartItems = clientData.cartItems;
+    
+    double subtotal = clientData.cartSubtotal;
+    double deliveryFee = 10.0;
+    double total = subtotal + deliveryFee;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -57,10 +56,16 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               delegate: SliverChildListDelegate([
                 _buildSectionHeader('Adresse de livraison', Icons.location_on),
                 const SizedBox(height: 12),
-                ...List.generate(
-                  _addresses.length,
-                  (index) => _buildAddressItem(index, _addresses[index]),
-                ),
+                if (addresses.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('Aucune adresse disponible', style: TextStyle(color: AppColors.mutedForeground)),
+                  )
+                else
+                  ...List.generate(
+                    addresses.length,
+                    (index) => _buildAddressItem(index, addresses[index]),
+                  ),
                 TextButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
@@ -78,7 +83,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 const SizedBox(height: 32),
                 _buildSectionHeader('Récapitulatif', Icons.receipt_long),
                 const SizedBox(height: 12),
-                _buildOrderSummaryWidget(),
+                _buildOrderSummaryWidget(cartItems.length, subtotal, deliveryFee, total),
                 
                 const SizedBox(height: 100), // padding bottom
               ]),
@@ -86,7 +91,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildConfirmationBar(),
+      bottomNavigationBar: _buildConfirmationBar(total, addresses.isEmpty ? null : addresses[_selectedAddressIndex]),
     );
   }
 
@@ -107,8 +112,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildAddressItem(int index, Map<String, dynamic> address) {
+  Widget _buildAddressItem(int index, dynamic addressRelation) {
     bool isSelected = _selectedAddressIndex == index;
+    final isDefault = addressRelation['is_default'] == true;
+    final addressModel = addressRelation['adresse'] ?? {};
+    final ville = addressModel['ville'] ?? 'Adresse';
+    final title = isDefault ? 'Adresse Principale' : 'Nouvelle Adresse';
+    
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -136,7 +146,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                address['icon'],
+                isDefault ? Icons.home : Icons.location_on,
                 color: isSelected ? AppColors.card : AppColors.mutedForeground,
                 size: 24,
               ),
@@ -147,7 +157,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    address['title'],
+                    title,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -156,7 +166,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    address['address'],
+                    ville,
                     style: const TextStyle(
                       color: AppColors.mutedForeground,
                       fontSize: 14,
@@ -236,7 +246,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildOrderSummaryWidget() {
+  Widget _buildOrderSummaryWidget(int itemsCount, double subtotal, double deliveryFee, double total) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -256,8 +266,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('2 articles', style: TextStyle(color: AppColors.mutedForeground)),
-              Text('180.0 DH', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('$itemsCount articles', style: TextStyle(color: AppColors.mutedForeground)),
+              Text('$subtotal DH', style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 8),
@@ -265,7 +275,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Livraison', style: TextStyle(color: AppColors.mutedForeground)),
-              Text('10.0 DH', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('$deliveryFee DH', style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const Padding(
@@ -276,7 +286,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Total à Payer', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('190.0 DH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+              Text('$total DH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
             ],
           ),
         ],
@@ -284,7 +294,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildConfirmationBar() {
+  Widget _buildConfirmationBar(double total, dynamic selectedAddress) {
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -316,12 +326,45 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             ),
             elevation: 5,
           ),
-          onPressed: () {
-            _showSuccessDialog();
+          onPressed: _isSubmitting ? null : () async {
+            if (selectedAddress == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez sélectionner une adresse')));
+              return;
+            }
+            
+            setState(() { _isSubmitting = true; });
+
+            final clientData = context.read<ClientDataProvider>();
+            final cartItems = clientData.cartItems;
+            
+            final payload = {
+              'id_adresse': selectedAddress['id_adresse'],
+              'type_commande': 'food_delivery',
+              'items': cartItems.map((item) {
+                return {
+                  'quantite': item['quantity'],
+                  'id_produit': item['id'], // Assumes item has an id, fallback to 1 or something if mocked earlier
+                  'prix_snapshot': item['price'],
+                  'nom_snapshot': item['name']
+                };
+              }).toList(),
+            };
+            
+            final success = await clientData.apiService.createOrder(payload);
+            
+            if (mounted) {
+              setState(() { _isSubmitting = false; });
+              if (success != null) {
+                clientData.clearCart();
+                _showSuccessDialog();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la création de la commande')));
+              }
+            }
           },
-          child: const Text(
-            'Confirmer la commande (190.0 DH)',
-            style: TextStyle(
+          child: _isSubmitting ? const CircularProgressIndicator(color: AppColors.card) : Text(
+            'Confirmer la commande ($total DH)',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppColors.primary,

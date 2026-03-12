@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 
+import 'package:provider/provider.dart';
+import '../../../core/providers/client_data_provider.dart';
+
 class ClientAddressesScreen extends StatefulWidget {
   const ClientAddressesScreen({super.key});
 
@@ -9,28 +12,13 @@ class ClientAddressesScreen extends StatefulWidget {
 }
 
 class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
-  // Mock data for addresses
-  final List<Map<String, dynamic>> _addresses = [
-    {
-      'id': 1,
-      'title': 'Domicile',
-      'subtitle': 'Avenue Hassan II, Résidence Al Boustane, Appt 12, Tétouan',
-      'is_default': true,
-      'latitude': 35.5889,
-      'longitude': -5.3626,
-    },
-    {
-      'id': 2,
-      'title': 'Travail',
-      'subtitle': 'Quartier Administratif, Près de la Wilaya, Tétouan',
-      'is_default': false,
-      'latitude': 35.5721,
-      'longitude': -5.3712,
-    },
-  ];
+
 
   @override
   Widget build(BuildContext context) {
+    final clientData = context.watch<ClientDataProvider>();
+    final addresses = clientData.addresses;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -40,16 +28,18 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: _addresses.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _addresses.length,
-              itemBuilder: (context, index) {
-                final address = _addresses[index];
-                return _buildAddressItem(address);
-              },
-            ),
+      body: clientData.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : addresses.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: addresses.length,
+                  itemBuilder: (context, index) {
+                    final address = addresses[index];
+                    return _buildAddressItem(address);
+                  },
+                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddAddressBottomSheet,
         backgroundColor: AppColors.primary,
@@ -84,18 +74,27 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     );
   }
 
-  Widget _buildAddressItem(Map<String, dynamic> address) {
+  Widget _buildAddressItem(Map<String, dynamic> addressRelation) {
+    // The backend returns user_adresse objects joined with adresse
+    final isDefault = addressRelation['is_default'] == true;
+    final addressModel = addressRelation['adresse'] ?? {};
+    final ville = addressModel['ville'] ?? 'Adresse';
+    final idAddress = addressRelation['id_adresse'].toString(); // the linked address
+    
+    // We don't have titles in the DB model currently, but we could infer by default status
+    final title = isDefault ? 'Adresse Principale' : 'Adresse';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: address['is_default'] ? AppColors.accent : AppColors.border,
-          width: address['is_default'] ? 2 : 1,
+          color: isDefault ? AppColors.accent : AppColors.border,
+          width: isDefault ? 2 : 1,
         ),
         boxShadow: [
-          if (address['is_default'])
+          if (isDefault)
             BoxShadow(
               color: AppColors.accent.withOpacity(0.1),
               blurRadius: 10,
@@ -108,21 +107,21 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: address['is_default'] ? AppColors.accent.withOpacity(0.1) : AppColors.background,
+            color: isDefault ? AppColors.accent.withOpacity(0.1) : AppColors.background,
             shape: BoxShape.circle,
           ),
           child: Icon(
-            address['title'] == 'Domicile' ? Icons.home : (address['title'] == 'Travail' ? Icons.work : Icons.location_on),
-            color: address['is_default'] ? AppColors.accent : AppColors.mutedForeground,
+            isDefault ? Icons.home : Icons.location_on,
+            color: isDefault ? AppColors.accent : AppColors.mutedForeground,
           ),
         ),
         title: Row(
           children: [
             Text(
-              address['title'],
+              title,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            if (address['is_default']) ...[
+            if (isDefault) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -138,29 +137,27 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            address['subtitle'],
+            ville,
             style: const TextStyle(color: AppColors.mutedForeground, height: 1.4),
           ),
         ),
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: AppColors.mutedForeground),
-          onSelected: (value) {
+          onSelected: (value) async {
             if (value == 'default') {
-              setState(() {
-                for (var a in _addresses) {
-                  a['is_default'] = a['id'] == address['id'];
-                }
-              });
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse principale mise à jour')));
+              final success = await context.read<ClientDataProvider>().updateAddress(idAddress, {'is_default': true});
+              if (mounted && success) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse principale mise à jour')));
+              }
             } else if (value == 'delete') {
-              setState(() {
-                _addresses.removeWhere((a) => a['id'] == address['id']);
-              });
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse supprimée')));
+              final success = await context.read<ClientDataProvider>().deleteAddress(idAddress);
+              if (mounted && success) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse supprimée')));
+              }
             }
           },
           itemBuilder: (context) => [
-            if (!address['is_default'])
+            if (!isDefault)
               const PopupMenuItem(value: 'default', child: Text('Définir par défaut')),
             const PopupMenuItem(
               value: 'delete',
@@ -255,6 +252,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   fillColor: AppColors.card,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
+                onChanged: (val) {
+                  // We would bind a controller here for city
+                },
               ),
               const SizedBox(height: 16),
               TextField(
@@ -273,9 +273,21 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse ajoutée manuellement')));
+                onPressed: () async {
+                  // Fake manual address data
+                  final success = await context.read<ClientDataProvider>().addAddress({
+                    'ville': 'Tétouan', // In real life, value from controller
+                    'latitude': 35.5800,
+                    'longitude': -5.3700,
+                  });
+                  if (mounted) {
+                    Navigator.pop(context);
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse ajoutée manuellement')));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur ajout d\'adresse')));
+                    }
+                  }
                 },
                 child: const Text('Enregistrer l\'adresse', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
               ),

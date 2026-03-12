@@ -7,12 +7,16 @@ import 'client_notifications_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_payment_methods_screen.dart';
 
+import '../../../core/providers/client_data_provider.dart';
+
 class ClientProfileScreen extends StatelessWidget {
   const ClientProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final authUser = context.watch<AuthProvider>().user;
+    final clientData = context.watch<ClientDataProvider>();
+    final profile = clientData.profile;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -28,7 +32,7 @@ class ClientProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             // User Header
-            _buildProfileHeader(context, user),
+            _buildProfileHeader(context, profile, authUser),
             const SizedBox(height: 32),
 
             // Profile Sections
@@ -36,7 +40,7 @@ class ClientProfileScreen extends StatelessWidget {
               title: 'Paramètres du compte',
               items: [
                 _buildListTile(Icons.person_outline, 'Informations personnelles', onTap: () {
-                  _showEditProfileDialog(context, user);
+                  _showEditProfileDialog(context, profile, authUser);
                 }),
                 _buildListTile(Icons.location_on_outlined, 'Adresses de livraison', onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientAddressesScreen()));
@@ -110,7 +114,7 @@ class ClientProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, dynamic user) {
+  Widget _buildProfileHeader(BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
     return Column(
       children: [
         Stack(
@@ -147,7 +151,7 @@ class ClientProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          user?.nom ?? 'Client Anonyme',
+          profile?['nom'] ?? authUser?.nom ?? 'Client Anonyme',
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -156,7 +160,7 @@ class ClientProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          user?.email ?? 'client@example.com',
+          profile?['email'] ?? authUser?.email ?? 'client@example.com',
           style: const TextStyle(
             fontSize: 16,
             color: AppColors.mutedForeground,
@@ -268,12 +272,29 @@ class ClientProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context, dynamic user) {
-    final TextEditingController nameController = TextEditingController(text: user?.nom ?? 'Alice Dupont');
-    final TextEditingController emailController = TextEditingController(text: user?.email ?? 'alice.dupont@email.com');
-    final TextEditingController phoneController = TextEditingController(text: '+212 600 000 000');
-    final TextEditingController birthDateController = TextEditingController(text: '01/01/1990');
-    String selectedGender = 'femme';
+  void _showEditProfileDialog(BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
+    String getName() => profile?['nom'] ?? authUser?.nom ?? '';
+    String getEmail() => profile?['email'] ?? authUser?.email ?? '';
+    String getPhone() => profile?['num_tl'] ?? '';
+    
+    // Extract client relation info if it exists
+    Map<String, dynamic>? clientInfo;
+    if (profile?['client'] is List && (profile?['client'] as List).isNotEmpty) {
+      clientInfo = profile!['client'][0];
+    } else if (profile?['client'] is Map) {
+      clientInfo = profile!['client'];
+    }
+
+    String getBirthDate() => clientInfo?['date_naissance'] ?? '';
+    String getSexe() => clientInfo?['sexe'] ?? 'femme';
+
+    final TextEditingController nameController = TextEditingController(text: getName());
+    final TextEditingController emailController = TextEditingController(text: getEmail());
+    emailController.readOnly = true; // Email can't usually be changed here 
+    final TextEditingController phoneController = TextEditingController(text: getPhone());
+    final TextEditingController birthDateController = TextEditingController(text: getBirthDate());
+    String selectedGender = getSexe();
+    if (selectedGender != 'homme' && selectedGender != 'femme') selectedGender = 'femme';
 
     showDialog(
       context: context,
@@ -332,14 +353,24 @@ class ClientProfileScreen extends StatelessWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () {
-                // Here we would normally call context.read<AuthProvider>().updateProfile(...)
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profil mis à jour avec succès')),
-                );
+              onPressed: () async {
+                final data = {
+                  'nom': nameController.text.trim(),
+                  'num_tl': phoneController.text.trim(),
+                  'sexe': selectedGender,
+                  'date_naissance': birthDateController.text.trim(),
+                };
+                
+                final success = await context.read<ClientDataProvider>().updateProfile(data);
+                
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(success ? 'Profil mis à jour avec succès' : 'Erreur lors de la mise à jour')),
+                  );
+                }
               },
-              child: Text('Enregistrer', style: TextStyle(color: AppColors.card)),
+              child: const Text('Enregistrer', style: TextStyle(color: AppColors.card)),
             ),
           ],
         );

@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import 'restaurant_detail_screen.dart';
 import 'cart_screen.dart';
 import 'client_profile_screen.dart';
+import '../../../core/providers/client_data_provider.dart';
 
 class RestaurantListScreen extends StatefulWidget {
   const RestaurantListScreen({super.key});
@@ -39,11 +40,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   @override
   void initState() {
     super.initState();
-    _initializeMockData();
+    // Removed local mock init since data comes from provider now
 
     _headerController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
+// ...
     );
 
     _searchAnimationController = AnimationController(
@@ -89,106 +89,8 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   }
 
   void _initializeMockData() {
-    _allRestaurants = [
-      {
-        'name': 'Pizza Palace',
-        'rating': 4.5,
-        'time': '25-35 min',
-        'image': Icons.local_pizza,
-        'distance': '1.2 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '15 DH',
-        'minOrder': '50 DH',
-        'cuisine': 'Italienne',
-      },
-      {
-        'name': 'Burger House',
-        'rating': 4.2,
-        'time': '20-30 min',
-        'image': Icons.lunch_dining,
-        'distance': '0.8 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '12 DH',
-        'minOrder': '40 DH',
-        'cuisine': 'Américaine',
-      },
-      {
-        'name': 'Sushi Bar',
-        'rating': 4.8,
-        'time': '30-40 min',
-        'image': Icons.set_meal,
-        'distance': '2.1 km',
-        'isOpen': false,
-        'category': 'asian',
-        'deliveryFee': '20 DH',
-        'minOrder': '80 DH',
-        'cuisine': 'Japonaise',
-      },
-      {
-        'name': 'Tacos Place',
-        'rating': 4.3,
-        'time': '15-25 min',
-        'image': Icons.takeout_dining,
-        'distance': '1.5 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '10 DH',
-        'minOrder': '35 DH',
-        'cuisine': 'Mexicaine',
-      },
-      {
-        'name': 'Pasta Corner',
-        'rating': 4.6,
-        'time': '25-35 min',
-        'image': Icons.ramen_dining,
-        'distance': '1.8 km',
-        'isOpen': true,
-        'category': 'healthy',
-        'deliveryFee': '18 DH',
-        'minOrder': '60 DH',
-        'cuisine': 'Italienne',
-      },
-      {
-        'name': 'Green Salad',
-        'rating': 4.4,
-        'time': '15-20 min',
-        'image': Icons.health_and_safety,
-        'distance': '0.5 km',
-        'isOpen': true,
-        'category': 'healthy',
-        'deliveryFee': '8 DH',
-        'minOrder': '30 DH',
-        'cuisine': 'Healthy',
-      },
-      {
-        'name': 'Sweet Dreams',
-        'rating': 4.7,
-        'time': '20-30 min',
-        'image': Icons.cake,
-        'distance': '1.0 km',
-        'isOpen': true,
-        'category': 'desserts',
-        'deliveryFee': '12 DH',
-        'minOrder': '25 DH',
-        'cuisine': 'Pâtisserie',
-      },
-      {
-        'name': 'Juice Bar',
-        'rating': 4.1,
-        'time': '10-15 min',
-        'image': Icons.local_cafe,
-        'distance': '0.3 km',
-        'isOpen': true,
-        'category': 'drinks',
-        'deliveryFee': '5 DH',
-        'minOrder': '20 DH',
-        'cuisine': 'Boissons',
-      },
-    ];
-
-    _filteredRestaurants = List.from(_allRestaurants);
+    // Removed mock initialization.
+    // _filteredRestaurants is now dynamically computed in `build` or handled on changes.
   }
 
   void _filterByCategory(String category) {
@@ -212,23 +114,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' ||
-            restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty ||
-            restaurant['name']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase());
-
-        return matchesCategory && matchesSearch;
-      }).toList();
-    });
+    // Rely on build method filtering or provider changes instead of setting state directly here on _filteredRestaurants.
+    // Call setState to rebuild UI with current query and category
+    setState(() {});
   }
 
   void _performSearch() {
@@ -326,6 +214,21 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final clientData = context.watch<ClientDataProvider>();
+    
+    // Convert API data to map format and apply search query locally.
+    // In production, filtering should probably be done effectively either via provider sorting 
+    // or by backend endpoints passing '?search=' and '?category='. 
+    final baseRestaurants = clientData.restaurants.where((r) => r['type_business'] == 'restaurant').toList();
+    
+    _filteredRestaurants = baseRestaurants.where((restaurant) {
+      final businessUser = restaurant['user'] ?? {};
+      final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
+      // Category is mocked as restaurant type is uniform for now
+      // The backend will handle 'category' mapping later (e.g. types of cuisines) if added to the Database.
+      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      return matchesSearch;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1384,7 +1287,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     );
   }
 
-  Widget _buildRestaurantCard(Map<String, dynamic> restaurant, int index) {
+  Widget _buildRestaurantCard(Map<String, dynamic> restaurantInfo, int index) {
+    final businessUser = restaurantInfo['user'] ?? {};
+    final idBusiness = restaurantInfo['id_business'] ?? '0';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -1395,8 +1301,8 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
               context,
               MaterialPageRoute(
                 builder: (_) => RestaurantDetailScreen(
-                  restaurantName: restaurant['name'] as String,
-                  heroTag: 'restaurant_${restaurant['image']}_$index',
+                  restaurantName: businessUser['nom'] ?? 'Restaurant',
+                  heroTag: 'restaurant_${idBusiness}_$index',
                 ),
               ),
             );
@@ -1423,7 +1329,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 children: [
                   // Restaurant Image
                   Hero(
-                    tag: 'restaurant_${restaurant['image']}_$index',
+                    tag: 'restaurant_${idBusiness}_$index',
                     child: Container(
                       width: 80,
                       height: 80,
@@ -1437,20 +1343,21 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
+                        image: restaurantInfo['pdp'] != null 
+                            ? DecorationImage(
+                                image: NetworkImage(restaurantInfo['pdp']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: AppColors.background,
-                          child: Center(
-                            child: Icon(
-                              restaurant['image'] as IconData,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: restaurantInfo['pdp'] == null 
+                          ? Center(
+                              child: Text(
+                                '🍔',
+                                style: const TextStyle(fontSize: 32),
+                              ),
+                            )
+                          : null,
                     ),
                   ),
 
@@ -1465,7 +1372,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['name'] as String,
+                                businessUser['nom'] ?? 'Restaurant',
                                 style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -1479,17 +1386,17 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool)
+                                color: (restaurantInfo['is_open'] == true)
                                     ? Colors.green.withOpacity(0.1)
                                     : AppColors.destructive.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                (restaurant['isOpen'] as bool)
+                                (restaurantInfo['is_open'] == true)
                                     ? 'Ouvert'
                                     : 'Fermé',
                                 style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool)
+                                  color: (restaurantInfo['is_open'] == true)
                                       ? Colors.green
                                       : AppColors.destructive,
                                   fontSize: 10,
@@ -1521,7 +1428,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '${restaurant['rating']}',
+                                    '4.5',
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1548,7 +1455,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['time'] as String,
+                                    '${restaurantInfo['temps_preparation'] ?? 30} min',
                                     style: const TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.w600,
@@ -1575,7 +1482,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['distance'] as String,
+                                    '1.2 km', // Mock distance
                                     style: TextStyle(
                                       color: AppColors.secondary,
                                       fontWeight: FontWeight.w600,
@@ -1592,7 +1499,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['cuisine'] as String,
+                                restaurantInfo['description'] ?? 'Pizzeria, Pasta',
                                 style: TextStyle(
                                   color: AppColors.mutedForeground,
                                   fontSize: 13,
@@ -1608,7 +1515,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                'Livraison ${restaurant['deliveryFee']}',
+                                'Livraison gratuite',
                                 style: TextStyle(
                                   color: AppColors.gold,
                                   fontSize: 12,

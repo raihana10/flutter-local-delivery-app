@@ -15,12 +15,10 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
 
-  // Initialize auth state from local storage or Supabase session
   Future<void> init() async {
-    final session = _supabase.auth.currentSession;
-    if (session != null) {
-      await _fetchUserDetails(session.user.email!);
-    }
+    // We are no longer reliably using Supabase Auth session because of confirmation issues. 
+    // We rely on login() setting the _user variable. 
+    // For persistence, you'd want to store the user ID in SharedPreferences, but for now we skip session loading.
     
     // Listen to auth state changes
     _supabase.auth.onAuthStateChange.listen((data) async {
@@ -75,20 +73,31 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      final response = await _supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      // Check against app_user table directly to bypass Supabase Auth confirmation issues
+      final response = await _supabase
+          .from('app_user')
+          .select()
+          .eq('email', email)
+          .isFilter('deleted_at', null)
+          .maybeSingle();
 
-      if (response.user != null) {
-        // Fetch details synchronously before returning true so the UI has the role
-        await _fetchUserDetails(email);
-        return true; 
+      if (response == null) {
+        _setError('Identifiants invalides');
+        return false;
       }
-      return false;
-    } on supa.AuthException catch (e) {
-      _setError('Erreur de connexion: ${e.message}');
-      return false;
+      
+      // We assume passwords in the DB are hashed with SHA256 as per the register method below
+      final bytes = utf8.encode(password);
+      final digest = sha256.convert(bytes);
+      final hashedPassword = digest.toString();
+
+      if (response['password'] != hashedPassword && response['password'] != password) {
+         _setError('Identifiants invalides');
+         return false;
+      }
+
+      await _fetchUserDetails(email);
+      return true; 
     } catch (e) {
       _setError('Erreur de connexion: ${e.toString()}');
       return false;

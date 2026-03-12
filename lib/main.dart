@@ -14,6 +14,7 @@ import 'package:app/presentation/screens/business/business_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
 import 'package:app/providers/product_provider.dart';
+import 'package:app/core/providers/client_data_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,9 +36,16 @@ Future<void> main() async {
 
   runApp(
     MultiProvider(
-      providers: [
+
+
+// ... other imports ...
+
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
+        ChangeNotifierProxyProvider<AuthProvider, ClientDataProvider>(
+          create: (context) => ClientDataProvider(authProvider: context.read<AuthProvider>()),
+          update: (context, auth, previous) => previous ?? ClientDataProvider(authProvider: auth),
+        ),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
       ],
       child: const MyApp(),
