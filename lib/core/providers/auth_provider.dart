@@ -61,8 +61,33 @@ class AuthProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint("Error fetching user details: $e");
+      debugPrint("Error fetching user details: \$e");
     }
+  }
+
+  Future<bool> updateUserProfile({required String nom, required String numTl}) async {
+    if (_user == null) return false;
+    _setLoading(true);
+    _clearError();
+    try {
+      await _supabase.from('app_user').update({
+        'nom': nom,
+        'num_tl': numTl,
+      }).eq('email', _user!.email);
+      
+      await _fetchUserDetails(_user!.email);
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la mise à jour: \${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void _clearError() {
+    _errorMessage = null;
+    notifyListeners();
   }
 
   Future<bool> login(String email, String password) async {
