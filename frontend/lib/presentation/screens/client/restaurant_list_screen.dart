@@ -1662,8 +1662,8 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> with Ticker
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.app',
+            urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.livraison.app.frontend',
           ),
           MarkerLayer(
             markers: [

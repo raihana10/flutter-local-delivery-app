@@ -100,7 +100,10 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
       mapController: _mapController,
       options: MapOptions(initialCenter: _livreurPos, initialZoom: 14.5),
       children: [
-        TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.example.app'),
+        TileLayer(
+          urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.livraison.app.frontend',
+        ),
         PolylineLayer(polylines: [Polyline(points: [_livreurPos, _targetPos], color: AppColors.yellow, strokeWidth: 4, isDotted: true)]),
         MarkerLayer(markers: [
           Marker(point: _livreurPos, width: 40, height: 40,
