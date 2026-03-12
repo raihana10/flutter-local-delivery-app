@@ -1,0 +1,48 @@
+Analyzing lib...
+
+  error - controllers\auth_controller.dart:17:11 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\auth_controller.dart:60:9 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\commandes_controller.dart:28:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\commandes_controller.dart:39:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\commandes_controller.dart:48:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\commandes_controller.dart:63:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\dashboard_controller.dart:18:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:25:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:38:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:45:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:55:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\dashboard_controller.dart:69:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:79:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\dashboard_controller.dart:91:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:100:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:108:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\dashboard_controller.dart:118:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:122:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\notifications_controller.dart:17:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\notifications_controller.dart:32:36 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\notifications_controller.dart:60:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\paiements_controller.dart:28:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\paiements_controller.dart:57:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\paiements_controller.dart:81:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\stats_controller.dart:32:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\stats_controller.dart:46:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\stats_controller.dart:60:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\stats_controller.dart:76:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:21:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:35:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:49:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:68:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:96:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:114:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - controllers\users_controller.dart:127:43 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+warning - routes\auth_routes.dart:1:8 - Unused import: 'dart:convert'. Try removing the import directive. - unused_import
+warning - routes\dashboard_routes.dart:1:8 - Unused import: 'dart:convert'. Try removing the import directive. - unused_import
+   info - routes\auth_routes.dart:13:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\commandes_routes.dart:14:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\dashboard_routes.dart:16:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\notifications_routes.dart:13:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\paiements_routes.dart:14:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\stats_routes.dart:15:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\users_routes.dart:26:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+
+44 issues found.
