@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import 'restaurant_detail_screen.dart';
 import 'cart_screen.dart';
 import 'client_profile_screen.dart';
+import '../../../core/providers/client_data_provider.dart';
 
 class MarketListScreen extends StatefulWidget {
   const MarketListScreen({super.key});
@@ -39,11 +40,10 @@ class _MarketListScreenState extends State<MarketListScreen>
   @override
   void initState() {
     super.initState();
-    _initializeMockData();
+    // Removed local mock init since data comes from provider now
 
     _headerController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
+// ...
     );
 
     _searchAnimationController = AnimationController(
@@ -89,58 +89,8 @@ class _MarketListScreenState extends State<MarketListScreen>
   }
 
   void _initializeMockData() {
-    _allRestaurants = [
-      {
-        'name': 'Marjane Market',
-        'rating': 4.5,
-        'time': '30-45 min',
-        'image': Icons.shopping_cart,
-        'distance': '2.5 km',
-        'isOpen': true,
-        'category': 'epicerie',
-        'deliveryFee': '15 DH',
-        'minOrder': '100 DH',
-        'cuisine': 'Supermarché',
-      },
-      {
-        'name': 'Carrefour Express',
-        'rating': 4.3,
-        'time': '15-25 min',
-        'image': Icons.store,
-        'distance': '0.8 km',
-        'isOpen': true,
-        'category': 'epicerie',
-        'deliveryFee': '10 DH',
-        'minOrder': '50 DH',
-        'cuisine': 'Supérette',
-      },
-      {
-        'name': 'Bim',
-        'rating': 4.1,
-        'time': '20-30 min',
-        'image': Icons.shopping_basket,
-        'distance': '1.2 km',
-        'isOpen': true,
-        'category': 'boissons',
-        'deliveryFee': '8 DH',
-        'minOrder': '40 DH',
-        'cuisine': 'Hard Discount',
-      },
-      {
-        'name': 'Hanouty',
-        'rating': 4.0,
-        'time': '10-15 min',
-        'image': Icons.point_of_sale,
-        'distance': '0.3 km',
-        'isOpen': true,
-        'category': 'frais',
-        'deliveryFee': '5 DH',
-        'minOrder': '20 DH',
-        'cuisine': 'Épicerie du coin',
-      },
-    ];
-
-    _filteredRestaurants = List.from(_allRestaurants);
+    // Removed mock initialization.
+    // _filteredRestaurants is now dynamically computed in `build` or handled on changes.
   }
 
   void _filterByCategory(String category) {
@@ -164,23 +114,9 @@ class _MarketListScreenState extends State<MarketListScreen>
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' ||
-            restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty ||
-            restaurant['name']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase());
-
-        return matchesCategory && matchesSearch;
-      }).toList();
-    });
+    // Rely on build method filtering or provider changes instead of setting state directly here on _filteredRestaurants.
+    // Call setState to rebuild UI with current query and category
+    setState(() {});
   }
 
   void _performSearch() {
@@ -274,6 +210,18 @@ class _MarketListScreenState extends State<MarketListScreen>
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final clientData = context.watch<ClientDataProvider>();
+    
+    // Replace mockup filtering with API data processing
+    final baseMarkets = clientData.restaurants.where((r) => r['type_business'] == 'supermarche' || r['type_business'] == 'epicerie').toList();
+    
+    _filteredRestaurants = baseMarkets.where((market) {
+      final businessUser = market['user'] ?? {};
+      final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
+      // Category filtering bypassed here because we would need backend mapping.
+      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      return matchesSearch;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1327,7 +1275,10 @@ class _MarketListScreenState extends State<MarketListScreen>
     );
   }
 
-  Widget _buildRestaurantCard(Map<String, dynamic> restaurant, int index) {
+  Widget _buildRestaurantCard(Map<String, dynamic> marketInfo, int index) {
+    final businessUser = marketInfo['user'] ?? {};
+    final idBusiness = marketInfo['id_business'] ?? '0';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -1338,8 +1289,8 @@ class _MarketListScreenState extends State<MarketListScreen>
               context,
               MaterialPageRoute(
                 builder: (_) => RestaurantDetailScreen(
-                  restaurantName: restaurant['name'] as String,
-                  heroTag: 'restaurant_${restaurant['image']}_$index',
+                  restaurantName: businessUser['nom'] ?? 'Magasin',
+                  heroTag: 'market_${idBusiness}_$index',
                 ),
               ),
             );
@@ -1366,7 +1317,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                 children: [
                   // Restaurant Image
                   Hero(
-                    tag: 'restaurant_${restaurant['image']}_$index',
+                    tag: 'market_${idBusiness}_$index',
                     child: Container(
                       width: 80,
                       height: 80,
@@ -1380,20 +1331,21 @@ class _MarketListScreenState extends State<MarketListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
+                        image: marketInfo['pdp'] != null 
+                            ? DecorationImage(
+                                image: NetworkImage(marketInfo['pdp']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: AppColors.background,
-                          child: Center(
-                            child: Icon(
-                              restaurant['image'] as IconData,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: marketInfo['pdp'] == null 
+                          ? Center(
+                              child: Text(
+                                '🛒',
+                                style: const TextStyle(fontSize: 32),
+                              ),
+                            )
+                          : null,
                     ),
                   ),
 
@@ -1408,7 +1360,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['name'] as String,
+                                businessUser['nom'] ?? 'Magasin',
                                 style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -1422,17 +1374,17 @@ class _MarketListScreenState extends State<MarketListScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool)
+                                color: (marketInfo['is_open'] == true)
                                     ? Colors.green.withOpacity(0.1)
                                     : AppColors.destructive.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                (restaurant['isOpen'] as bool)
+                                (marketInfo['is_open'] == true)
                                     ? 'Ouvert'
                                     : 'Fermé',
                                 style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool)
+                                  color: (marketInfo['is_open'] == true)
                                       ? Colors.green
                                       : AppColors.destructive,
                                   fontSize: 10,
@@ -1464,7 +1416,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '${restaurant['rating']}',
+                                    '4.4',
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1491,7 +1443,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['time'] as String,
+                                    '${marketInfo['temps_preparation'] ?? 30} min',
                                     style: const TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.w600,
@@ -1518,7 +1470,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['distance'] as String,
+                                    '2.0 km',
                                     style: TextStyle(
                                       color: AppColors.secondary,
                                       fontWeight: FontWeight.w600,
@@ -1535,7 +1487,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['cuisine'] as String,
+                                marketInfo['description'] ?? 'Supermarché et épicerie',
                                 style: TextStyle(
                                   color: AppColors.mutedForeground,
                                   fontSize: 13,
@@ -1551,7 +1503,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                'Livraison ${restaurant['deliveryFee']}',
+                                'Livraison 15 DH',
                                 style: TextStyle(
                                   color: AppColors.gold,
                                   fontSize: 12,

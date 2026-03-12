@@ -15,6 +15,7 @@ import '../lib/routes/commandes_routes.dart';
 import '../lib/routes/paiements_routes.dart';
 import '../lib/routes/stats_routes.dart';
 import '../lib/routes/notifications_routes.dart';
+import '../lib/routes/client/client_main_routes.dart';
 
 Middleware corsMiddleware() {
   return (Handler handler) {
@@ -23,14 +24,14 @@ Middleware corsMiddleware() {
         return Response.ok('', headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, x-admin-id',
+          'Access-Control-Allow-Headers': 'Content-Type, x-admin-id, x-client-id',
         });
       }
       final response = await handler(request);
       return response.change(headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, x-admin-id',
+        'Access-Control-Allow-Headers': 'Content-Type, x-admin-id, x-client-id',
       });
     };
   };
@@ -61,6 +62,8 @@ void main(List<String> args) async {
   router.mount('/admin/paiements', PaiementsRoutes().router);
   router.mount('/admin/stats', StatsRoutes().router);
   router.mount('/admin/notifications', NotificationsRoutes().router);
+
+  router.mount('/client', ClientMainRoutes().router);
 
   // 3. Assemble Pipeline
   final pipeline = Pipeline()

@@ -9,6 +9,11 @@ Middleware authMiddleware() {
         return innerHandler(request);
       }
 
+      // Ignore client routes or any route that doesn't belong to admin
+      if (!request.url.path.startsWith('admin/')) {
+        return innerHandler(request);
+      }
+
       final adminId = request.headers['x-admin-id'];
       if (adminId == null || adminId.isEmpty) {
         return Response(403, body: '{"error": "Unauthorized access. Missing x-admin-id header"}',

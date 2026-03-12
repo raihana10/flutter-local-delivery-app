@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/client_data_provider.dart';
 import 'cart_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
@@ -197,22 +199,28 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       ),
       
       // Floating Cart Button
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.accent,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CartScreen()),
+      floatingActionButton: Consumer<ClientDataProvider>(
+        builder: (context, clientData, child) {
+          final count = clientData.cartItems.length;
+          if (count == 0) return const SizedBox();
+          return FloatingActionButton.extended(
+            backgroundColor: AppColors.accent,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+            icon: const Icon(Icons.shopping_cart, color: AppColors.primary),
+            label: Text(
+              'Voir le panier ($count)',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           );
         },
-        icon: const Icon(Icons.shopping_cart, color: AppColors.primary),
-        label: const Text(
-          'Voir le panier (3)',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
@@ -344,232 +352,213 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
   }
 
   void _showProductOptions(Map<String, dynamic> item) {
+    int quantity = 1;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 20),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.mutedForeground.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final double basePrice = double.tryParse(item['price'].toString()) ?? 0.0;
+          final double totalPrice = basePrice * quantity;
+          
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
               ),
             ),
-            
-            // Image & Title
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  )
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  item['image'],
-                  style: const TextStyle(fontSize: 60),
+            child: Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 20),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.mutedForeground.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              item['name'],
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.foreground,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${item['price']} DH',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.gold,
-              ),
-            ),
-            
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  const Text(
-                    'Options requises',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.foreground,
+                
+                // Image & Title
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      )
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      item['image'] ?? '🍽️',
+                      style: const TextStyle(fontSize: 60),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildOptionRadio('Taille standard', true),
-                  _buildOptionRadio('Grande taille (+15 DH)', false),
-                  
-                  const SizedBox(height: 24),
-                  
-                  const Text(
-                    'Suppléments',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.foreground,
-                    ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  item['name'] ?? 'Produit',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.foreground,
                   ),
-                  const SizedBox(height: 12),
-                  _buildOptionCheckbox('Extra Fromage (+5 DH)', false),
-                  _buildOptionCheckbox('Sauce Algérienne (+2 DH)', true),
-                  _buildOptionCheckbox('Sauce Samouraï (+2 DH)', false),
-                ],
-              ),
-            ),
-            
-            // Add to Cart Button
-            Container(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 20,
-                bottom: MediaQuery.of(context).padding.bottom + 20,
-              ),
-              decoration: const BoxDecoration(
-                color: AppColors.card,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -5),
-                  )
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Quantity
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.border),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove, color: AppColors.primary),
-                          onPressed: () {},
-                        ),
-                        const Text(
-                          '1',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.foreground,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: AppColors.primary),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${item['price']} DH',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.gold,
                   ),
-                  const SizedBox(width: 16),
-                  
-                  // Add Button
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${item['name']} ajouté au panier'),
-                            backgroundColor: AppColors.primary,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            action: SnackBarAction(
-                              label: 'VOIR',
-                              textColor: AppColors.accent,
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const CartScreen()),
-                                );
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Ajouter - ${item['price']} DH',
+                ),
+                
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(24),
+                    children: [
+                      Text(
+                        item['desc'] ?? '',
                         style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: AppColors.mutedForeground,
+                          height: 1.5,
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                
+                // Add to Cart Button
+                Container(
+                  padding: EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    top: 20,
+                    bottom: MediaQuery.of(context).padding.bottom + 20,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppColors.card,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 20,
+                        offset: Offset(0, -5),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Quantity
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove, color: AppColors.primary),
+                              onPressed: () {
+                                if (quantity > 1) {
+                                  setModalState(() => quantity--);
+                                }
+                              },
+                            ),
+                            Text(
+                              '$quantity',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.foreground,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add, color: AppColors.primary),
+                              onPressed: () {
+                                setModalState(() => quantity++);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      
+                      // Add Button
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            context.read<ClientDataProvider>().addToCart({
+                              'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
+                              'name': item['name'],
+                              'options': '', // Removed options tracking
+                              'price': basePrice,
+                              'quantity': quantity,
+                              'image': item['image'] ?? '🍽️',
+                            });
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${quantity}x ${item['name']} ajouté au panier'),
+                                backgroundColor: AppColors.primary,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                action: SnackBarAction(
+                                  label: 'VOIR',
+                                  textColor: AppColors.accent,
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const CartScreen()),
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Ajouter - $totalPrice DH',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        }
       ),
     );
   }
 
-  Widget _buildOptionRadio(String label, bool isSelected) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      leading: Radio(
-        value: isSelected,
-        groupValue: true,
-        onChanged: (val) {},
-        activeColor: AppColors.primary,
-      ),
-    );
-  }
 
-  Widget _buildOptionCheckbox(String label, bool isChecked) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      leading: Checkbox(
-        value: isChecked,
-        onChanged: (val) {},
-        activeColor: AppColors.primary,
-      ),
-    );
-  }
 
   Widget _buildReviewsTab() {
     final List<Map<String, dynamic>> reviews = [
