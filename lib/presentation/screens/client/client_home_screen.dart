@@ -98,26 +98,35 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     if (_selectedCategory == 'restaurants') {
       return WillPopScope(
         onWillPop: () async {
-          setState(() => _selectedCategory = null);
+          setState(() {
+            _selectedCategory = null;
+            _currentIndex = 0;
+          });
           return false;
         },
-        child: const RestaurantListScreen(),
+        child: RestaurantListScreen(initialNavIndex: 1),
       );
     } else if (_selectedCategory == 'pharmacie') {
       return WillPopScope(
         onWillPop: () async {
-          setState(() => _selectedCategory = null);
+          setState(() {
+            _selectedCategory = null;
+            _currentIndex = 0;
+          });
           return false;
         },
-        child: const PharmacyListScreen(),
+        child: PharmacyListScreen(initialNavIndex: 1),
       );
     } else if (_selectedCategory == 'supermarche') {
       return WillPopScope(
         onWillPop: () async {
-          setState(() => _selectedCategory = null);
+          setState(() {
+            _selectedCategory = null;
+            _currentIndex = 0;
+          });
           return false;
         },
-        child: const MarketListScreen(),
+        child: MarketListScreen(initialNavIndex: 1),
       );
     }
 
@@ -216,21 +225,28 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                         '🍴',
                         _restaurantsScale,
                         AppColors.primary,
-                        () =>
-                            setState(() => _selectedCategory = 'restaurants')),
+                        () => setState(() {
+                          _selectedCategory = 'restaurants';
+                          _currentIndex = 1;
+                        })),
                     _buildCategoryCircle(
                         'Pharmacie',
                         '💊',
                         _pharmacieScale,
                         const Color(0xFFE53935),
-                        () => setState(() => _selectedCategory = 'pharmacie')),
+                        () => setState(() {
+                          _selectedCategory = 'pharmacie';
+                          _currentIndex = 1;
+                        })),
                     _buildCategoryCircle(
                         'Supermarché',
                         '🛒',
                         _supermarcheScale,
                         const Color(0xFF43A047),
-                        () =>
-                            setState(() => _selectedCategory = 'supermarche')),
+                        () => setState(() {
+                          _selectedCategory = 'supermarche';
+                          _currentIndex = 1;
+                        })),
                   ],
                 ),
               ),
@@ -248,48 +264,54 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.person_outline,
+                      color: AppColors.accent, size: 28),
                 ),
-                child: const Icon(Icons.person_outline,
-                    color: AppColors.accent, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bonjour,',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.secondary.withOpacity(0.8),
-                      fontWeight: FontWeight.w500,
-                    ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bonjour,',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.secondary.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        name ?? 'Client',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  Text(
-                    name ?? 'Client',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
           Row(
             children: [
@@ -1068,11 +1090,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         if (index == 0) {
           setState(() {
             _currentIndex = 0;
+            _selectedCategory = null; // Return to home
+          });
+          return;
+        }
+        if (index == 1) {
+          // Rechercher — go to restaurants by default if no category active
+          setState(() {
+            _currentIndex = 1;
+            _selectedCategory ??= 'restaurants';
           });
           return;
         }
 
-        // Navigation logic for other tabs
+        // Navigation logic for other tabs (Panier, Profil)
         Widget? targetScreen;
         switch (index) {
           case 2:

@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/business_model.dart';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -12,7 +14,8 @@ import 'cart_screen.dart';
 import 'client_profile_screen.dart';
 
 class PharmacyListScreen extends StatefulWidget {
-  const PharmacyListScreen({super.key});
+  final int initialNavIndex;
+  const PharmacyListScreen({super.key, this.initialNavIndex = 1});
 
   @override
   State<PharmacyListScreen> createState() => _PharmacyListScreenState();
@@ -20,7 +23,7 @@ class PharmacyListScreen extends StatefulWidget {
 
 class _PharmacyListScreenState extends State<PharmacyListScreen>
     with TickerProviderStateMixin {
-  int _currentIndex = 0;
+  int _currentIndex = 1; // default to 'Rechercher'
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
@@ -49,6 +52,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialNavIndex;
     _initializeMockData();
 
     _headerController = AnimationController(
@@ -90,12 +94,45 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     _headerController.forward();
     _fabController.forward();
 
+    // Fetch real data from Supabase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
+
     _searchAnimationController.addListener(() {
       setState(() {});
     });
 
     // Auto-scroll promos
     _startPromoAutoScroll();
+  }
+
+  Future<void> _fetchData() async {
+    await context.read<ProductProvider>().fetchBusinesses('pharmacie');
+    _mapBusinessesToPharmacies();
+  }
+
+  void _mapBusinessesToPharmacies() {
+    final businesses = context.read<ProductProvider>().businesses;
+    setState(() {
+      _allRestaurants = businesses.map<Map<String, dynamic>>((b) {
+        final biz = b as Business;
+        return {
+          'id': biz.id,
+          'name': biz.user?.nom ?? 'Pharmacie',
+          'rating': 4.5,
+          'time': '15-25 min',
+          'image': Icons.local_pharmacy,
+          'distance': '1.0 km',
+          'isOpen': biz.isOpen,
+          'category': 'all',
+          'is24h': true,
+          'deliveryFee': '10 DH',
+          'address': biz.description ?? 'Adresse non spécifiée',
+        };
+      }).toList();
+      _filteredRestaurants = List.from(_allRestaurants);
+    });
   }
 
   void _initializeMockData() {

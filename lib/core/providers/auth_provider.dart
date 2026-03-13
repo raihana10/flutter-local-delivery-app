@@ -6,11 +6,13 @@ import '../../data/models/auth_models.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
+  int? _roleId; // id_client, id_business, OR id_livreur
   bool _isLoading = false;
   String? _errorMessage;
   final supa.SupabaseClient _supabase = supa.Supabase.instance.client;
-
+  
   User? get user => _user;
+  int? get roleId => _roleId;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
@@ -47,6 +49,26 @@ class AuthProvider extends ChangeNotifier {
       
       if (response != null) {
          _user = User.fromJson(response);
+         
+         // Fetch role-specific ID
+         final role = _user!.role.value;
+         if (role != 'super_admin') {
+            final table = role == 'super_admin' ? null : role;
+            if (table != null) {
+              final roleData = await _supabase
+                  .from(table)
+                  .select()
+                  .eq('id_user', _user!.id)
+                  .maybeSingle();
+              
+              if (roleData != null) {
+                // Determine ID column name based on role
+                final idCol = 'id_$role';
+                _roleId = roleData[idCol];
+                debugPrint("AuthProvider: Logged in as $role with ID: $_roleId");
+              }
+            }
+         }
       } else {
          // Fallback if user is in auth but not in public schema yet
          _user = User(

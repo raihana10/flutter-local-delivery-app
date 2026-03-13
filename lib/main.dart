@@ -13,7 +13,8 @@ import 'package:app/presentation/screens/client/client_home_screen.dart';
 import 'package:app/presentation/screens/business/business_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
-import 'package:app/providers/product_provider.dart';
+import 'package:app/core/providers/product_provider.dart';
+import 'package:app/core/providers/order_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
       ],
       child: const MyApp(),
     ),

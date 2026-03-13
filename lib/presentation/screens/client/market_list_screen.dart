@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/business_model.dart';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -12,7 +14,8 @@ import 'cart_screen.dart';
 import 'client_profile_screen.dart';
 
 class MarketListScreen extends StatefulWidget {
-  const MarketListScreen({super.key});
+  final int initialNavIndex;
+  const MarketListScreen({super.key, this.initialNavIndex = 1});
 
   @override
   State<MarketListScreen> createState() => _MarketListScreenState();
@@ -20,7 +23,7 @@ class MarketListScreen extends StatefulWidget {
 
 class _MarketListScreenState extends State<MarketListScreen>
     with TickerProviderStateMixin {
-  int _currentIndex = 0;
+  int _currentIndex = 1; // default to 'Rechercher'
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
@@ -50,6 +53,7 @@ class _MarketListScreenState extends State<MarketListScreen>
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialNavIndex;
     _initializeMockData();
 
     _headerController = AnimationController(
@@ -91,12 +95,45 @@ class _MarketListScreenState extends State<MarketListScreen>
     _headerController.forward();
     _fabController.forward();
 
+    // Fetch real data from Supabase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
+
     _searchAnimationController.addListener(() {
       setState(() {});
     });
 
     // Auto-scroll promos
     _startPromoAutoScroll();
+  }
+
+  Future<void> _fetchData() async {
+    await context.read<ProductProvider>().fetchBusinesses('super-marche');
+    _mapBusinessesToMarkets();
+  }
+
+  void _mapBusinessesToMarkets() {
+    final businesses = context.read<ProductProvider>().businesses;
+    setState(() {
+      _allRestaurants = businesses.map<Map<String, dynamic>>((b) {
+        final biz = b as Business;
+        return {
+          'id': biz.id,
+          'name': biz.user?.nom ?? 'Supermarché',
+          'rating': 4.5,
+          'time': '30-45 min',
+          'image': Icons.shopping_cart,
+          'distance': '1.5 km',
+          'isOpen': biz.isOpen,
+          'category': 'all',
+          'deliveryFee': '20 DH',
+          'minOrder': '100 DH',
+          'cuisine': biz.description ?? 'Épicerie et produits frais',
+        };
+      }).toList();
+      _filteredRestaurants = List.from(_allRestaurants);
+    });
   }
 
   void _initializeMockData() {
@@ -460,37 +497,16 @@ class _MarketListScreenState extends State<MarketListScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                AnimatedSwitcher(
-                                                  duration: const Duration(
-                                                      milliseconds: 300),
-                                                  child: Row(
-                                                    key: ValueKey(user?.nom),
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Bonjour, ${user?.nom ?? 'Client'}',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 28,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: AppColors
-                                                                .textWhite,
-                                                            height: 1.2,
-                                                            letterSpacing: -0.5,
-                                                          ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      const Icon(
-                                                        Icons.waving_hand,
-                                                        color: AppColors.accent,
-                                                        size: 28,
-                                                      ),
-                                                    ],
+                                                Text(
+                                                  'Bonjour, ${user?.nom ?? 'Client'}',
+                                                  style: const TextStyle(
+                                                    fontSize: 28,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.textWhite,
+                                                    height: 1.2,
+                                                    letterSpacing: -0.5,
                                                   ),
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Container(

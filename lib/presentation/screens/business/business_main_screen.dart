@@ -5,8 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../../../../core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
-import '../../../../models/business_product.dart';
-import '../../../../providers/product_provider.dart';
+import 'package:app/core/providers/product_provider.dart';
+import 'package:app/data/models/business_model.dart';
 
 enum BusinessScreen { dashboard, catalog, addProduct, importSheet, orderDetail, editProduct }
 
@@ -26,6 +26,17 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
     setState(() {
       _currentScreen = screen;
       if (index != null) _editingIndex = index;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.roleId != null) {
+        context.read<ProductProvider>().fetchProductsByBusiness(auth.roleId!);
+      }
     });
   }
 
@@ -461,9 +472,10 @@ class _CatalogView extends StatelessWidget {
                       mainAxisSpacing: 16,
                       childAspectRatio: 0.78,
                     ),
-                    itemCount: provider.products.length,
+                    itemCount: provider.businessProducts.length,
                     itemBuilder: (context, index) {
-                      final item = provider.products[index];
+                      final item = provider.businessProducts[index];
+                      final businessId = context.read<AuthProvider>().roleId;
                       return Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -476,8 +488,8 @@ class _CatalogView extends StatelessWidget {
                           children: [
                             AspectRatio(
                               aspectRatio: 4/3,
-                              child: item.imageUrl != null 
-                                ? Image.network(item.imageUrl!, fit: BoxFit.cover)
+                              child: item.image != null 
+                                ? Image.network(item.image!, fit: BoxFit.cover)
                                 : Container(color: AppColors.warmWhite, child: const Icon(LucideIcons.image, color: AppColors.mutedForeground)),
                             ),
                             Padding(
@@ -485,11 +497,11 @@ class _CatalogView extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(item.name, 
+                                  Text(item.nom, 
                                     maxLines: 1, 
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.forest)),
-                                  Text('${item.price} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.gold)),
+                                  Text('${item.prix} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.gold)),
                                   const SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -499,7 +511,11 @@ class _CatalogView extends StatelessWidget {
                                         child: const Icon(LucideIcons.pencil, color: AppColors.gold, size: 16),
                                       ),
                                       GestureDetector(
-                                        onTap: () => provider.deleteProduct(index),
+                                        onTap: () {
+                                          if (businessId != null) {
+                                            provider.deleteProduct(item.id, businessId);
+                                          }
+                                        },
                                         child: const Icon(LucideIcons.trash2, color: AppColors.destructive, size: 16),
                                       ),
                                     ],
@@ -551,7 +567,7 @@ class _ImportSheetView extends StatefulWidget {
 }
 
 class _ImportSheetViewState extends State<_ImportSheetView> {
-  List<BusinessProduct> _previewItems = [];
+  List<Produit> _previewItems = [];
   bool _isLoading = false;
   String? _fileName;
 
@@ -658,12 +674,12 @@ class _ImportSheetViewState extends State<_ImportSheetView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          Text(item.category, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11)),
+                          Text(item.nom, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(item.type, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11)),
                         ],
                       ),
                     ),
-                    Text('${item.price} MAD', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
+                    Text('${item.prix} MAD', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
                   ],
                 ),
               );
@@ -672,12 +688,17 @@ class _ImportSheetViewState extends State<_ImportSheetView> {
         ),
         const SizedBox(height: 24),
         ElevatedButton(
-          onPressed: () {
-            context.read<ProductProvider>().addBatch(_previewItems);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${_previewItems.length} produits importés avec succès !'), backgroundColor: AppColors.online),
-            );
-            widget.onNavigate(BusinessScreen.catalog);
+          onPressed: () async {
+            final businessId = context.read<AuthProvider>().roleId;
+            if (businessId != null) {
+              await context.read<ProductProvider>().addBatch(_previewItems, businessId);
+            }
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('${_previewItems.length} produits importés avec succès !'), backgroundColor: AppColors.online),
+              );
+              widget.onNavigate(BusinessScreen.catalog);
+            }
           },
           child: const Text('Importer tout'),
         ),
@@ -772,16 +793,20 @@ class _AddProductViewState extends State<_AddProductView> {
                 const SizedBox(height: 32),
                 
                 ElevatedButton(
-                  onPressed: () {
-                    final p = BusinessProduct(
-                      name: _nameController.text,
+                  onPressed: () async {
+                    final businessId = context.read<AuthProvider>().roleId;
+                    if (businessId == null) return;
+
+                    final p = Produit(
+                      id: 0,
+                      idBusiness: businessId,
+                      nom: _nameController.text,
                       description: _descController.text,
-                      price: double.tryParse(_priceController.text) ?? 0.0,
-                      category: _category,
-                      isAvailable: _isDispo,
-                      imageUrl: 'https://images.unsplash.com/photo-1541529086526-db283c563270?w=400&h=300&fit=crop',
+                      prix: double.tryParse(_priceController.text) ?? 0.0,
+                      type: _category,
+                      image: 'https://images.unsplash.com/photo-1541529086526-db283c563270?w=400&h=300&fit=crop',
                     );
-                    context.read<ProductProvider>().addProduct(p);
+                    await context.read<ProductProvider>().addProduct(p);
                     widget.onNavigate(BusinessScreen.catalog);
                   },
                   child: const Text('Enregistrer le produit'),
@@ -838,11 +863,11 @@ class _EditProductViewState extends State<_EditProductView> {
   @override
   void initState() {
     super.initState();
-    final p = context.read<ProductProvider>().products[widget.index];
-    _nameController = TextEditingController(text: p.name);
+    final p = context.read<ProductProvider>().businessProducts[widget.index];
+    _nameController = TextEditingController(text: p.nom);
     _descController = TextEditingController(text: p.description);
-    _priceController = TextEditingController(text: p.price.toString());
-    _isDispo = p.isAvailable;
+    _priceController = TextEditingController(text: p.prix.toString());
+    _isDispo = true;
   }
 
   @override
@@ -896,17 +921,19 @@ class _EditProductViewState extends State<_EditProductView> {
                 const SizedBox(height: 32),
                 
                 ElevatedButton(
-                  onPressed: () {
-                    final old = context.read<ProductProvider>().products[widget.index];
-                    final p = BusinessProduct(
-                      name: _nameController.text,
+                  onPressed: () async {
+                    final provider = context.read<ProductProvider>();
+                    final old = provider.businessProducts[widget.index];
+                    final p = Produit(
+                      id: old.id,
+                      idBusiness: old.idBusiness,
+                      nom: _nameController.text,
                       description: _descController.text,
-                      price: double.tryParse(_priceController.text) ?? 0.0,
-                      category: old.category,
-                      isAvailable: _isDispo,
-                      imageUrl: old.imageUrl,
+                      prix: double.tryParse(_priceController.text) ?? 0.0,
+                      type: old.type,
+                      image: old.image,
                     );
-                    context.read<ProductProvider>().updateProduct(widget.index, p);
+                    await provider.updateProduct(p);
                     widget.onNavigate(BusinessScreen.catalog);
                   },
                   child: const Text('Mettre à jour'),

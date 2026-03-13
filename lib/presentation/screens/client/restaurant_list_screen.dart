@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/business_model.dart';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -12,7 +14,8 @@ import 'cart_screen.dart';
 import 'client_profile_screen.dart';
 
 class RestaurantListScreen extends StatefulWidget {
-  const RestaurantListScreen({super.key});
+  final int initialNavIndex;
+  const RestaurantListScreen({super.key, this.initialNavIndex = 1});
 
   @override
   State<RestaurantListScreen> createState() => _RestaurantListScreenState();
@@ -20,7 +23,7 @@ class RestaurantListScreen extends StatefulWidget {
 
 class _RestaurantListScreenState extends State<RestaurantListScreen>
     with TickerProviderStateMixin {
-  int _currentIndex = 0;
+  int _currentIndex = 1; // default to 'Rechercher'
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
@@ -49,6 +52,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialNavIndex;
     _initializeMockData();
 
     _headerController = AnimationController(
@@ -90,12 +94,45 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     _headerController.forward();
     _fabController.forward();
 
+    // Fetch real data from Supabase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
+
     _searchAnimationController.addListener(() {
       setState(() {});
     });
 
     // Auto-scroll promos
     _startPromoAutoScroll();
+  }
+
+  Future<void> _fetchData() async {
+    await context.read<ProductProvider>().fetchBusinesses('restaurant');
+    _mapBusinessesToRestaurants();
+  }
+
+  void _mapBusinessesToRestaurants() {
+    final businesses = context.read<ProductProvider>().businesses;
+    setState(() {
+      _allRestaurants = businesses.map<Map<String, dynamic>>((b) {
+        final biz = b as Business;
+        return {
+          'id': biz.id,
+          'name': biz.user?.nom ?? 'Restaurant',
+          'rating': 4.5,
+          'time': '${biz.tempsPreparation ?? 25} min',
+          'image': Icons.restaurant,
+          'distance': '1.0 km',
+          'isOpen': biz.isOpen,
+          'category': 'all',
+          'deliveryFee': '15 DH',
+          'minOrder': '50 DH',
+          'cuisine': biz.description ?? 'Cuisine variée',
+        };
+      }).toList();
+      _filteredRestaurants = List.from(_allRestaurants);
+    });
   }
 
   void _initializeMockData() {
@@ -512,21 +549,19 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    'Bonjour, ${user?.nom ?? 'Client'}',
-                                                    style: const TextStyle(
-                                                      fontSize: 28,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color:
-                                                          AppColors.textWhite,
-                                                      height: 1.2,
-                                                      letterSpacing: -0.5,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                Text(
+                                                  'Bonjour, ${user?.nom ?? 'Client'}',
+                                                  style: const TextStyle(
+                                                    fontSize: 28,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                    color:
+                                                        AppColors.textWhite,
+                                                    height: 1.2,
+                                                    letterSpacing: -0.5,
                                                   ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Container(
