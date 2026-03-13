@@ -36,7 +36,7 @@ class StatsController {
   Future<Response> getLivreurStats(Request request) async {
     try {
       final livreurs = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('id_user, nom, role')
           .eq('role', 'livreur')
           .isFilter('deleted_at', null);
@@ -50,7 +50,7 @@ class StatsController {
   Future<Response> getBusinessStats(Request request) async {
     try {
       final businesses = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('id_user, nom, role')
           .eq('role', 'business')
           .isFilter('deleted_at', null);

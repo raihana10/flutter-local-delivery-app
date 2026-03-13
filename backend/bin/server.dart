@@ -69,7 +69,7 @@ void main(List<String> args) async {
   final pipeline = Pipeline()
       .addMiddleware(corsMiddleware())
       .addMiddleware(logRequests())
-      .addMiddleware(authMiddleware()) // Protect all routes under /admin except /admin/login (handled in middleware)
+      .addMiddleware(authMiddleware()) // Unified authentication for /admin and /client routes
       .addHandler(router);
 
   // 4. Start Server

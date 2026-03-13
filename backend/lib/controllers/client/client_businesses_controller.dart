@@ -14,7 +14,7 @@ class ClientBusinessesController {
     try {
       final businesses = await SupabaseConfig.client
           .from('business')
-          .select('*, user(*)')
+          .select('*, app_user(*)')
           .eq('type_business', type)
           .eq('est_actif', true)
           .isFilter('deleted_at', null);
@@ -30,7 +30,7 @@ class ClientBusinessesController {
     try {
       final business = await SupabaseConfig.client
           .from('business')
-          .select('*, user(*)')
+          .select('*, app_user(*)')
           .eq('id_business', id)
           .isFilter('deleted_at', null)
           .maybeSingle();
@@ -65,7 +65,7 @@ class ClientBusinessesController {
     try {
       final reviews = await SupabaseConfig.client
           .from('store_review')
-          .select('*, client(*, user(*))')
+          .select('*, client(*, app_user(*))')
           .eq('id_business', id)
           .isFilter('deleted_at', null);
 

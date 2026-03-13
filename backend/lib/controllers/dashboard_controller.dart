@@ -38,7 +38,7 @@ class DashboardController {
 
       // New Users Today
       final newUsersRes = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('id_user')
           .gte('created_at', todayStart)
           .isFilter('deleted_at', null);

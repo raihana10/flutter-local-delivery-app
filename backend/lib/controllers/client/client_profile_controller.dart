@@ -14,7 +14,7 @@ class ClientProfileController {
 
     try {
       final user = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('*, client(*)')
           .eq('id_user', clientId)
           .isFilter('deleted_at', null)
@@ -51,7 +51,7 @@ class ClientProfileController {
       // Update user table
       if (userData.isNotEmpty) {
         await SupabaseConfig.client
-            .from('user')
+            .from('app_user')
             .update(userData)
             .eq('id_user', clientId);
       }
@@ -64,8 +64,7 @@ class ClientProfileController {
             .eq('id_user', clientId);
       }
 
-      // Fetch the updated profile
-      return await getProfile(request);
+      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
     } catch (e) {
       return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
     }

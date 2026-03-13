@@ -171,7 +171,6 @@ CREATE TABLE promotion (
                                ON DELETE CASCADE,
     pourcentage   NUMERIC(5,2) NOT NULL
                                CHECK (pourcentage > 0 AND pourcentage <= 100),
-    code_pro      VARCHAR(50)  UNIQUE,
     date_debut    TIMESTAMPTZ  NOT NULL,
     date_fin      TIMESTAMPTZ  NOT NULL,
     CHECK (date_fin > date_debut),
@@ -352,6 +351,17 @@ $$;
 CREATE TRIGGER trg_carte_bancaire_updated_at
 BEFORE UPDATE ON carte_bancaire
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================
+-- TABLE : favoris (Client favorite businesses)
+-- ============================================================
+CREATE TABLE favoris (
+    id_favoris     SERIAL PRIMARY KEY,
+    id_client      INT         NOT NULL REFERENCES client(id_client) ON DELETE CASCADE,
+    id_business    INT         NOT NULL REFERENCES business(id_business) ON DELETE CASCADE,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(id_client, id_business)
+);
 
 -- ============================================================
 -- INDEX UTILES
