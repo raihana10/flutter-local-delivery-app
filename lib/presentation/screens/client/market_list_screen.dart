@@ -323,8 +323,6 @@ class _MarketListScreenState extends State<MarketListScreen>
       ),
     );
   }
-    );
-  }
 
   String _getCategoryName(String category) {
     switch (category) {
@@ -483,8 +481,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                           ),
                                                           overflow: TextOverflow
                                                               .ellipsis,
-                                                        ),
-                                                      ),
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
@@ -697,7 +693,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                 setState(() {
                                                   _isSearching = true;
                                                 });
-                                                _searchAnimationController.forward();
+                                                _searchAnimationController
+                                                    .forward();
                                               },
                                               onSubmitted: (value) {
                                                 _performSearch();
@@ -720,7 +717,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                                           if (_isSearching)
                                             IconButton(
                                               icon: const Icon(Icons.clear,
-                                                  color: AppColors.mutedForeground),
+                                                  color: AppColors
+                                                      .mutedForeground),
                                               onPressed: () {
                                                 _searchTextController.clear();
                                                 setState(() {
@@ -728,7 +726,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                   _searchQuery = '';
                                                 });
                                                 _applyFilters();
-                                                _searchAnimationController.reverse();
+                                                _searchAnimationController
+                                                    .reverse();
                                               },
                                             ),
                                           IconButton(
@@ -927,7 +926,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                 BorderRadius.circular(12),
                                           ),
                                         ),
-                                        child: const Text('Réinitialiser les filtres'),
+                                        child: const Text(
+                                            'Réinitialiser les filtres'),
                                       ),
                                     ],
                                   ),
@@ -1822,6 +1822,7 @@ class _MarketListScreenState extends State<MarketListScreen>
       ),
     );
   }
+
   Widget _buildMapView() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -1833,7 +1834,8 @@ class _MarketListScreenState extends State<MarketListScreen>
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            urlTemplate:
+                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.livraison.app.frontend',
           ),
           MarkerLayer(

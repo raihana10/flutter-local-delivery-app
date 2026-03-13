@@ -28,7 +28,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   double _maxDistance = 10.0;
   RangeValues _priceRange = const RangeValues(0, 500);
   final MapController _mapController = MapController();
-  final LatLng _userLocation = const LatLng(35.5740, -5.3680); // Mock user location
+  final LatLng _userLocation =
+      const LatLng(35.5740, -5.3680); // Mock user location
   late AnimationController _headerController;
   late Animation<double> _headerAnimation;
   late AnimationController _searchAnimationController;
@@ -175,20 +176,33 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   void _applyFilters() {
     setState(() {
       _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' || restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty || 
-            restaurant['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-        
+        bool matchesCategory = _selectedCategory == 'all' ||
+            restaurant['category'] == _selectedCategory;
+        bool matchesSearch = _searchQuery.isEmpty ||
+            restaurant['name']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()) ||
+            restaurant['cuisine']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase());
+
         // Filter by distance
-        double dist = double.parse(restaurant['distance'].toString().split(' ')[0]);
+        double dist =
+            double.parse(restaurant['distance'].toString().split(' ')[0]);
         bool matchesDistance = dist <= _maxDistance;
 
         // Filter by price (mocking minOrder as a proxy for price level)
-        double price = double.parse(restaurant['minOrder'].toString().split(' ')[0]);
-        bool matchesPrice = price >= _priceRange.start && price <= _priceRange.end;
-        
-        return matchesCategory && matchesSearch && matchesDistance && matchesPrice;
+        double price =
+            double.parse(restaurant['minOrder'].toString().split(' ')[0]);
+        bool matchesPrice =
+            price >= _priceRange.start && price <= _priceRange.end;
+
+        return matchesCategory &&
+            matchesSearch &&
+            matchesDistance &&
+            matchesPrice;
       }).toList();
     });
   }
@@ -213,7 +227,11 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Filtres', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      const Text('Filtres',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary)),
                       TextButton(
                         onPressed: () {
                           setModalState(() {
@@ -227,7 +245,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text('Distance Max (km)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Distance Max (km)',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   Slider(
                     value: _maxDistance,
                     min: 0.5,
@@ -242,13 +261,15 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                     },
                   ),
                   const SizedBox(height: 16),
-                  const Text('Budget Min (MAD)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Budget Min (MAD)',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   RangeSlider(
                     values: _priceRange,
                     min: 0,
                     max: 500,
                     divisions: 10,
-                    labels: RangeLabels('${_priceRange.start.round()} MAD', '${_priceRange.end.round()} MAD'),
+                    labels: RangeLabels('${_priceRange.start.round()} MAD',
+                        '${_priceRange.end.round()} MAD'),
                     activeColor: AppColors.accent,
                     inactiveColor: AppColors.secondary.withOpacity(0.2),
                     onChanged: (values) {
@@ -264,9 +285,13 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: const Text('Appliquer', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: const Text('Appliquer',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
                     ),
                   ),
                 ],
@@ -295,8 +320,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
           borderRadius: BorderRadius.circular(10),
         ),
       ),
-    );
-  }
     );
   }
 
@@ -380,6 +403,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
             Column(
               children: [
                 // Animated Header
+                // Animated Header
                 AnimatedBuilder(
                   animation: _headerAnimation,
                   builder: (context, child) {
@@ -436,19 +460,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    'Bonjour, ${user?.nom ?? 'Client'}',
-                                                    style: const TextStyle(
-                                                      fontSize: 28,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: AppColors.textWhite,
-                                                      height: 1.2,
-                                                      letterSpacing: -0.5,
-                                                    ),
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
+                                                Text(
+                                                  'Bonjour, ${user?.nom ?? 'Client'}',
+                                                  style: const TextStyle(
+                                                    fontSize: 28,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.textWhite,
+                                                    height: 1.2,
+                                                    letterSpacing: -0.5,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
@@ -619,84 +638,91 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                     ),
                                   ],
                                 ),
-
-                                const SizedBox(height: 24),
-
-                                // Animated Search Bar
-                                AnimatedBuilder(
-                                  animation: _searchAnimation,
-                                  builder: (context, child) {
-                                    return Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.card,
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color:
-                                                Colors.black.withOpacity(0.1),
-                                            blurRadius: 15,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const SizedBox(width: 16),
-                                          const Icon(Icons.search, color: AppColors.mutedForeground, size: 22),
-                                          Expanded(
-                                            child: TextField(
-                                              controller: _searchTextController,
-                                              onTap: () {
-                                                setState(() {
-                                                  _isSearching = true;
-                                                });
-                                                _searchAnimationController.forward();
-                                              },
-                                              onSubmitted: (value) {
-                                                _performSearch();
-                                              },
-                                              onChanged: (val) => setState(() { _searchQuery = val; _applyFilters(); }),
-                                              decoration: InputDecoration(
-                                                hintText: _isSearching 
-                                                  ? 'Rechercher un produit...'
-                                                  : 'Rechercher...',
-                                                border: InputBorder.none,
-                                                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                                              ),
-                                            ),
-                                          ),
-                                          if (_isSearching)
-                                            IconButton(
-                                              icon: const Icon(Icons.clear, color: AppColors.mutedForeground),
-                                              onPressed: () {
-                                                _searchTextController.clear();
-                                                setState(() {
-                                                  _isSearching = false;
-                                                  _searchQuery = '';
-                                                });
-                                                _applyFilters();
-                                                _searchAnimationController.reverse();
-                                              },
-                                            ),
-                                          IconButton(
-                                            icon: const Icon(Icons.tune, color: AppColors.primary),
-                                            onPressed: _showFilterSheet,
-                                          ),
-                                          IconButton(
-                                            icon: Icon(_isMapViewOpen ? Icons.list : Icons.map_outlined, color: AppColors.primary),
-                                            onPressed: () => setState(() => _isMapViewOpen = !_isMapViewOpen),
-                                          ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
                               ],
                             ),
                           ),
                         ),
+                      ),
+                    );
+                  },
+                ),
+                // Animated Search Bar
+                AnimatedBuilder(
+                  animation: _searchAnimation,
+                  builder: (context, child) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 15,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          const Icon(Icons.search,
+                              color: AppColors.mutedForeground, size: 22),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchTextController,
+                              onTap: () {
+                                setState(() {
+                                  _isSearching = true;
+                                });
+                                _searchAnimationController.forward();
+                              },
+                              onSubmitted: (value) {
+                                _performSearch();
+                              },
+                              onChanged: (val) => setState(() {
+                                _searchQuery = val;
+                                _applyFilters();
+                              }),
+                              decoration: InputDecoration(
+                                hintText: _isSearching
+                                    ? 'Rechercher un produit...'
+                                    : 'Rechercher...',
+                                border: InputBorder.none,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                            ),
+                          ),
+                          if (_isSearching)
+                            IconButton(
+                              icon: const Icon(Icons.clear,
+                                  color: AppColors.mutedForeground),
+                              onPressed: () {
+                                _searchTextController.clear();
+                                setState(() {
+                                  _isSearching = false;
+                                  _searchQuery = '';
+                                });
+                                _applyFilters();
+                                _searchAnimationController.reverse();
+                              },
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.tune,
+                                color: AppColors.primary),
+                            onPressed: _showFilterSheet,
+                          ),
+                          IconButton(
+                            icon: Icon(
+                                _isMapViewOpen
+                                    ? Icons.list
+                                    : Icons.map_outlined,
+                                color: AppColors.primary),
+                            onPressed: () => setState(
+                                () => _isMapViewOpen = !_isMapViewOpen),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                       ),
                     );
                   },
@@ -741,153 +767,155 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
                 // Main Content
                 Expanded(
-                  child: _isMapViewOpen 
-                    ? _buildMapView()
-                    : SingleChildScrollView(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Promotional Banner
-                        _buildPromotionalBanner(),
+                  child: _isMapViewOpen
+                      ? _buildMapView()
+                      : SingleChildScrollView(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Promotional Banner
+                              _buildPromotionalBanner(),
 
-                        const SizedBox(height: 24),
+                              const SizedBox(height: 24),
 
-                        // Quick Actions
-                        _buildQuickActions(),
+                              // Quick Actions
+                              _buildQuickActions(),
 
-                        const SizedBox(height: 24),
+                              const SizedBox(height: 24),
 
-                        // Promotions Section
-                        _buildSectionTitle(
-                            'Promos du jour', 'Voir tout', () {}),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 180,
-                          child: PageView.builder(
-                            controller: _promoPageController,
-                            onPageChanged: (page) {
-                              _setCurrentPromoPage(page);
-                            },
-                            itemCount: 3,
-                            itemBuilder: (context, index) {
-                              return _buildPromoCard(index);
-                            },
-                          ),
-                        ),
-
-                        // Page Indicator
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            3,
-                            (index) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentPromoPage == index ? 20 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _currentPromoPage == index
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Results count
-                        if (_searchQuery.isNotEmpty ||
-                            _selectedCategory != 'all')
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              '${_filteredRestaurants.length} pharmacie${_filteredRestaurants.length > 1 ? 's' : ''} trouvée${_filteredRestaurants.length > 1 ? 's' : ''}',
-                              style: TextStyle(
-                                color: AppColors.mutedForeground,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-
-                        // Nearby Restaurants Section
-                        _buildSectionTitle(
-                            'Pharmacies proches', 'Voir tout', () {}),
-                        const SizedBox(height: 12),
-
-                        // Display message if no restaurants found
-                        if (_filteredRestaurants.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.restaurant_menu,
-                                  size: 64,
-                                  color: AppColors.mutedForeground
-                                      .withOpacity(0.3),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Aucune pharmacie trouvée',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.foreground,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Essayez de modifier vos filtres ou votre recherche',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.mutedForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedCategory = 'all';
-                                      _searchQuery = '';
-                                      _searchTextController.clear();
-                                      _applyFilters();
-                                    });
+                              // Promotions Section
+                              _buildSectionTitle(
+                                  'Promos du jour', 'Voir tout', () {}),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 180,
+                                child: PageView.builder(
+                                  controller: _promoPageController,
+                                  onPageChanged: (page) {
+                                    _setCurrentPromoPage(page);
                                   },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.textWhite,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                  itemCount: 3,
+                                  itemBuilder: (context, index) {
+                                    return _buildPromoCard(index);
+                                  },
+                                ),
+                              ),
+
+                              // Page Indicator
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(
+                                  3,
+                                  (index) => AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 4),
+                                    width: _currentPromoPage == index ? 20 : 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: _currentPromoPage == index
+                                          ? AppColors.primary
+                                          : AppColors.border,
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                   ),
-                                  child:
-                                      const Text('Réinitialiser les filtres'),
                                 ),
-                              ],
-                            ),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _filteredRestaurants.length,
-                            itemBuilder: (context, index) {
-                              return _buildRestaurantCard(
-                                  _filteredRestaurants[index], index);
-                            },
-                          ),
+                              ),
 
-                        const SizedBox(height: 120), // Bottom nav padding
-                      ],
-                    ),
-                  ),
+                              const SizedBox(height: 24),
+
+                              // Results count
+                              if (_searchQuery.isNotEmpty ||
+                                  _selectedCategory != 'all')
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    '${_filteredRestaurants.length} pharmacie${_filteredRestaurants.length > 1 ? 's' : ''} trouvée${_filteredRestaurants.length > 1 ? 's' : ''}',
+                                    style: TextStyle(
+                                      color: AppColors.mutedForeground,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+
+                              // Nearby Restaurants Section
+                              _buildSectionTitle(
+                                  'Pharmacies proches', 'Voir tout', () {}),
+                              const SizedBox(height: 12),
+
+                              // Display message if no restaurants found
+                              if (_filteredRestaurants.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.restaurant_menu,
+                                        size: 64,
+                                        color: AppColors.mutedForeground
+                                            .withOpacity(0.3),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Aucune pharmacie trouvée',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.foreground,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Essayez de modifier vos filtres ou votre recherche',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.mutedForeground,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedCategory = 'all';
+                                            _searchQuery = '';
+                                            _searchTextController.clear();
+                                            _applyFilters();
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: AppColors.textWhite,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                            'Réinitialiser les filtres'),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: _filteredRestaurants.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildRestaurantCard(
+                                        _filteredRestaurants[index], index);
+                                  },
+                                ),
+
+                              const SizedBox(height: 120), // Bottom nav padding
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -1029,7 +1057,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 'Historique',
                 Icons.history,
                 AppColors.primary,
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
+                () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const OrderHistoryScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -1038,7 +1069,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 'Suivi',
                 Icons.local_shipping_outlined,
                 AppColors.destructive,
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderTrackingScreen())),
+                () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const OrderTrackingScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -1047,7 +1081,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 'Support',
                 Icons.support_agent,
                 AppColors.secondary,
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
+                () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const SupportScreen())),
               ),
             ),
           ],
@@ -1756,6 +1791,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
       ),
     );
   }
+
   Widget _buildMapView() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -1767,7 +1803,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            urlTemplate:
+                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.livraison.app.frontend',
           ),
           MarkerLayer(
@@ -1777,22 +1814,36 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 width: 40,
                 height: 40,
                 child: Container(
-                  decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                  child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 20),
+                  decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2)),
+                  child: const Icon(Icons.person_pin_circle,
+                      color: Colors.white, size: 20),
                 ),
               ),
               ..._filteredRestaurants.map((res) {
-                double lat = _userLocation.latitude + (double.parse(res['distance'].split(' ')[0]) * 0.005);
-                double lng = _userLocation.longitude + (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                double lat = _userLocation.latitude +
+                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                double lng = _userLocation.longitude +
+                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
                 return Marker(
                   point: LatLng(lat, lng),
                   width: 50,
                   height: 50,
                   child: GestureDetector(
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['name']))),
+                    onTap: () => ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(res['name']))),
                     child: Container(
-                      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)]),
-                      child: Center(child: Icon(res['image'] as IconData, color: AppColors.primary, size: 24)),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4)
+                          ]),
+                      child: Center(
+                          child: Icon(res['image'] as IconData,
+                              color: AppColors.primary, size: 24)),
                     ),
                   ),
                 );

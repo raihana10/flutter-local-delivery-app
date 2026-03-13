@@ -100,6 +100,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> register(RegisterRequest request) async {
     _setLoading(true);
     _errorMessage = null;
+    debugPrint("AuthProvider: Registration started for ${request.email}");
 
     try {
       if (request.email.isEmpty || request.password.isEmpty || request.nom.isEmpty) {
@@ -113,13 +114,17 @@ class AuthProvider extends ChangeNotifier {
       }
 
       // 1. Sign up the user in Supabase Auth
+      debugPrint("AuthProvider: Signing up in Supabase Auth...");
       final response = await _supabase.auth.signUp(
         email: request.email,
         password: request.password,
       );
 
-      // 2. Insert into the public custom 'user' table
+      debugPrint("AuthProvider: Auth signUp response user id: ${response.user?.id}");
+
+      // 2. Insert into the public custom 'app_user' table
       if (response.user != null) {
+         debugPrint("AuthProvider: Inserting into app_user table...");
          // Hash the password for the custom `user` table using crypto SHA256
          final bytes = utf8.encode(request.password);
          final digest = sha256.convert(bytes);
@@ -134,21 +139,27 @@ class AuthProvider extends ChangeNotifier {
          };
          
          final responseUser = await _supabase.from('app_user').insert(userData).select().single();
+         debugPrint("AuthProvider: Successfully inserted into app_user. Received row: $responseUser");
+         
          final int userId = responseUser['id_user'];
+         debugPrint("AuthProvider: Extracted userId: $userId. Role: ${request.role}");
          
          // 3. Insert into the role-specific table based on UserRole
          if (request.role == UserRole.client) {
+            debugPrint("AuthProvider: Inserting into client table...");
             await _supabase.from('client').insert({
               'id_user': userId,
               'sexe': request.sexe,
             });
          } else if (request.role == UserRole.livreur) {
+            debugPrint("AuthProvider: Inserting into livreur table...");
             await _supabase.from('livreur').insert({
               'id_user': userId,
               'sexe': request.sexe,
               'cni': request.cni,
             });
          } else if (request.role == UserRole.business) {
+            debugPrint("AuthProvider: Inserting into business table...");
             String bt = 'restaurant';
             if (request.businessType != null) {
                final lowerBt = request.businessType!.toLowerCase();
@@ -162,16 +173,20 @@ class AuthProvider extends ChangeNotifier {
             });
          }
          
+         debugPrint("AuthProvider: Registration finished successfully.");
          // Fetch details synchronously before returning true so the UI has the role
          await _fetchUserDetails(request.email);
          return true;
       }
+      debugPrint("AuthProvider: Auth response user was null.");
       return false;
       
     } on supa.AuthException catch (e) {
+      debugPrint("AuthProvider: AuthException during registration: ${e.message}");
       _setError('Erreur d\'inscription: ${e.message}');
       return false;
     } catch (e) {
+      debugPrint("AuthProvider: Exception during registration: ${e.toString()}");
       _setError('Erreur d\'inscription: ${e.toString()}');
       return false;
     } finally {
