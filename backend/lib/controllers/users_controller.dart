@@ -11,7 +11,7 @@ class UsersController {
   Future<Response> getClients(Request request) async {
     try {
       final clients = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('*, client(*)')
           .eq('role', 'client')
           .isFilter('deleted_at', null);
@@ -25,7 +25,7 @@ class UsersController {
   Future<Response> getLivreurs(Request request) async {
     try {
       final livreurs = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('*, livreur(*)')
           .eq('role', 'livreur')
           .isFilter('deleted_at', null);
@@ -39,7 +39,7 @@ class UsersController {
   Future<Response> getBusinesses(Request request) async {
     try {
       final businesses = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('*, business(*)')
           .eq('role', 'business')
           .isFilter('deleted_at', null);
@@ -53,7 +53,7 @@ class UsersController {
   Future<Response> getUserDetail(Request request, String id) async {
     try {
       final user = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('*, client(*), livreur(*), business(*)')
           .eq('id_user', id)
           .isFilter('deleted_at', null)
@@ -72,7 +72,7 @@ class UsersController {
   Future<Response> toggleUserStatus(Request request, String id) async {
     try {
       final user = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('role')
           .eq('id_user', id)
           .isFilter('deleted_at', null)
@@ -117,7 +117,7 @@ class UsersController {
   Future<Response> validateUser(Request request, String id) async {
     try {
       final user = await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .select('role')
           .eq('id_user', id)
           .isFilter('deleted_at', null)
@@ -155,7 +155,7 @@ class UsersController {
   Future<Response> deleteUser(Request request, String id) async {
     try {
       await SupabaseConfig.client
-          .from('user')
+          .from('app_user')
           .update({'deleted_at': DateTime.now().toIso8601String()})
           .eq('id_user', id);
 
