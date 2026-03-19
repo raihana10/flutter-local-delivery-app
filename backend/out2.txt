@@ -1,0 +1,22 @@
+Analyzing lib...
+
+  error - controllers\commandes_controller.dart:39:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:18:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:25:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:38:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:45:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:69:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:91:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:100:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+  error - controllers\dashboard_controller.dart:118:29 - The argument type 'Null' can't be assigned to the parameter type 'Object'.  - argument_type_not_assignable
+warning - routes\auth_routes.dart:1:8 - Unused import: 'dart:convert'. Try removing the import directive. - unused_import
+warning - routes\dashboard_routes.dart:1:8 - Unused import: 'dart:convert'. Try removing the import directive. - unused_import
+   info - routes\auth_routes.dart:13:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\commandes_routes.dart:14:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\dashboard_routes.dart:16:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\notifications_routes.dart:13:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\paiements_routes.dart:14:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\stats_routes.dart:15:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+   info - routes\users_routes.dart:26:12 - Implicit tear-off of the 'call' method. Try explicitly tearing off the 'call' method. - implicit_call_tearoffs
+
+18 issues found.

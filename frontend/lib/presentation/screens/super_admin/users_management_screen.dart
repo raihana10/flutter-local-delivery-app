@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/mock_super_admin_data.dart';
+import 'package:app/data/datasources/super_admin_api_service.dart';
 
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
@@ -16,11 +16,36 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
   String _filterStatus = 'Tous';
   String _filterDate = 'Toutes';
 
+  final _apiService = SuperAdminApiService();
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    users = List.from(MockSuperAdminData.users);
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final clients = await _apiService.getClients();
+      final livreurs = await _apiService.getLivreurs();
+      final businesses = await _apiService.getBusinesses();
+      
+      if (mounted) {
+        setState(() {
+          users = [
+             ...clients.map((e) => Map<String, dynamic>.from(e)),
+             ...livreurs.map((e) => Map<String, dynamic>.from(e)),
+             ...businesses.map((e) => Map<String, dynamic>.from(e))
+          ];
+          _isLoading = false;
+        });
+      }
+    } catch(e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -57,37 +82,58 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
     );
   }
 
-  void _toggleUserStatus(int userId, bool currentStatus) {
-    setState(() {
-      final index = users.indexWhere((u) => u['id_user'] == userId);
-      if (index != -1) {
-        users[index] = Map<String, dynamic>.from(users[index]);
-        users[index]['est_actif'] = !currentStatus;
-        if (!currentStatus) {
-            users[index]['documents_validation'] = true;
+  void _toggleUserStatus(int userId, bool currentStatus) async {
+    final res = await _apiService.toggleUserStatus(userId.toString());
+    if (res['success'] == true) {
+      setState(() {
+        final index = users.indexWhere((u) => u['id_user'] == userId);
+        if (index != -1) {
+          users[index] = Map<String, dynamic>.from(users[index]);
+          users[index]['est_actif'] = !currentStatus;
+          if (!currentStatus) {
+              users[index]['documents_validation'] = 'validated'; // schema uses varchar for business/livreur? or we just use truthy visual
+          }
         }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Statut de l\'utilisateur mis à jour.')),
+        );
       }
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Statut de l\'utilisateur mis à jour.')),
-    );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: ${res['error'] ?? 'Inconnue'}')),
+        );
+      }
+    }
   }
 
 // _softDeleteUser removed as per user request
 
-  void _validateDocuments(int userId) {
-    setState(() {
-      final index = users.indexWhere((u) => u['id_user'] == userId);
-      if (index != -1) {
-        users[index] = Map<String, dynamic>.from(users[index]);
-        users[index]['documents_validation'] = true;
-        users[index]['est_actif'] = true;
+  void _validateDocuments(int userId) async {
+    final res = await _apiService.validateUser(userId.toString());
+    if (res['success'] == true) {
+      setState(() {
+        final index = users.indexWhere((u) => u['id_user'] == userId);
+        if (index != -1) {
+          users[index] = Map<String, dynamic>.from(users[index]);
+          users[index]['documents_validation'] = 'validated'; // mock compatible
+          users[index]['est_actif'] = true;
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Documents approuvés et compte activé.')),
+        );
       }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Documents approuvés et compte activé.')),
-    );
+    } else {
+       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: ${res['error'] ?? 'Inconnue'}')),
+        );
+      }
+    }
   }
 
   void _showDocumentValidationModal(int userId, String userName) {
@@ -301,14 +347,16 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
           ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildPaginatedTable('client'),
-              _buildPaginatedTable('livreur'),
-              _buildPaginatedTable('business'),
-            ],
-          ),
+          child: _isLoading 
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildPaginatedTable('client'),
+                  _buildPaginatedTable('livreur'),
+                  _buildPaginatedTable('business'),
+                ],
+              ),
         ),
       ],
     );
@@ -380,8 +428,12 @@ class _UserDataTableSource extends DataTableSource {
   DataRow? getRow(int index) {
     if (index >= data.length) return null;
     final user = data[index];
-    final estActif = user['est_actif'] as bool;
-    final hasDocs = user['documents_validation'] as bool? ?? true;
+    
+    // In our Postgres schema, est_actif doesn't exist on Client, 
+    // it's only on livreur / business.  Safely fallback.
+    final estActif = user['est_actif'] ?? true;
+    final docsValidStr = user['documents_validation']?.toString();
+    final hasDocs = docsValidStr != null && docsValidStr != 'false' && docsValidStr.isNotEmpty;
 
     List<DataCell> cells = [
       DataCell(Text('#${user['id_user']}', style: const TextStyle(fontWeight: FontWeight.bold))),

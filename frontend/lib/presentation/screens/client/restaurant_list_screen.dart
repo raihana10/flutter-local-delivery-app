@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -5,6 +6,9 @@ import '../../../core/constants/app_colors.dart';
 import 'restaurant_detail_screen.dart';
 import 'cart_screen.dart';
 import 'client_profile_screen.dart';
+import 'client_notifications_screen.dart';
+import 'client_favorites_screen.dart';
+import '../../../core/providers/client_data_provider.dart';
 
 class RestaurantListScreen extends StatefulWidget {
   const RestaurantListScreen({super.key});
@@ -31,6 +35,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   int _currentPromoPage = 0;
   String _selectedCategory = 'all';
   String _searchQuery = '';
+  bool _showAll = false;
 
   // Mock data
   List<Map<String, dynamic>> _allRestaurants = [];
@@ -39,10 +44,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   @override
   void initState() {
     super.initState();
-    _initializeMockData();
+    // Removed local mock init since data comes from provider now
 
     _headerController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
 
@@ -89,106 +94,8 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   }
 
   void _initializeMockData() {
-    _allRestaurants = [
-      {
-        'name': 'Pizza Palace',
-        'rating': 4.5,
-        'time': '25-35 min',
-        'image': Icons.local_pizza,
-        'distance': '1.2 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '15 DH',
-        'minOrder': '50 DH',
-        'cuisine': 'Italienne',
-      },
-      {
-        'name': 'Burger House',
-        'rating': 4.2,
-        'time': '20-30 min',
-        'image': Icons.lunch_dining,
-        'distance': '0.8 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '12 DH',
-        'minOrder': '40 DH',
-        'cuisine': 'Américaine',
-      },
-      {
-        'name': 'Sushi Bar',
-        'rating': 4.8,
-        'time': '30-40 min',
-        'image': Icons.set_meal,
-        'distance': '2.1 km',
-        'isOpen': false,
-        'category': 'asian',
-        'deliveryFee': '20 DH',
-        'minOrder': '80 DH',
-        'cuisine': 'Japonaise',
-      },
-      {
-        'name': 'Tacos Place',
-        'rating': 4.3,
-        'time': '15-25 min',
-        'image': Icons.takeout_dining,
-        'distance': '1.5 km',
-        'isOpen': true,
-        'category': 'burgers',
-        'deliveryFee': '10 DH',
-        'minOrder': '35 DH',
-        'cuisine': 'Mexicaine',
-      },
-      {
-        'name': 'Pasta Corner',
-        'rating': 4.6,
-        'time': '25-35 min',
-        'image': Icons.ramen_dining,
-        'distance': '1.8 km',
-        'isOpen': true,
-        'category': 'healthy',
-        'deliveryFee': '18 DH',
-        'minOrder': '60 DH',
-        'cuisine': 'Italienne',
-      },
-      {
-        'name': 'Green Salad',
-        'rating': 4.4,
-        'time': '15-20 min',
-        'image': Icons.health_and_safety,
-        'distance': '0.5 km',
-        'isOpen': true,
-        'category': 'healthy',
-        'deliveryFee': '8 DH',
-        'minOrder': '30 DH',
-        'cuisine': 'Healthy',
-      },
-      {
-        'name': 'Sweet Dreams',
-        'rating': 4.7,
-        'time': '20-30 min',
-        'image': Icons.cake,
-        'distance': '1.0 km',
-        'isOpen': true,
-        'category': 'desserts',
-        'deliveryFee': '12 DH',
-        'minOrder': '25 DH',
-        'cuisine': 'Pâtisserie',
-      },
-      {
-        'name': 'Juice Bar',
-        'rating': 4.1,
-        'time': '10-15 min',
-        'image': Icons.local_cafe,
-        'distance': '0.3 km',
-        'isOpen': true,
-        'category': 'drinks',
-        'deliveryFee': '5 DH',
-        'minOrder': '20 DH',
-        'cuisine': 'Boissons',
-      },
-    ];
-
-    _filteredRestaurants = List.from(_allRestaurants);
+    // Removed mock initialization.
+    // _filteredRestaurants is now dynamically computed in `build` or handled on changes.
   }
 
   void _filterByCategory(String category) {
@@ -212,23 +119,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' ||
-            restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty ||
-            restaurant['name']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase());
-
-        return matchesCategory && matchesSearch;
-      }).toList();
-    });
+    // Rely on build method filtering or provider changes instead of setting state directly here on _filteredRestaurants.
+    // Call setState to rebuild UI with current query and category
+    setState(() {});
   }
 
   void _performSearch() {
@@ -326,6 +219,21 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final clientData = context.watch<ClientDataProvider>();
+    
+    // Convert API data to map format and apply search query locally.
+    // In production, filtering should probably be done effectively either via provider sorting 
+    // or by backend endpoints passing '?search=' and '?category='. 
+    final baseRestaurants = clientData.restaurants.where((r) => r['type_business'] == 'restaurant').toList();
+    
+    _filteredRestaurants = baseRestaurants.where((restaurant) {
+      final businessUser = restaurant['user'] ?? {};
+      final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
+      // Category is mocked as restaurant type is uniform for now
+      // The backend will handle 'category' mapping later (e.g. types of cuisines) if added to the Database.
+      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      return matchesSearch;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -466,22 +374,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                             children: [
                                               GestureDetector(
                                                 onTap: () {
-                                                  // Handle notifications with animation
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: const Text(
-                                                          'Notifications - Fonctionnalité à venir'),
-                                                      backgroundColor:
-                                                          AppColors.primary,
-                                                      behavior: SnackBarBehavior
-                                                          .floating,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(10),
-                                                      ),
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) => ClientNotificationsScreen(),
                                                     ),
                                                   );
                                                 },
@@ -490,16 +386,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                   height: 48,
                                                   decoration: BoxDecoration(
                                                     color: AppColors.accent,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            16),
+                                                    borderRadius: BorderRadius.circular(16),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.accent
-                                                            .withOpacity(0.4),
+                                                        color: AppColors.accent.withOpacity(0.4),
                                                         blurRadius: 12,
-                                                        offset:
-                                                            const Offset(0, 4),
+                                                        offset: const Offset(0, 4),
                                                       ),
                                                     ],
                                                   ),
@@ -507,26 +399,27 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                     alignment: Alignment.center,
                                                     children: [
                                                       const Icon(
-                                                        Icons
-                                                            .notifications_none,
-                                                        color:
-                                                            AppColors.primary,
+                                                        Icons.notifications_none,
+                                                        color: AppColors.primary,
                                                         size: 24,
                                                       ),
-                                                      Positioned(
-                                                        top: 8,
-                                                        right: 8,
-                                                        child: Container(
-                                                          width: 8,
-                                                          height: 8,
-                                                          decoration:
-                                                              const BoxDecoration(
-                                                            color: AppColors
-                                                                .destructive,
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                        ),
+                                                      Consumer<ClientDataProvider>(
+                                                        builder: (context, data, _) {
+                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          if (!hasUnread) return const SizedBox.shrink();
+                                                          return Positioned(
+                                                            top: 8,
+                                                            right: 8,
+                                                            child: Container(
+                                                              width: 8,
+                                                              height: 8,
+                                                              decoration: const BoxDecoration(
+                                                                color: AppColors.destructive,
+                                                                shape: BoxShape.circle,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
                                                       ),
                                                     ],
                                                   ),
@@ -821,7 +714,11 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Restaurants proches', 'Voir tout', () {}),
+                            'Restaurants proches', !_showAll ? 'Voir tout' : '', () {
+                              setState(() {
+                                _showAll = true;
+                              });
+                            }),
                         const SizedBox(height: 12),
 
                         // Display message if no restaurants found
@@ -881,7 +778,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _filteredRestaurants.length,
+                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
                             itemBuilder: (context, index) {
                               return _buildRestaurantCard(
                                   _filteredRestaurants[index], index);
@@ -895,43 +792,6 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 ),
               ],
             ),
-
-            // Floating Action Button
-            Positioned(
-              bottom: 100,
-              right: 20,
-              child: AnimatedBuilder(
-                animation: _fabAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _fabAnimation.value,
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        // Quick order action
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                                'Commande rapide - Fonctionnalité à venir'),
-                            backgroundColor: AppColors.accent,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        );
-                      },
-                      backgroundColor: AppColors.accent,
-                      elevation: 8,
-                      child: const Icon(
-                        Icons.bolt,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
           ],
         ),
       ),
@@ -940,7 +800,6 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
-
   Widget _buildPromotionalBanner() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -969,7 +828,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.local_shipping,
+              Icons.storefront,
               color: AppColors.primary,
               size: 30,
             ),
@@ -980,7 +839,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Livraison gratuite',
+                  'Restaurants proches',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -989,7 +848,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Sur votre première commande de plus de 50 DH',
+                  'Commandez chez les meilleurs restaurants de votre ville',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.mutedForeground,
@@ -998,11 +857,6 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 ),
               ],
             ),
-          ),
-          Icon(
-            Icons.arrow_forward_ios,
-            color: AppColors.mutedForeground,
-            size: 16,
           ),
         ],
       ),
@@ -1042,7 +896,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 'Favoris',
                 Icons.favorite,
                 AppColors.destructive,
-                () {},
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ClientFavoritesScreen()),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -1187,34 +1046,35 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
               letterSpacing: -0.2,
             ),
           ),
-          TextButton(
-            onPressed: onActionTap,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  actionText,
-                  style: TextStyle(
-                    color: AppColors.gold,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: 0.1,
+          if (actionText.isNotEmpty)
+            TextButton(
+              onPressed: onActionTap,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionText,
+                    style: TextStyle(
+                      color: AppColors.gold,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      letterSpacing: 0.1,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: AppColors.gold,
-                  size: 12,
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppColors.gold,
+                    size: 12,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1384,7 +1244,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     );
   }
 
-  Widget _buildRestaurantCard(Map<String, dynamic> restaurant, int index) {
+  Widget _buildRestaurantCard(Map<String, dynamic> restaurantInfo, int index) {
+    final businessUser = restaurantInfo['user'] ?? {};
+    final idBusiness = restaurantInfo['id_business'] ?? '0';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -1395,8 +1258,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
               context,
               MaterialPageRoute(
                 builder: (_) => RestaurantDetailScreen(
-                  restaurantName: restaurant['name'] as String,
-                  heroTag: 'restaurant_${restaurant['image']}_$index',
+                  restaurantName: businessUser['nom'] ?? 'Restaurant',
+                  heroTag: 'restaurant_${idBusiness}_$index',
+                  businessId: idBusiness.toString(),
                 ),
               ),
             );
@@ -1423,7 +1287,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 children: [
                   // Restaurant Image
                   Hero(
-                    tag: 'restaurant_${restaurant['image']}_$index',
+                    tag: 'restaurant_${idBusiness}_$index',
                     child: Container(
                       width: 80,
                       height: 80,
@@ -1437,20 +1301,21 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
+                        image: restaurantInfo['pdp'] != null 
+                            ? DecorationImage(
+                                image: NetworkImage(restaurantInfo['pdp']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: AppColors.background,
-                          child: Center(
-                            child: Icon(
-                              restaurant['image'] as IconData,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: restaurantInfo['pdp'] == null 
+                          ? Center(
+                              child: Text(
+                                '🍔',
+                                style: const TextStyle(fontSize: 32),
+                              ),
+                            )
+                          : null,
                     ),
                   ),
 
@@ -1465,7 +1330,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['name'] as String,
+                                businessUser['nom'] ?? 'Restaurant',
                                 style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -1479,17 +1344,17 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool)
+                                color: (restaurantInfo['is_open'] == true)
                                     ? Colors.green.withOpacity(0.1)
                                     : AppColors.destructive.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                (restaurant['isOpen'] as bool)
+                                (restaurantInfo['is_open'] == true)
                                     ? 'Ouvert'
                                     : 'Fermé',
                                 style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool)
+                                  color: (restaurantInfo['is_open'] == true)
                                       ? Colors.green
                                       : AppColors.destructive,
                                   fontSize: 10,
@@ -1521,7 +1386,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '${restaurant['rating']}',
+                                    '4.5',
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1548,7 +1413,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['time'] as String,
+                                    '${restaurantInfo['temps_preparation'] ?? 30} min',
                                     style: const TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.w600,
@@ -1575,7 +1440,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['distance'] as String,
+                                    '1.2 km', // Mock distance
                                     style: TextStyle(
                                       color: AppColors.secondary,
                                       fontWeight: FontWeight.w600,
@@ -1592,28 +1457,11 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['cuisine'] as String,
+                                restaurantInfo['description'] ?? '',
                                 style: TextStyle(
                                   color: AppColors.mutedForeground,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.gold.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                'Livraison ${restaurant['deliveryFee']}',
-                                style: TextStyle(
-                                  color: AppColors.gold,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ),
@@ -1725,23 +1573,29 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                   Positioned(
                     top: -4,
                     right: -4,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: const BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          '3',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                    child: Consumer<ClientDataProvider>(
+                      builder: (context, cart, _) {
+                        final count = cart.cartItems.length;
+                        if (count == 0) return const SizedBox.shrink();
+                        return Container(
+                          width: 16,
+                          height: 16,
+                          decoration: const BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
                           ),
-                        ),
-                      ),
+                          child: Center(
+                            child: Text(
+                              '$count',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
               ],

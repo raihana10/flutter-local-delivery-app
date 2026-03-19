@@ -3,12 +3,56 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/data/datasources/mock_super_admin_data.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:app/data/datasources/super_admin_api_service.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _apiService = SuperAdminApiService();
+  
+  bool _isLoading = true;
+  Map<String, dynamic> _stats = {};
+  Map<String, dynamic> _alerts = {};
+  List<dynamic> _liveDrivers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      final stats = await _apiService.getKPIs();
+      final alerts = await _apiService.getAlerts();
+      final drivers = await _apiService.getLiveDrivers();
+      
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _alerts = alerts;
+          _liveDrivers = drivers;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -31,7 +75,6 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildKPIGrid(BuildContext context) {
-    final stats = MockSuperAdminData.dashboardStats;
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
     return GridView.count(
@@ -42,10 +85,10 @@ class DashboardScreen extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 1.5,
       children: [
-        _buildKPICard('Commandes Actives', stats['commandes_actives'].toString(), LucideIcons.package2, AppColors.accent),
-        _buildKPICard('Revenus du jour', '${stats['revenus_jour']} MAD', LucideIcons.coins, Colors.green),
-        _buildKPICard('Livreurs en mission', stats['livreurs_actifs'].toString(), LucideIcons.bike, Colors.blue),
-        _buildKPICard('Nouveaux Utilisateurs', stats['nouveaux_users'].toString(), LucideIcons.userPlus, Colors.purple),
+        _buildKPICard('Commandes Actives', _stats['commandes_actives']?.toString() ?? '0', LucideIcons.package2, AppColors.accent),
+        _buildKPICard('Revenus du jour', '${_stats['revenus_jour'] ?? 0} MAD', LucideIcons.coins, Colors.green),
+        _buildKPICard('Livreurs actifs', _stats['livreurs_actifs']?.toString() ?? '0', LucideIcons.bike, Colors.blue),
+        _buildKPICard('Nouveaux Utilisateurs', _stats['nouveaux_users']?.toString() ?? '0', LucideIcons.userPlus, Colors.purple),
       ],
     );
   }
@@ -228,8 +271,8 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildLiveAlerts() {
-    final blockedOrders = MockSuperAdminData.orders.where((o) => o['is_blocked'] == true).toList();
-    final pendingUsers = MockSuperAdminData.users.where((u) => u['documents_validation'] == false).toList();
+    final blockedOrders = _alerts['blocked_orders'] as List<dynamic>? ?? [];
+    final pendingUsers = _alerts['pending_validations'] as List<dynamic>? ?? [];
 
     final List<Map<String, dynamic>> dynamicAlerts = [];
     for (var order in blockedOrders) {
@@ -243,7 +286,7 @@ class DashboardScreen extends StatelessWidget {
     for (var user in pendingUsers) {
       dynamicAlerts.add({
         'titre': 'Validation en attente',
-        'message': '${user['nom']} (${user['role']}) attend la validation de ses documents.',
+        'message': 'L\'utilisateur #${user['id_user']} attend la validation de ses documents.',
         'type': 'alert',
         'date': 'A l\'instant',
       });

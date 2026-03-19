@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -5,6 +6,9 @@ import '../../../core/constants/app_colors.dart';
 import 'restaurant_detail_screen.dart';
 import 'cart_screen.dart';
 import 'client_profile_screen.dart';
+import 'client_notifications_screen.dart';
+import 'client_favorites_screen.dart';
+import '../../../core/providers/client_data_provider.dart';
 
 class PharmacyListScreen extends StatefulWidget {
   const PharmacyListScreen({super.key});
@@ -31,6 +35,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   int _currentPromoPage = 0;
   String _selectedCategory = 'all';
   String _searchQuery = '';
+  bool _showAll = false;
 
   // Mock data
   List<Map<String, dynamic>> _allRestaurants = [];
@@ -39,10 +44,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   @override
   void initState() {
     super.initState();
-    _initializeMockData();
+    // Removed local mock init since data comes from provider now
 
     _headerController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
 
@@ -89,58 +94,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   }
 
   void _initializeMockData() {
-    _allRestaurants = [
-      {
-        'name': 'Pharmacie Al Amal',
-        'rating': 4.9,
-        'time': '10-20 min',
-        'image': Icons.local_pharmacy,
-        'distance': '0.5 km',
-        'isOpen': true,
-        'category': 'medicaments',
-        'deliveryFee': '5 DH',
-        'minOrder': '20 DH',
-        'cuisine': 'Général',
-      },
-      {
-        'name': 'Pharmacie du Nord',
-        'rating': 4.7,
-        'time': '15-25 min',
-        'image': Icons.medical_services,
-        'distance': '1.2 km',
-        'isOpen': true,
-        'category': 'soins',
-        'deliveryFee': '8 DH',
-        'minOrder': '30 DH',
-        'cuisine': 'Parapharmacie',
-      },
-      {
-        'name': 'Pharmacie Centrale',
-        'rating': 4.8,
-        'time': '5-15 min',
-        'image': Icons.health_and_safety,
-        'distance': '0.3 km',
-        'isOpen': true,
-        'category': 'bebe',
-        'deliveryFee': '3 DH',
-        'minOrder': '15 DH',
-        'cuisine': 'Général',
-      },
-      {
-        'name': 'Pharmacie Ibn Sina',
-        'rating': 4.6,
-        'time': '20-30 min',
-        'image': Icons.healing,
-        'distance': '2.5 km',
-        'isOpen': false,
-        'category': 'medicaments',
-        'deliveryFee': '12 DH',
-        'minOrder': '50 DH',
-        'cuisine': 'Spécialisée',
-      },
-    ];
-
-    _filteredRestaurants = List.from(_allRestaurants);
+    // Removed mock initialization.
+    // _filteredRestaurants is now dynamically computed in `build` or handled on changes.
   }
 
   void _filterByCategory(String category) {
@@ -164,23 +119,9 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredRestaurants = _allRestaurants.where((restaurant) {
-        bool matchesCategory = _selectedCategory == 'all' ||
-            restaurant['category'] == _selectedCategory;
-        bool matchesSearch = _searchQuery.isEmpty ||
-            restaurant['name']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            restaurant['cuisine']
-                .toString()
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase());
-
-        return matchesCategory && matchesSearch;
-      }).toList();
-    });
+    // Rely on build method filtering or provider changes instead of setting state directly here on _filteredRestaurants.
+    // Call setState to rebuild UI with current query and category
+    setState(() {});
   }
 
   void _performSearch() {
@@ -274,6 +215,18 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final clientData = context.watch<ClientDataProvider>();
+    
+    // Replace mockup filtering with API data processing
+    final basePharmacies = clientData.restaurants.where((r) => r['type_business'] == 'pharmacie').toList();
+    
+    _filteredRestaurants = basePharmacies.where((pharmacy) {
+      final businessUser = pharmacy['user'] ?? {};
+      final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
+      // Category filtering bypassed here because we would need backend mapping.
+      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      return matchesSearch;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -414,22 +367,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                             children: [
                                               GestureDetector(
                                                 onTap: () {
-                                                  // Handle notifications with animation
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: const Text(
-                                                          'Notifications - Fonctionnalité à venir'),
-                                                      backgroundColor:
-                                                          AppColors.primary,
-                                                      behavior: SnackBarBehavior
-                                                          .floating,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(10),
-                                                      ),
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) => ClientNotificationsScreen(),
                                                     ),
                                                   );
                                                 },
@@ -438,16 +379,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                   height: 48,
                                                   decoration: BoxDecoration(
                                                     color: AppColors.accent,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            16),
+                                                    borderRadius: BorderRadius.circular(16),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.accent
-                                                            .withOpacity(0.4),
+                                                        color: AppColors.accent.withOpacity(0.4),
                                                         blurRadius: 12,
-                                                        offset:
-                                                            const Offset(0, 4),
+                                                        offset: const Offset(0, 4),
                                                       ),
                                                     ],
                                                   ),
@@ -455,26 +392,27 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                     alignment: Alignment.center,
                                                     children: [
                                                       const Icon(
-                                                        Icons
-                                                            .notifications_none,
-                                                        color:
-                                                            AppColors.primary,
+                                                        Icons.notifications_none,
+                                                        color: AppColors.primary,
                                                         size: 24,
                                                       ),
-                                                      Positioned(
-                                                        top: 8,
-                                                        right: 8,
-                                                        child: Container(
-                                                          width: 8,
-                                                          height: 8,
-                                                          decoration:
-                                                              const BoxDecoration(
-                                                            color: AppColors
-                                                                .destructive,
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                        ),
+                                                      Consumer<ClientDataProvider>(
+                                                        builder: (context, data, _) {
+                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          if (!hasUnread) return const SizedBox.shrink();
+                                                          return Positioned(
+                                                            top: 8,
+                                                            right: 8,
+                                                            child: Container(
+                                                              width: 8,
+                                                              height: 8,
+                                                              decoration: const BoxDecoration(
+                                                                color: AppColors.destructive,
+                                                                shape: BoxShape.circle,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
                                                       ),
                                                     ],
                                                   ),
@@ -764,7 +702,11 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Pharmacies proches', 'Voir tout', () {}),
+                            'Pharmacies proches', !_showAll ? 'Voir tout' : '', () {
+                              setState(() {
+                                _showAll = true;
+                              });
+                            }),
                         const SizedBox(height: 12),
 
                         // Display message if no restaurants found
@@ -824,7 +766,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _filteredRestaurants.length,
+                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
                             itemBuilder: (context, index) {
                               return _buildRestaurantCard(
                                   _filteredRestaurants[index], index);
@@ -839,42 +781,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
               ],
             ),
 
-            // Floating Action Button
-            Positioned(
-              bottom: 100,
-              right: 20,
-              child: AnimatedBuilder(
-                animation: _fabAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _fabAnimation.value,
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        // Quick order action
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                                'Commande rapide - Fonctionnalité à venir'),
-                            backgroundColor: AppColors.accent,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        );
-                      },
-                      backgroundColor: AppColors.accent,
-                      elevation: 8,
-                      child: const Icon(
-                        Icons.bolt,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
           ],
         ),
       ),
@@ -912,7 +818,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.local_shipping,
+              Icons.local_pharmacy,
               color: AppColors.primary,
               size: 30,
             ),
@@ -923,7 +829,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Livraison gratuite',
+                  'Pharmacies proches',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -932,7 +838,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Sur votre première commande de plus de 50 DH',
+                  'Commandez vos médicaments et produits de santé',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.mutedForeground,
@@ -941,11 +847,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 ),
               ],
             ),
-          ),
-          Icon(
-            Icons.arrow_forward_ios,
-            color: AppColors.mutedForeground,
-            size: 16,
           ),
         ],
       ),
@@ -985,7 +886,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 'Favoris',
                 Icons.favorite,
                 AppColors.destructive,
-                () {},
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ClientFavoritesScreen()),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -1130,34 +1036,35 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
               letterSpacing: -0.2,
             ),
           ),
-          TextButton(
-            onPressed: onActionTap,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  actionText,
-                  style: TextStyle(
-                    color: AppColors.gold,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: 0.1,
+          if (actionText.isNotEmpty)
+            TextButton(
+              onPressed: onActionTap,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionText,
+                    style: TextStyle(
+                      color: AppColors.gold,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      letterSpacing: 0.1,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: AppColors.gold,
-                  size: 12,
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppColors.gold,
+                    size: 12,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1327,7 +1234,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     );
   }
 
-  Widget _buildRestaurantCard(Map<String, dynamic> restaurant, int index) {
+  Widget _buildRestaurantCard(Map<String, dynamic> pharmacyInfo, int index) {
+    final businessUser = pharmacyInfo['user'] ?? {};
+    final idBusiness = pharmacyInfo['id_business'] ?? '0';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -1338,8 +1248,9 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
               context,
               MaterialPageRoute(
                 builder: (_) => RestaurantDetailScreen(
-                  restaurantName: restaurant['name'] as String,
-                  heroTag: 'restaurant_${restaurant['image']}_$index',
+                  restaurantName: businessUser['nom'] ?? 'Pharmacie',
+                  heroTag: 'pharmacy_${idBusiness}_$index',
+                  businessId: idBusiness.toString(),
                 ),
               ),
             );
@@ -1366,7 +1277,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 children: [
                   // Restaurant Image
                   Hero(
-                    tag: 'restaurant_${restaurant['image']}_$index',
+                    tag: 'pharmacy_${idBusiness}_$index',
                     child: Container(
                       width: 80,
                       height: 80,
@@ -1380,20 +1291,21 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
+                        image: pharmacyInfo['pdp'] != null 
+                            ? DecorationImage(
+                                image: NetworkImage(pharmacyInfo['pdp']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: AppColors.background,
-                          child: Center(
-                            child: Icon(
-                              restaurant['image'] as IconData,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: pharmacyInfo['pdp'] == null 
+                          ? Center(
+                              child: Text(
+                                '💊',
+                                style: const TextStyle(fontSize: 32),
+                              ),
+                            )
+                          : null,
                     ),
                   ),
 
@@ -1408,7 +1320,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['name'] as String,
+                                businessUser['nom'] ?? 'Pharmacie',
                                 style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -1422,17 +1334,17 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool)
+                                color: (pharmacyInfo['is_open'] == true)
                                     ? Colors.green.withOpacity(0.1)
                                     : AppColors.destructive.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                (restaurant['isOpen'] as bool)
+                                (pharmacyInfo['is_open'] == true)
                                     ? 'Ouvert'
                                     : 'Fermé',
                                 style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool)
+                                  color: (pharmacyInfo['is_open'] == true)
                                       ? Colors.green
                                       : AppColors.destructive,
                                   fontSize: 10,
@@ -1464,7 +1376,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '${restaurant['rating']}',
+                                    '4.8',
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1491,7 +1403,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['time'] as String,
+                                    '${pharmacyInfo['temps_preparation'] ?? 15} min',
                                     style: const TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.w600,
@@ -1518,7 +1430,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['distance'] as String,
+                                    '1.5 km',
                                     style: TextStyle(
                                       color: AppColors.secondary,
                                       fontWeight: FontWeight.w600,
@@ -1535,28 +1447,11 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['cuisine'] as String,
+                                pharmacyInfo['description'] ?? '',
                                 style: TextStyle(
                                   color: AppColors.mutedForeground,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.gold.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                'Livraison ${restaurant['deliveryFee']}',
-                                style: TextStyle(
-                                  color: AppColors.gold,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ),
@@ -1668,23 +1563,29 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                   Positioned(
                     top: -4,
                     right: -4,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: const BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          '3',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                    child: Consumer<ClientDataProvider>(
+                      builder: (context, cart, _) {
+                        final count = cart.cartItems.length;
+                        if (count == 0) return const SizedBox.shrink();
+                        return Container(
+                          width: 16,
+                          height: 16,
+                          decoration: const BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
                           ),
-                        ),
-                      ),
+                          child: Center(
+                            child: Text(
+                              '$count',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
               ],

@@ -1,31 +1,65 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../../data/models/auth_models.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  final supa.SupabaseClient _supabase = supa.Supabase.instance.client;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
 
-  // Initialize auth state from local storage
   Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    final userJson = prefs.getString('user_data');
+    // We are no longer reliably using Supabase Auth session because of confirmation issues. 
+    // We rely on login() setting the _user variable. 
+    // For persistence, you'd want to store the user ID in SharedPreferences, but for now we skip session loading.
     
-    if (token != null && userJson != null) {
-      try {
-        _user = User.fromJson(jsonDecode(userJson));
-        notifyListeners();
-      } catch (e) {
-        await logout();
+    // Listen to auth state changes
+    _supabase.auth.onAuthStateChange.listen((data) async {
+      final supa.AuthChangeEvent event = data.event;
+      final supa.Session? session = data.session;
+      
+      if (event == supa.AuthChangeEvent.signedIn && session != null) {
+         await _fetchUserDetails(session.user.email!);
+      } else if (event == supa.AuthChangeEvent.signedOut) {
+         _user = null;
+         notifyListeners();
       }
+    });
+  }
+
+  Future<void> _fetchUserDetails(String email) async {
+    try {
+      // First try to fetch from the public user table
+      final response = await _supabase
+          .from('app_user')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+      
+      if (response != null) {
+         _user = User.fromJson(response);
+      } else {
+         // Fallback if user is in auth but not in public schema yet
+         _user = User(
+            id: 0, 
+            email: email, 
+            nom: 'Utilisateur',
+            role: UserRole.client, 
+            estActif: true,
+            createdAt: DateTime.now(), 
+            updatedAt: DateTime.now(),
+          );
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error fetching user details: $e");
     }
   }
 
@@ -34,59 +68,36 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
 
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Mock validation - in real app, this would be an API call
       if (email.isEmpty || password.isEmpty) {
         _setError('Email et mot de passe sont requis');
         return false;
       }
 
-      // --- MOCK VALIDATION FOR TESTING WITHOUT DATABASE ---
-      User? mockUser;
-      
-      if (password == 'password') {
-        if (email == 'test@test.com') {
-          mockUser = User(
-            id: 1, email: email, nom: 'Client Test',
-            role: UserRole.client, estActif: true,
-            createdAt: DateTime.now(), updatedAt: DateTime.now(),
-          );
-        } else if (email == 'livreur@test.com') {
-          mockUser = User(
-            id: 10, email: email, nom: 'Livreur Test',
-            role: UserRole.livreur, estActif: true,
-            createdAt: DateTime.now(), updatedAt: DateTime.now(),
-          );
-        } else if (email == 'admin@test.com') {
-          mockUser = User(
-            id: 999, email: email, nom: 'Super Admin',
-            role: UserRole.superAdmin, estActif: true,
-            createdAt: DateTime.now(), updatedAt: DateTime.now(),
-          );
-        } else if (email == 'business@test.com') {
-          mockUser = User(
-            id: 100, email: email, nom: 'Business Test',
-            role: UserRole.business, estActif: true,
-            createdAt: DateTime.now(), updatedAt: DateTime.now(),
-          );
-        }
-      }
+      // Check against app_user table directly to bypass Supabase Auth confirmation issues
+      final response = await _supabase
+          .from('app_user')
+          .select()
+          .eq('email', email)
+          .isFilter('deleted_at', null)
+          .maybeSingle();
 
-      if (mockUser != null) {
-        _user = mockUser;
-        // Save to local storage
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
-        await prefs.setString('user_data', jsonEncode(_user!.toJson()));
-        
-        notifyListeners();
-        return true;
-      } else {
-        _setError('Email ou mot de passe incorrect. Essayez admin@test.com, test@test.com, livreur@test.com ou business@test.com avec "password"');
+      if (response == null) {
+        _setError('Identifiants invalides');
         return false;
       }
+      
+      // We assume passwords in the DB are hashed with SHA256 as per the register method below
+      final bytes = utf8.encode(password);
+      final digest = sha256.convert(bytes);
+      final hashedPassword = digest.toString();
+
+      if (response['password'] != hashedPassword && response['password'] != password) {
+         _setError('Identifiants invalides');
+         return false;
+      }
+
+      await _fetchUserDetails(email);
+      return true; 
     } catch (e) {
       _setError('Erreur de connexion: ${e.toString()}');
       return false;
@@ -100,10 +111,6 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
 
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Mock validation
       if (request.email.isEmpty || request.password.isEmpty || request.nom.isEmpty) {
         _setError('Tous les champs sont requis');
         return false;
@@ -114,24 +121,65 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // --- MOCK REGISTRATION FOR TESTING WITHOUT DATABASE ---
-      _user = User(
-        id: (DateTime.now().millisecondsSinceEpoch % 10000),
+      // 1. Sign up the user in Supabase Auth
+      final response = await _supabase.auth.signUp(
         email: request.email,
-        nom: request.nom,
-        role: request.role,
-        estActif: true,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        password: request.password,
       );
 
-      // Save to local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', 'mock_token_${DateTime.now().millisecondsSinceEpoch}');
-      await prefs.setString('user_data', jsonEncode(_user!.toJson()));
+      // 2. Insert into the public custom 'user' table
+      if (response.user != null) {
+         // Hash the password for the custom `user` table using crypto SHA256
+         final bytes = utf8.encode(request.password);
+         final digest = sha256.convert(bytes);
+         final hashedPassword = digest.toString();
+
+         final userData = {
+            'email': request.email,
+            'password': hashedPassword,
+            'nom': request.nom,
+            'num_tl': request.numTl,
+            'role': request.role.value,
+         };
+         
+         final responseUser = await _supabase.from('app_user').insert(userData).select().single();
+         final int userId = responseUser['id_user'];
+         
+         // 3. Insert into the role-specific table based on UserRole
+         if (request.role == UserRole.client) {
+            await _supabase.from('client').insert({
+              'id_user': userId,
+              'sexe': request.sexe,
+            });
+         } else if (request.role == UserRole.livreur) {
+            await _supabase.from('livreur').insert({
+              'id_user': userId,
+              'sexe': request.sexe,
+              'cni': request.cni,
+            });
+         } else if (request.role == UserRole.business) {
+            String bt = 'restaurant';
+            if (request.businessType != null) {
+               final lowerBt = request.businessType!.toLowerCase();
+               if (lowerBt.contains('super')) bt = 'super-marche';
+               else if (lowerBt.contains('pharmacie')) bt = 'pharmacie';
+            }
+            await _supabase.from('business').insert({
+              'id_user': userId,
+              'type_business': bt,
+              'description': request.businessDescription,
+            });
+         }
+         
+         // Fetch details synchronously before returning true so the UI has the role
+         await _fetchUserDetails(request.email);
+         return true;
+      }
+      return false;
       
-      notifyListeners();
-      return true;
+    } on supa.AuthException catch (e) {
+      _setError('Erreur d\'inscription: ${e.message}');
+      return false;
     } catch (e) {
       _setError('Erreur d\'inscription: ${e.toString()}');
       return false;
@@ -141,14 +189,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    _user = null;
     _errorMessage = null;
-    
-    // Clear local storage
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('user_data');
-    
+    await _supabase.auth.signOut();
+    _user = null;
     notifyListeners();
   }
 

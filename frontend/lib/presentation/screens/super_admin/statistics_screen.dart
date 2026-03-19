@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/mock_super_admin_data.dart';
+import 'package:app/data/datasources/super_admin_api_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -10,9 +11,47 @@ class StatisticsScreen extends StatefulWidget {
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
 }
-
 class _StatisticsScreenState extends State<StatisticsScreen> {
   String _selectedPeriod = 'Semaine';
+  final _apiService = SuperAdminApiService();
+  
+  bool _isLoading = true;
+  List<dynamic> _topDrivers = [];
+  List<dynamic> _topBusinesses = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await _apiService.getRevenus();
+      if (res['success'] == true) {
+        final data = res['data'];
+        
+        final drivers = List<dynamic>.from(data['livreurStats'] ?? []);
+        drivers.sort((a, b) => ((b['courses_count'] ?? 0) as num).compareTo((a['courses_count'] ?? 0) as num));
+        
+        final businesses = List<dynamic>.from(data['businessStats'] ?? []);
+        businesses.sort((a, b) => ((b['revenue'] ?? 0) as num).compareTo((a['revenue'] ?? 0) as num));
+
+        if (mounted) {
+          setState(() {
+            _topDrivers = drivers.take(3).toList();
+            _topBusinesses = businesses.take(3).toList();
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +125,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildChartsSection(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     final isDesktop = MediaQuery.of(context).size.width >= 800;
     
     if (isDesktop) {
@@ -245,13 +288,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildRankings(BuildContext context) {
-    final drivers = MockSuperAdminData.users.where((u) => u['role'] == 'livreur').toList();
-    drivers.sort((a, b) => (b['courses_count'] as int).compareTo(a['courses_count'] as int));
-    final topDrivers = drivers.take(3).toList();
-
-    final businesses = MockSuperAdminData.users.where((u) => u['role'] == 'business').toList();
-    businesses.sort((a, b) => (b['revenue'] as double).compareTo(a['revenue'] as double));
-    final topBusinesses = businesses.take(3).toList();
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    final topDrivers = _topDrivers;
+    final topBusinesses = _topBusinesses;
 
     if (MediaQuery.of(context).size.width >= 800) {
       return Row(
@@ -274,9 +316,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     if (i > 0) const Divider(),
                     _buildRankingRow(
                       '${i + 1}', 
-                      topDrivers[i]['nom'], 
-                      '${topDrivers[i]['courses_count']} courses', 
-                      '${topDrivers[i]['rating']} ★'
+                      topDrivers[i]['nom'] ?? 'Inconnu', 
+                      '${topDrivers[i]['courses_count'] ?? 0} courses', 
+                      '${topDrivers[i]['rating'] ?? 0} ★'
                     ),
                   ],
                 ],
@@ -303,9 +345,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         if (i > 0) const Divider(),
                         _buildRankingRow(
                           '${i + 1}', 
-                          topBusinesses[i]['nom'], 
-                          '${topBusinesses[i]['revenue']} MAD', 
-                          '${topBusinesses[i]['rating']} ★'
+                          topBusinesses[i]['nom'] ?? 'Inconnu', 
+                          '${topBusinesses[i]['revenue'] ?? 0} MAD', 
+                          '${topBusinesses[i]['rating'] ?? 0} ★'
                         ),
                       ],
                     ],
@@ -334,9 +376,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     if (i > 0) const Divider(),
                     _buildRankingRow(
                       '${i + 1}', 
-                      topDrivers[i]['nom'], 
-                      '${topDrivers[i]['courses_count']} courses', 
-                      '${topDrivers[i]['rating']} ★'
+                      topDrivers[i]['nom'] ?? 'Inconnu', 
+                      '${topDrivers[i]['courses_count'] ?? 0} courses', 
+                      '${topDrivers[i]['rating'] ?? 0} ★'
                     ),
                   ],
                 ],
@@ -360,9 +402,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     if (i > 0) const Divider(),
                     _buildRankingRow(
                       '${i + 1}', 
-                      topBusinesses[i]['nom'], 
-                      '${topBusinesses[i]['revenue']} MAD', 
-                      '${topBusinesses[i]['rating']} ★'
+                      topBusinesses[i]['nom'] ?? 'Inconnu', 
+                      '${topBusinesses[i]['revenue'] ?? 0} MAD', 
+                      '${topBusinesses[i]['rating'] ?? 0} ★'
                     ),
                   ],
                 ],

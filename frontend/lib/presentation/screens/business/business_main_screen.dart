@@ -7,8 +7,11 @@ import '../../../../core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import '../../../../models/business_product.dart';
 import '../../../../providers/product_provider.dart';
+import 'views/business_stats_view.dart';
+import 'views/business_notifications_view.dart';
+import 'views/business_profile_view.dart';
 
-enum BusinessScreen { dashboard, catalog, addProduct, importSheet, orderDetail, editProduct }
+enum BusinessScreen { dashboard, catalog, addProduct, importSheet, orderDetail, editProduct, stats, notifications, profile }
 
 class BusinessMainScreen extends StatefulWidget {
   const BusinessMainScreen({super.key});
@@ -55,6 +58,12 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
         return _OrderDetailView(onNavigate: _setScreen);
       case BusinessScreen.editProduct:
         return _EditProductView(index: _editingIndex, onNavigate: _setScreen);
+      case BusinessScreen.stats:
+        return BusinessStatsView(onNavigate: _setScreen);
+      case BusinessScreen.notifications:
+        return BusinessNotificationsView(onNavigate: _setScreen);
+      case BusinessScreen.profile:
+        return BusinessProfileView(onNavigate: _setScreen);
     }
   }
 }
@@ -137,9 +146,23 @@ class _DashboardView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => onNavigate(BusinessScreen.notifications),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(LucideIcons.bell, color: Colors.white, size: 20),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     PopupMenuButton<String>(
                       onSelected: (value) async {
-                        if (value == 'logout') {
+                        if (value == 'profile') {
+                          onNavigate(BusinessScreen.profile);
+                        } else if (value == 'logout') {
                           await context.read<AuthProvider>().logout();
                           if (context.mounted) {
                             Navigator.of(context).pushReplacementNamed('/');
@@ -147,6 +170,16 @@ class _DashboardView extends StatelessWidget {
                         }
                       },
                       itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'profile',
+                          child: Row(
+                            children: [
+                              Icon(LucideIcons.user, color: AppColors.forest, size: 20),
+                              SizedBox(width: 8),
+                              Text('Profil'),
+                            ],
+                          ),
+                        ),
                         const PopupMenuItem(
                           value: 'logout',
                           child: Row(
@@ -265,8 +298,10 @@ class _DashboardView extends StatelessWidget {
           child: Row(
             children: [
               _buildNavButton('📦 Catalogue', () => onNavigate(BusinessScreen.catalog)),
-              const SizedBox(width: 16),
-              _buildNavButton('📋 Détail', () => onNavigate(BusinessScreen.orderDetail)),
+              const SizedBox(width: 12),
+              _buildNavButton('📈 Stats', () => onNavigate(BusinessScreen.stats)),
+              const SizedBox(width: 12),
+              _buildNavButton('⚙️ Profil', () => onNavigate(BusinessScreen.profile)),
             ],
           ),
         ),

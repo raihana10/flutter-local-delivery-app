@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/client_data_provider.dart';
 
 class ClientPaymentMethodsScreen extends StatefulWidget {
   const ClientPaymentMethodsScreen({super.key});
@@ -9,29 +11,46 @@ class ClientPaymentMethodsScreen extends StatefulWidget {
 }
 
 class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen> {
-  final List<Map<String, dynamic>> _paymentMethods = [
-    {
+  final TextEditingController _cardNumberController = TextEditingController();
+  final TextEditingController _expiryController = TextEditingController();
+  final TextEditingController _cvcController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ClientDataProvider>().fetchPaymentMethods();
+    });
+  }
+
+  @override
+  void dispose() {
+    _cardNumberController.dispose();
+    _expiryController.dispose();
+    _cvcController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<ClientDataProvider>();
+    final methods = provider.paymentMethods;
+    final isLoading = provider.isLoading;
+
+    final hasDefaultCard = methods.any((m) => m['is_default'] == true);
+
+    final cashMethod = {
       'id': 'cash',
       'type': 'Cash',
       'title': 'Paiement à la livraison',
       'subtitle': 'Payez en espèces au livreur',
       'icon': Icons.money,
-      'is_default': true,
+      'is_default': !hasDefaultCard,
       'color': Colors.green,
-    },
-    {
-      'id': 'card_1',
-      'type': 'Card',
-      'title': 'Carte Bancaire',
-      'subtitle': '**** **** **** 4242',
-      'icon': Icons.credit_card,
-      'is_default': false,
-      'color': AppColors.primary,
-    },
-  ];
+    };
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -41,14 +60,34 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
         elevation: 0,
         centerTitle: true,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: _paymentMethods.length,
-        itemBuilder: (context, index) {
-          final method = _paymentMethods[index];
-          return _buildPaymentMethodItem(method);
-        },
-      ),
+      body: isLoading && methods.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: () async {
+                await context.read<ClientDataProvider>().fetchPaymentMethods();
+              },
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _buildPaymentMethodItem(cashMethod, isLocal: true),
+                  ...methods.map((method) {
+                    final isDefault = method['is_default'] == true;
+                    final String cardNum = method['numero_carte']?.toString() ?? '****';
+                    final String last4 = cardNum.length > 4 ? cardNum.substring(cardNum.length - 4) : cardNum;
+
+                    return _buildPaymentMethodItem({
+                      'id': method['id_carte'].toString(),
+                      'type': 'Card',
+                      'title': 'Carte Bancaire',
+                      'subtitle': '**** **** **** $last4',
+                      'icon': Icons.credit_card,
+                      'is_default': isDefault,
+                      'color': AppColors.primary,
+                    }, isLocal: false);
+                  }).toList(),
+                ],
+              ),
+            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddCardBottomSheet,
         backgroundColor: AppColors.primary,
@@ -58,7 +97,7 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
     );
   }
 
-  Widget _buildPaymentMethodItem(Map<String, dynamic> method) {
+  Widget _buildPaymentMethodItem(Map<String, dynamic> method, {required bool isLocal}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -113,25 +152,19 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
             style: const TextStyle(color: AppColors.mutedForeground),
           ),
         ),
-        trailing: method['type'] == 'Cash' ? null : PopupMenuButton<String>(
+        trailing: isLocal ? null : PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: AppColors.mutedForeground),
-          onSelected: (value) {
+          onSelected: (value) async {
             if (value == 'default') {
-              setState(() {
-                for (var m in _paymentMethods) {
-                  m['is_default'] = m['id'] == method['id'];
-                }
-              });
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moyen de paiement principal mis à jour')));
+              final success = await context.read<ClientDataProvider>().setDefaultPaymentMethod(method['id']);
+              if (success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moyen de paiement principal mis à jour')));
+              }
             } else if (value == 'delete') {
-              setState(() {
-                _paymentMethods.removeWhere((m) => m['id'] == method['id']);
-                // if we deleted the default, make cash default
-                if (method['is_default'] && _paymentMethods.isNotEmpty) {
-                  _paymentMethods.firstWhere((m) => m['type'] == 'Cash')['is_default'] = true;
-                }
-              });
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte supprimée')));
+              final success = await context.read<ClientDataProvider>().deletePaymentMethod(method['id']);
+              if (success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte supprimée')));
+              }
             }
           },
           itemBuilder: (context) => [
@@ -143,13 +176,12 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
             ),
           ],
         ),
-        onTap: () {
-          if (!method['is_default']) {
-            setState(() {
-              for (var m in _paymentMethods) {
-                m['is_default'] = m['id'] == method['id'];
-              }
-            });
+        onTap: () async {
+          if (!method['is_default'] && !isLocal) {
+            await context.read<ClientDataProvider>().setDefaultPaymentMethod(method['id']);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moyen de paiement principal mis à jour')));
+            }
           }
         },
       ),
@@ -157,6 +189,11 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
   }
 
   void _showAddCardBottomSheet() {
+    _cardNumberController.clear();
+    _expiryController.clear();
+    _cvcController.clear();
+    _nameController.clear();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -164,10 +201,10 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
             left: 24,
             right: 24,
             top: 24,
@@ -183,6 +220,7 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
               ),
               const SizedBox(height: 24),
               TextField(
+                controller: _cardNumberController,
                 decoration: InputDecoration(
                   labelText: 'Numéro de carte',
                   prefixIcon: const Icon(Icons.credit_card),
@@ -197,6 +235,7 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                 children: [
                   Expanded(
                     child: TextField(
+                      controller: _expiryController,
                       decoration: InputDecoration(
                         labelText: 'Date d\'expiration (MM/AA)',
                         filled: true,
@@ -209,6 +248,7 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   const SizedBox(width: 16),
                   Expanded(
                     child: TextField(
+                      controller: _cvcController,
                       decoration: InputDecoration(
                         labelText: 'CVC',
                         filled: true,
@@ -223,6 +263,7 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
               ),
               const SizedBox(height: 16),
               TextField(
+                controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Nom sur la carte',
                   filled: true,
@@ -237,21 +278,27 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    for (var m in _paymentMethods) { m['is_default'] = false; }
-                    _paymentMethods.add({
-                      'id': 'card_${DateTime.now().millisecondsSinceEpoch}',
-                      'type': 'Card',
-                      'title': 'Carte Bancaire',
-                      'subtitle': '**** **** **** 8888',
-                      'icon': Icons.credit_card,
-                      'is_default': true,
-                      'color': AppColors.primary,
-                    });
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte ajoutée avec succès')));
+                onPressed: () async {
+                  if (_cardNumberController.text.isEmpty || _expiryController.text.isEmpty) {
+                    return;
+                  }
+                  
+                  final data = {
+                    'numero_carte': _cardNumberController.text.trim(),
+                    'date_expiration': _expiryController.text.trim(),
+                    'nom_carte': _nameController.text.trim(),
+                    'is_default': true, // Make new card default by default
+                  };
+
+                  Navigator.pop(ctx);
+                  final success = await context.read<ClientDataProvider>().addPaymentMethodCard(data);
+
+                  if (success && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte ajoutée avec succès')));
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Erreur lors de l\'ajout de la carte'), backgroundColor: AppColors.destructive));
+                  }
                 },
                 child: const Text('Ajouter cette carte', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
               ),

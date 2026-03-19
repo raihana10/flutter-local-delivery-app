@@ -25,7 +25,7 @@ CREATE TYPE statut_timeline_enum AS ENUM ('confirmee', 'preparee', 'en_livraison
 -- ============================================================
 -- TABLE : user  (compte commun : client / livreur / business)
 -- ============================================================
-CREATE TABLE "user" (
+CREATE TABLE app_user (
     id_user        SERIAL PRIMARY KEY,
     email          VARCHAR(255) NOT NULL UNIQUE,
     password       VARCHAR(255) NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE admin (
 CREATE TABLE client (
     id_client      SERIAL PRIMARY KEY,
     id_user        INT         NOT NULL UNIQUE
-                               REFERENCES "user"(id_user)
+                               REFERENCES app_user(id_user)
                                ON DELETE CASCADE,
     sexe           sexe_enum,
     date_naissance DATE,
@@ -70,7 +70,7 @@ CREATE TABLE client (
 CREATE TABLE livreur (
     id_livreur     SERIAL PRIMARY KEY,
     id_user        INT         NOT NULL UNIQUE
-                               REFERENCES "user"(id_user)
+                               REFERENCES app_user(id_user)
                                ON DELETE CASCADE,
     sexe           sexe_enum,
     date_naissance DATE,
@@ -87,7 +87,7 @@ CREATE TABLE livreur (
 CREATE TABLE business (
     id_business        SERIAL PRIMARY KEY,
     id_user            INT         NOT NULL UNIQUE
-                                   REFERENCES "user"(id_user)
+                                   REFERENCES app_user(id_user)
                                    ON DELETE CASCADE,
     type_business      type_business_enum NOT NULL,
     description        TEXT,
@@ -119,13 +119,28 @@ CREATE TABLE adresse (
 -- TABLE : user_adresse  (association user ↔ adresse, relation "admet" N-N)
 -- ============================================================
 CREATE TABLE user_adresse (
-    id_user     INT     NOT NULL REFERENCES "user"(id_user)     ON DELETE CASCADE,
+    id_user     INT     NOT NULL REFERENCES app_user(id_user)     ON DELETE CASCADE,
     id_adresse  INT     NOT NULL REFERENCES adresse(id_adresse) ON DELETE CASCADE,
     is_default  BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id_user, id_adresse),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at  TIMESTAMPTZ
+);
+
+-- ============================================================
+-- TABLE : carte_bancaire
+-- ============================================================
+CREATE TABLE carte_bancaire (
+    id_carte       SERIAL PRIMARY KEY,
+    id_client      INT         NOT NULL REFERENCES client(id_client) ON DELETE CASCADE,
+    numero_carte   VARCHAR(50) NOT NULL,
+    date_expiration VARCHAR(10) NOT NULL,
+    nom_carte      VARCHAR(100),
+    is_default     BOOLEAN     NOT NULL DEFAULT FALSE,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at     TIMESTAMPTZ
 );
 
 -- ============================================================
@@ -156,7 +171,6 @@ CREATE TABLE promotion (
                                ON DELETE CASCADE,
     pourcentage   NUMERIC(5,2) NOT NULL
                                CHECK (pourcentage > 0 AND pourcentage <= 100),
-    code_pro      VARCHAR(50)  UNIQUE,
     date_debut    TIMESTAMPTZ  NOT NULL,
     date_fin      TIMESTAMPTZ  NOT NULL,
     CHECK (date_fin > date_debut),
@@ -289,7 +303,7 @@ CREATE TABLE notification (
 -- ============================================================
 CREATE TABLE user_notification (
     id_user_notification SERIAL PRIMARY KEY,
-    id_user  INT NOT NULL REFERENCES "user"(id_user)      ON DELETE CASCADE,
+    id_user  INT NOT NULL REFERENCES app_user(id_user)      ON DELETE CASCADE,
     id_not   INT NOT NULL REFERENCES notification(id_not) ON DELETE CASCADE,
     est_lu   BOOLEAN     NOT NULL DEFAULT FALSE,
     lu_at    TIMESTAMPTZ,
@@ -316,7 +330,7 @@ DECLARE
     t TEXT;
 BEGIN
     FOREACH t IN ARRAY ARRAY[
-        '"user"', 'admin', 'client', 'livreur', 'business',
+        'app_user', 'admin', 'client', 'livreur', 'business',
         'adresse', 'user_adresse', 'produit', 'promotion',
         'commande', 'ligne_commande', 'timeline',
         'store_review', 'order_review', 'favoris',
@@ -333,12 +347,28 @@ BEGIN
 END;
 $$;
 
+-- Trigger spécifique pour carte_bancaire
+CREATE TRIGGER trg_carte_bancaire_updated_at
+BEFORE UPDATE ON carte_bancaire
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================
+-- TABLE : favoris (Client favorite businesses)
+-- ============================================================
+CREATE TABLE favoris (
+    id_favoris     SERIAL PRIMARY KEY,
+    id_client      INT         NOT NULL REFERENCES client(id_client) ON DELETE CASCADE,
+    id_business    INT         NOT NULL REFERENCES business(id_business) ON DELETE CASCADE,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(id_client, id_business)
+);
+
 -- ============================================================
 -- INDEX UTILES
 -- ============================================================
 
 -- Soft-delete : on filtre souvent sur deleted_at IS NULL
-CREATE INDEX idx_user_deleted_at             ON "user"(deleted_at)         WHERE deleted_at IS NULL;
+CREATE INDEX idx_user_deleted_at             ON app_user(deleted_at)         WHERE deleted_at IS NULL;
 CREATE INDEX idx_client_deleted_at           ON client(deleted_at)         WHERE deleted_at IS NULL;
 CREATE INDEX idx_livreur_deleted_at          ON livreur(deleted_at)        WHERE deleted_at IS NULL;
 CREATE INDEX idx_business_deleted_at         ON business(deleted_at)       WHERE deleted_at IS NULL;

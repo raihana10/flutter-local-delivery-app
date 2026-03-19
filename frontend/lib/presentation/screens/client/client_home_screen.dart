@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/client_data_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import 'restaurant_detail_screen.dart';
 import 'cart_screen.dart';
@@ -9,6 +10,7 @@ import 'client_notifications_screen.dart';
 import 'restaurant_list_screen.dart';
 import 'pharmacy_list_screen.dart';
 import 'market_list_screen.dart';
+import 'client_addresses_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -39,7 +41,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   @override
   void initState() {
     super.initState();
+    
+    // Fetch real data once after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ClientDataProvider>().fetchHomeData();
+      }
+    });
+
     _fadeController = AnimationController(
+
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
@@ -235,6 +246,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                 ),
               ),
               const Spacer(),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -324,17 +336,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                         color: AppColors.primary,
                         size: 24,
                       ),
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.destructive,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                      Consumer<ClientDataProvider>(
+                        builder: (context, data, _) {
+                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                          if (!hasUnread) return const SizedBox.shrink();
+                          
+                          return Positioned(
+                            top: 12,
+                            right: 12,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: AppColors.destructive,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -749,51 +768,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     );
   }
 
-  Widget _buildRestaurantCard(int index) {
-    final restaurants = [
-      {
-        'name': 'Pizza Palace',
-        'rating': 4.5,
-        'time': '25-35 min',
-        'image': '🍕',
-        'distance': '1.2 km',
-        'isOpen': true
-      },
-      {
-        'name': 'Burger House',
-        'rating': 4.2,
-        'time': '20-30 min',
-        'image': '🍔',
-        'distance': '0.8 km',
-        'isOpen': true
-      },
-      {
-        'name': 'Sushi Bar',
-        'rating': 4.8,
-        'time': '30-40 min',
-        'image': '🍱',
-        'distance': '2.1 km',
-        'isOpen': false
-      },
-      {
-        'name': 'Tacos Place',
-        'rating': 4.3,
-        'time': '15-25 min',
-        'image': '🌮',
-        'distance': '1.5 km',
-        'isOpen': true
-      },
-      {
-        'name': 'Pasta Corner',
-        'rating': 4.6,
-        'time': '25-35 min',
-        'image': '🍝',
-        'distance': '1.8 km',
-        'isOpen': true
-      },
-    ];
+  Widget _buildRestaurantCard(int index, ClientDataProvider data) {
+    if (data.restaurants.isEmpty) return const SizedBox.shrink();
 
-    final restaurant = restaurants[index % restaurants.length];
+    final restaurantInfo = data.restaurants[index % data.restaurants.length];
+    final user = restaurantInfo['user'] ?? {};
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -805,8 +784,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
               context,
               MaterialPageRoute(
                 builder: (_) => RestaurantDetailScreen(
-                  restaurantName: restaurant['name'] as String,
-                  heroTag: 'restaurant_${restaurant['image']}_$index',
+                  restaurantName: user['nom'] ?? 'Restaurant',
+                  heroTag: 'restaurant_${restaurantInfo['id_business']}_$index',
+                  businessId: restaurantInfo['id_business']?.toString() ?? '0',
                 ),
               ),
             );
@@ -831,9 +811,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Restaurant Image
-                  Hero(
-                    tag: 'restaurant_${restaurant['image']}_$index',
+                   Hero(
+                    tag: 'restaurant_${restaurantInfo['id_business']}_$index',
                     child: Container(
                       width: 80,
                       height: 80,
@@ -846,19 +825,21 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
+                        image: restaurantInfo['pdp'] != null 
+                            ? DecorationImage(
+                                image: NetworkImage(restaurantInfo['pdp']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          color: AppColors.background,
-                          child: Center(
-                            child: Text(
-                              restaurant['image'] as String,
-                              style: const TextStyle(fontSize: 32),
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: restaurantInfo['pdp'] == null 
+                          ? Center(
+                              child: Text(
+                                '🍔',
+                                style: const TextStyle(fontSize: 32),
+                              ),
+                            )
+                          : null,
                     ),
                   ),
 
@@ -873,7 +854,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                restaurant['name'] as String,
+                                user['nom'] ?? 'Restaurant',
                                 style: const TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
@@ -887,17 +868,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: (restaurant['isOpen'] as bool)
+                                color: (restaurantInfo['is_open'] == true)
                                     ? Colors.green.withOpacity(0.1)
                                     : AppColors.destructive.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                (restaurant['isOpen'] as bool)
+                                (restaurantInfo['is_open'] == true)
                                     ? 'Ouvert'
                                     : 'Fermé',
                                 style: TextStyle(
-                                  color: (restaurant['isOpen'] as bool)
+                                  color: (restaurantInfo['is_open'] == true)
                                       ? Colors.green
                                       : AppColors.destructive,
                                   fontSize: 10,
@@ -927,7 +908,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '${restaurant['rating']}',
+                                    '4.5', // mock rating for now until aggregate review added
                                     style: TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -955,7 +936,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['time'] as String,
+                                    '${restaurantInfo['temps_preparation'] ?? 30} min',
                                     style: TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.w600,
@@ -983,7 +964,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    restaurant['distance'] as String,
+                                    '1.2 km', // Mock distance until geolocation added
                                     style: TextStyle(
                                       color: AppColors.secondary,
                                       fontWeight: FontWeight.w600,
@@ -1124,14 +1105,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                         color: AppColors.accent,
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(
-                        child: Text(
-                          '3',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      child: Center(
+                        child: Consumer<ClientDataProvider>(
+                          builder: (context, data, child) {
+                            return Text(
+                              '${data.cartItems.length}',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),

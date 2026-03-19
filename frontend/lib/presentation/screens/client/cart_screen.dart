@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/client_data_provider.dart';
 import 'order_confirmation_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -10,53 +12,14 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final List<Map<String, dynamic>> _cartItems = [
-    {
-      'name': 'Menu Maxi Burger',
-      'options': 'Taille standard, Sauce Algérienne',
-      'price': 65.0,
-      'quantity': 2,
-      'image': '🍔'
-    },
-    {
-      'name': 'Pizza Marguerita',
-      'options': 'Grande (+15 DH)',
-      'price': 60.0,
-      'quantity': 1,
-      'image': '🍕'
-    },
-  ];
-
-  final TextEditingController _couponController = TextEditingController();
-  bool _isCouponApplied = false;
-
-  @override
-  void dispose() {
-    _couponController.dispose();
-    super.dispose();
-  }
-
   // ─── Product Detail Dialog ───────────────────────────────────────────────────
 
   void _showProductDetail(Map<String, dynamic> item) {
-    final List<String> availableOptions = [
-      'Taille standard',
-      'Grande (+15 DH)',
-      'Sauce Algérienne',
-      'Sauce Harissa',
-      'Extra fromage (+8 DH)',
-      'Sans oignon',
-    ];
-
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (ctx) {
         int tempQty = item['quantity'] as int;
-        List<String> selectedOptions = (item['options'] as String)
-            .split(', ')
-            .where((o) => o.isNotEmpty)
-            .toList();
 
         return StatefulBuilder(
           builder: (ctx, setModalState) {
@@ -129,63 +92,6 @@ class _CartScreenState extends State<CartScreen> {
                     const Divider(color: AppColors.border),
                     const SizedBox(height: 16),
 
-                    // Options section
-                    const Text(
-                      'Options',
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.foreground),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: availableOptions.map((opt) {
-                        final isSelected = selectedOptions.contains(opt);
-                        return GestureDetector(
-                          onTap: () {
-                            setModalState(() {
-                              if (isSelected) {
-                                selectedOptions.remove(opt);
-                              } else {
-                                selectedOptions.add(opt);
-                              }
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.background,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                              ),
-                            ),
-                            child: Text(
-                              opt,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.card
-                                    : AppColors.foreground,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 20),
-
                     // Quantity section
                     const Text(
                       'Quantité',
@@ -252,15 +158,19 @@ class _CartScreenState extends State<CartScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Action buttons — Column avoids Expanded-in-Row inside ScrollView
+                    // Action buttons
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
                           setState(() {
                             item['quantity'] = tempQty;
-                            item['options'] = selectedOptions.join(', ');
                           });
+                          // force update to notify listeners
+                          final idx = context.read<ClientDataProvider>().cartItems.indexOf(item);
+                          if(idx != -1) {
+                            context.read<ClientDataProvider>().updateCartItem(idx, item);
+                          }
                           Navigator.pop(ctx);
                         },
                         style: ElevatedButton.styleFrom(
@@ -282,7 +192,7 @@ class _CartScreenState extends State<CartScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          setState(() => _cartItems.remove(item));
+                          context.read<ClientDataProvider>().removeFromCart(item);
                           Navigator.pop(ctx);
                         },
                         icon: const Icon(Icons.delete_outline,
@@ -313,11 +223,12 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    double subtotal =
-        _cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
+    final clientData = context.watch<ClientDataProvider>();
+    final cartItems = clientData.cartItems;
+    
+    double subtotal = clientData.cartSubtotal;
     double deliveryFee = 10.0;
-    double discount = _isCouponApplied ? subtotal * 0.1 : 0;
-    double total = subtotal + deliveryFee - discount;
+    double total = subtotal + deliveryFee;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -329,7 +240,7 @@ class _CartScreenState extends State<CartScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: _cartItems.isEmpty
+      body: cartItems.isEmpty
           ? _buildEmptyCart()
           : Column(
               children: [
@@ -337,11 +248,10 @@ class _CartScreenState extends State<CartScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      ..._cartItems.map((item) => _buildCartItem(item)),
+                      ...cartItems.map((item) => _buildCartItem(item)),
                       const SizedBox(height: 24),
-                      _buildCouponSection(),
                       const SizedBox(height: 24),
-                      _buildOrderSummary(subtotal, deliveryFee, discount, total),
+                      _buildOrderSummary(subtotal, deliveryFee, total),
                     ],
                   ),
                 ),
@@ -384,7 +294,7 @@ class _CartScreenState extends State<CartScreen> {
                   borderRadius: BorderRadius.circular(20)),
             ),
             onPressed: () => Navigator.pop(context),
-            child: const Text('Parcourir les restaurants',
+            child: const Text('Retour au menu',
                 style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
@@ -441,17 +351,7 @@ class _CartScreenState extends State<CartScreen> {
                       color: AppColors.foreground,
                     ),
                   ),
-                  if (item['options'].toString().isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      item['options'],
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     '${item['price']} DH',
                     style: const TextStyle(
@@ -471,9 +371,7 @@ class _CartScreenState extends State<CartScreen> {
                   icon: const Icon(Icons.close,
                       size: 20, color: AppColors.mutedForeground),
                   onPressed: () {
-                    setState(() {
-                      _cartItems.remove(item);
-                    });
+                    context.read<ClientDataProvider>().removeFromCart(item);
                   },
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -488,9 +386,11 @@ class _CartScreenState extends State<CartScreen> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          setState(() {
-                            if (item['quantity'] > 1) item['quantity']--;
-                          });
+                          if (item['quantity'] > 1) {
+                            item['quantity']--;
+                            final idx = context.read<ClientDataProvider>().cartItems.indexOf(item);
+                            if(idx != -1) context.read<ClientDataProvider>().updateCartItem(idx, item);
+                          }
                         },
                         child: const Padding(
                           padding: EdgeInsets.symmetric(
@@ -506,9 +406,9 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          setState(() {
-                            item['quantity']++;
-                          });
+                          item['quantity']++;
+                          final idx = context.read<ClientDataProvider>().cartItems.indexOf(item);
+                          if(idx != -1) context.read<ClientDataProvider>().updateCartItem(idx, item);
                         },
                         child: const Padding(
                           padding: EdgeInsets.symmetric(
@@ -528,65 +428,10 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCouponSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.local_offer, color: AppColors.accent),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _couponController,
-              decoration: const InputDecoration(
-                hintText: 'Code promo',
-                border: InputBorder.none,
-                isDense: true,
-              ),
-              enabled: !_isCouponApplied,
-            ),
-          ),
-          if (_isCouponApplied)
-            IconButton(
-              icon: const Icon(Icons.close, color: AppColors.destructive),
-              onPressed: () {
-                setState(() {
-                  _isCouponApplied = false;
-                  _couponController.clear();
-                });
-              },
-            )
-          else
-            TextButton(
-              onPressed: () {
-                if (_couponController.text.isNotEmpty) {
-                  setState(() {
-                    _isCouponApplied = true;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Coupon appliqué avec succès!'),
-                        backgroundColor: Colors.green),
-                  );
-                }
-              },
-              child: const Text('Appliquer',
-                  style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold)),
-            ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildOrderSummary(
-      double subtotal, double deliveryFee, double discount, double total) {
+      double subtotal, double deliveryFee, double total) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -615,11 +460,6 @@ class _CartScreenState extends State<CartScreen> {
           _buildSummaryRow('Sous-total', '$subtotal DH'),
           const SizedBox(height: 8),
           _buildSummaryRow('Frais de livraison', '$deliveryFee DH'),
-          if (_isCouponApplied) ...[
-            const SizedBox(height: 8),
-            _buildSummaryRow('Remise (10%)', '-$discount DH',
-                isDiscount: true),
-          ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: AppColors.border),
