@@ -1,4 +1,5 @@
 import 'package:app/data/models/commande_model.dart';
+import 'package:geolocator/geolocator.dart';
 
 class CommandeSupabaseModel extends CommandeModel {
   final int idCommande;
@@ -12,6 +13,7 @@ class CommandeSupabaseModel extends CommandeModel {
   // since the DB might not have all the restaurant info directly inside `commande`
   final String numTlClient;
   final List<String> items;
+  final List<Map<String, dynamic>> rawItems;
 
   CommandeSupabaseModel({
     required this.idCommande,
@@ -22,6 +24,7 @@ class CommandeSupabaseModel extends CommandeModel {
     required this.prixTotal,
     required this.numTlClient,
     this.items = const [],
+    this.rawItems = const [],
 
     // Parent fields
     required String id,
@@ -47,7 +50,7 @@ class CommandeSupabaseModel extends CommandeModel {
           lngClient: lngClient,
         );
 
-  factory CommandeSupabaseModel.fromJson(Map<String, dynamic> json) {
+  factory CommandeSupabaseModel.fromJson(Map<String, dynamic> json, {double? driverLat, double? driverLng}) {
     // We expect the JSON to be a result of a join, looking somewhat like:
     // {
     //   'id_commande': 1,
@@ -69,12 +72,65 @@ class CommandeSupabaseModel extends CommandeModel {
 
     final lignesData = json['ligne_commande'] as List<dynamic>? ?? [];
     List<String> parsedItems = [];
+    List<Map<String, dynamic>> rawItemsParsed = [];
+    String firstBusiness = 'Restaurant (Inconnu)';
+    double? latRestaurant;
+    double? lngRestaurant;
+    
+    
     for (var l in lignesData) {
       if (l is Map<String, dynamic>) {
         final qte = l['quantite'] ?? 1;
         final nom = l['nom_snapshot'] ?? 'Produit';
+        final prixUnitaire = l['prix_snapshot'] ?? 0.0;
+        
+        // Try to extra business from relational mapping 'produit' -> 'business' -> 'app_user'
+        String businessName = 'Inconnu';
+        double? lat;
+        double? lng;
+
+        if (l['produit'] != null && l['produit']['business'] != null) {
+          final b = l['produit']['business'];
+          if (b['app_user'] != null) {
+            businessName = b['app_user']['nom'] ?? 'Inconnu';
+            
+            // Extract coordinates
+            final uaMap = b['app_user']['user_adresse'];
+            if (uaMap is List && uaMap.isNotEmpty) {
+               final adr = uaMap.first['adresse'];
+               if (adr != null) {
+                 lat = (adr['latitude'] as num?)?.toDouble();
+                 lng = (adr['longitude'] as num?)?.toDouble();
+               }
+            } else if (uaMap is Map && uaMap['adresse'] != null) {
+               lat = (uaMap['adresse']['latitude'] as num?)?.toDouble();
+               lng = (uaMap['adresse']['longitude'] as num?)?.toDouble();
+            }
+          }
+        } else if (l['business_snapshot'] != null) {
+          businessName = l['business_snapshot'];
+        }
+        
+        if (firstBusiness == 'Restaurant (Inconnu)' && businessName != 'Inconnu') {
+          firstBusiness = businessName;
+        }
+
+        if (lat != null && latRestaurant == null) latRestaurant = lat;
+        if (lng != null && lngRestaurant == null) lngRestaurant = lng;
+
         parsedItems.add('${qte}x $nom');
+        rawItemsParsed.add({
+          'quantite': qte,
+          'nom': nom,
+          'prix': (prixUnitaire as num).toDouble(),
+          'business': businessName,
+        });
       }
+    }
+    
+    double computedDistance = 2.5;
+    if (driverLat != null && driverLng != null && latRestaurant != null && lngRestaurant != null) {
+      computedDistance = Geolocator.distanceBetween(driverLat, driverLng, latRestaurant!, lngRestaurant!) / 1000.0;
     }
 
     return CommandeSupabaseModel(
@@ -86,17 +142,17 @@ class CommandeSupabaseModel extends CommandeModel {
       prixTotal: (json['prix_total'] as num).toDouble(),
       numTlClient: phone,
       items: parsedItems,
+      rawItems: rawItemsParsed,
 
       // Mapping to old UI fields for compatibility
       id: 'CMD-${json['id_commande']}',
-      restaurant:
-          'Restaurant (Supabase)', // Temporary until we join with lignes_commande -> produit -> business
+      restaurant: firstBusiness,
       adresse: adresseData?['ville'] ?? 'Adresse inconnue',
-      distance: 2.5, // Mocked for now unless we calculate it
+      distance: computedDistance,
       prix: (json['prix_total'] as num).toDouble(),
       tempsRestant: 60,
-      latRestaurant: 35.5711, // Mocked Tétouan center
-      lngRestaurant: -5.3694,
+      latRestaurant: latRestaurant ?? 35.5711, // Fallback if missing
+      lngRestaurant: lngRestaurant ?? -5.3694,
       latClient: latClient,
       lngClient: lngClient,
     );
