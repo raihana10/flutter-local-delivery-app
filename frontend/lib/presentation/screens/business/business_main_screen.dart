@@ -7,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import '../../../../models/business_product.dart';
 import '../../../../providers/product_provider.dart';
+import '../../../../core/providers/business_data_provider.dart';
 import 'views/business_stats_view.dart';
 import 'views/business_notifications_view.dart';
 import 'views/business_profile_view.dart';
@@ -22,8 +23,16 @@ class BusinessMainScreen extends StatefulWidget {
 
 class _BusinessMainScreenState extends State<BusinessMainScreen> {
   BusinessScreen _currentScreen = BusinessScreen.dashboard;
-  bool _isOpen = true;
+  bool _isOpen = true; // Temporary mock, wait for data
   int _editingIndex = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BusinessDataProvider>().fetchAll();
+    });
+  }
 
   void _setScreen(BusinessScreen screen, {int? index}) {
     setState(() {

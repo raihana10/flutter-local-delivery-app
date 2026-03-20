@@ -24,24 +24,76 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
   late TabController _tabController;
 
   bool _isLoadingReviews = true;
+  bool _isLoadingProducts = true;
+  bool _isLoadingDetails = true;
   List<dynamic> _reviews = [];
+  List<dynamic> _products = [];
+  Map<String, dynamic>? _businessInfo;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchDetails();
     _fetchReviews();
+    _fetchProducts();
+  }
+
+  Future<void> _fetchDetails() async {
+    final provider = context.read<ClientDataProvider>();
+    final details = await provider.getBusinessDetails(widget.businessId);
+    if (mounted) {
+      print('Details for ${widget.businessId}: ${details?['type_business']}');
+      setState(() {
+        _businessInfo = details;
+        _isLoadingDetails = false;
+      });
+    }
   }
 
   Future<void> _fetchReviews() async {
+    setState(() => _isLoadingReviews = true);
     final provider = context.read<ClientDataProvider>();
     final reviews = await provider.getBusinessReviews(widget.businessId);
     if (mounted) {
+      print('Fetched ${reviews.length} reviews for ${widget.businessId}');
       setState(() {
         _reviews = reviews;
         _isLoadingReviews = false;
       });
     }
+  }
+
+  Future<void> _fetchProducts() async {
+    final provider = context.read<ClientDataProvider>();
+    final products = await provider.getBusinessProducts(widget.businessId);
+    if (mounted) {
+      setState(() {
+        _products = products;
+        _isLoadingProducts = false;
+      });
+    }
+  }
+
+  String getHeaderEmoji() {
+    String type = _businessInfo?['type_business'] ?? 'restaurant';
+    if (type == 'pharmacie') return '💊';
+    if (type == 'super-marche') return '🛒';
+    return '🍽️';
+  }
+
+  String getTabText() {
+    String type = _businessInfo?['type_business'] ?? 'restaurant';
+    if (type == 'pharmacie') return 'Médicaments';
+    if (type == 'super-marche') return 'Rayons';
+    return 'Menu';
+  }
+
+  IconData getTabIcon() {
+    String type = _businessInfo?['type_business'] ?? 'restaurant';
+    if (type == 'pharmacie') return Icons.medical_services;
+    if (type == 'super-marche') return Icons.shopping_basket;
+    return Icons.restaurant_menu;
   }
 
   @override
@@ -50,32 +102,11 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     super.dispose();
   }
 
-  final List<Map<String, dynamic>> _menuCategories = [
-    {
-      'title': 'Populaire',
-      'items': [
-        {'name': 'Menu Maxi Burger', 'desc': 'Burger double steak, frites, boisson 33cl', 'price': 65.0, 'image': '🍔'},
-        {'name': 'Pizza Marguerita', 'desc': 'Sauce tomate, mozzarella, basilic frais', 'price': 45.0, 'image': '🍕'},
-      ]
-    },
-    {
-      'title': 'Burgers',
-      'items': [
-        {'name': 'Cheese Burger', 'desc': 'Steak, cheddar, salade, tomate, oignon', 'price': 40.0, 'image': '🍔'},
-        {'name': 'Chicken Burger', 'desc': 'Poulet croustillant, cheddar, salade', 'price': 45.0, 'image': '🍔'},
-      ]
-    },
-    {
-      'title': 'Desserts',
-      'items': [
-        {'name': 'Tiramisu', 'desc': 'Fait maison, café et mascarpone', 'price': 25.0, 'image': '🍰'},
-        {'name': 'Fondant au chocolat', 'desc': 'Cœur coulant, glace vanille', 'price': 30.0, 'image': '🧁'},
-      ]
-    }
-  ];
-
-  @override
   Widget build(BuildContext context) {
+    final int reviewCount = _reviews.length;
+    final double averageRating = reviewCount == 0 ? 0.0 : 
+      _reviews.map((r) => (r['evaluation'] as num?) ?? 0).reduce((a, b) => a + b) / reviewCount;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -92,22 +123,36 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   final idBusiness = int.tryParse(widget.businessId) ?? 0;
                   final isFav = provider.isFavorite(idBusiness);
                   
-                  return IconButton(
-                    icon: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      color: isFav ? AppColors.destructive : AppColors.card,
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      shape: BoxShape.circle,
                     ),
-                    onPressed: () {
-                      if (idBusiness > 0) {
-                        provider.toggleFavorite(idBusiness);
-                      }
-                    },
+                    child: IconButton(
+                      icon: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        color: isFav ? AppColors.destructive : AppColors.card,
+                      ),
+                      onPressed: () {
+                        if (idBusiness > 0) {
+                          provider.toggleFavorite(idBusiness);
+                        }
+                      },
+                    ),
                   );
                 }
               ),
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {},
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.share, color: AppColors.card),
+                  onPressed: () {},
+                ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -126,10 +171,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     ),
                   ),
                   child: Center(
-                    child: Text(
-                      '🍽️',
-                      style: const TextStyle(fontSize: 80),
-                    ),
+                    child: (_businessInfo != null && _businessInfo!['pdp'] != null && _businessInfo!['pdp'].toString().startsWith('http'))
+                      ? Image.network(
+                          _businessInfo!['pdp'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (context, error, stackTrace) => Text(
+                            getHeaderEmoji(),
+                            style: const TextStyle(fontSize: 80),
+                          ),
+                        )
+                      : Text(
+                          getHeaderEmoji(),
+                          style: const TextStyle(fontSize: 80),
+                        ),
                   ),
                 ),
               ),
@@ -168,7 +224,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _buildInfoBadge(Icons.star, '4.8 (120 avis)', AppColors.accent),
+                      _buildInfoBadge(Icons.star, '${averageRating.toStringAsFixed(1)} ($reviewCount avis)', AppColors.accent),
                       const SizedBox(width: 12),
                       _buildInfoBadge(Icons.access_time, '25-35 min', AppColors.primary),
                       const SizedBox(width: 12),
@@ -176,9 +232,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Spécialités italiennes, pizzas au feu de bois et pâtes fraîches.',
-                    style: TextStyle(
+                  Text(
+                    _businessInfo?['description'] ?? '',
+                    style: const TextStyle(
                       color: AppColors.mutedForeground,
                       fontSize: 14,
                       height: 1.4,
@@ -199,9 +255,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                 unselectedLabelColor: AppColors.mutedForeground,
                 indicatorColor: AppColors.primary,
                 indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: 'Menu', icon: Icon(Icons.restaurant_menu)),
-                  Tab(text: 'Avis (120)', icon: Icon(Icons.star_rate)),
+                tabs: [
+                  Tab(text: getTabText(), icon: Icon(getTabIcon())),
+                  Tab(text: 'Avis (${_reviews.length})', icon: const Icon(Icons.star_rate)),
                 ],
               ),
             ),
@@ -213,13 +269,27 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
               controller: _tabController,
               children: [
                 // Menu Tab
-                ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 100),
-                  itemCount: _menuCategories.length,
-                  itemBuilder: (context, index) {
-                    return _buildMenuCategory(_menuCategories[index]);
-                  },
-                ),
+                _isLoadingProducts
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  : _products.isEmpty
+                    ? const Center(child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('Aucun produit disponible pour le moment.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.mutedForeground)),
+                      ))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: _products.length,
+                        itemBuilder: (context, index) {
+                          final p = _products[index] as Map<String, dynamic>;
+                          return _buildMenuItem({
+                            'id': p['id_produit'],
+                            'name': p['nom_produit'] ?? 'Produit',
+                            'desc': p['description'] ?? '',
+                            'price': p['prix_unitaire'] ?? 0,
+                            'image': p['image'] ?? '🍽️',
+                          });
+                        },
+                      ),
                 
                 // Reviews Tab
                 _buildReviewsTab(),
@@ -368,13 +438,18 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
               decoration: BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(12),
+                image: (item['image'] != null && item['image'].toString().startsWith('http'))
+                    ? DecorationImage(image: NetworkImage(item['image'].toString()), fit: BoxFit.cover)
+                    : null,
               ),
-              child: Center(
-                child: Text(
-                  item['image'],
-                  style: const TextStyle(fontSize: 40),
-                ),
-              ),
+              child: (item['image'] == null || !item['image'].toString().startsWith('http'))
+                ? Center(
+                    child: Text(
+                      getHeaderEmoji(),
+                      style: const TextStyle(fontSize: 40),
+                    ),
+                  )
+                : null,
             ),
           ],
         ),
@@ -423,19 +498,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     color: AppColors.card,
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                      )
+                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))
                     ],
+                    image: (item['image'] != null && item['image'].toString().startsWith('http'))
+                        ? DecorationImage(image: NetworkImage(item['image'].toString()), fit: BoxFit.cover)
+                        : null,
                   ),
-                  child: Center(
-                    child: Text(
-                      item['image'] ?? '🍽️',
-                      style: const TextStyle(fontSize: 60),
-                    ),
-                  ),
+                  child: (item['image'] == null || !item['image'].toString().startsWith('http'))
+                    ? Center(child: Text(getHeaderEmoji(), style: const TextStyle(fontSize: 60)))
+                    : null,
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -597,10 +668,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     }
 
     final double averageRating = _reviews.isEmpty ? 0.0 : 
-      _reviews.map((r) => r['rating'] as num? ?? 0).reduce((a, b) => a + b) / _reviews.length;
+      _reviews.map((r) => (r['evaluation'] as num?) ?? 0).reduce((a, b) => a + b) / _reviews.length;
     
     int getRatingCount(int stars) {
-      return _reviews.where((r) => (r['rating'] as num? ?? 0).round() == stars).length;
+      return _reviews.where((r) => ((r['evaluation'] as num?) ?? 0).round() == stars).length;
     }
 
     return ListView(
@@ -719,14 +790,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
   Widget _buildReviewItem(dynamic review) {
     final client = review['client'] ?? {};
     final user = client['app_user'] ?? {};
-    final userName = user['nom'] != null && user['prenom'] != null 
-        ? '${user['prenom']} ${user['nom'].toString().substring(0, 1)}.'
+    final userName = (user['nom'] != null || user['prenom'] != null)
+        ? '${user['prenom'] ?? ''} ${user['nom'] ?? ''}'.trim()
         : 'Client Anonyme';
     final date = review['created_at'] != null 
         ? DateTime.tryParse(review['created_at'].toString()) 
         : null;
     final dateString = date != null ? '${date.day}/${date.month}/${date.year}' : 'Récemment';
-    final rating = review['rating'] as num? ?? 0;
+    final rating = (review['evaluation'] as num?) ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -768,10 +839,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
               );
             }),
           ),
-          if (review['comment'] != null && review['comment'].isNotEmpty) ...[
+          if (review['commentaire'] != null && review['commentaire'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              review['comment'],
+              review['commentaire'].toString(),
               style: const TextStyle(color: AppColors.foreground, height: 1.4),
             ),
           ]
@@ -779,6 +850,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       ),
     );
   }
+
+  final TextEditingController _commentController = TextEditingController();
 
   void _showAddReviewBottomSheet() {
     int selectedRating = 5;
@@ -792,85 +865,78 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       ),
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom, // push above keyboard
+                bottom: MediaQuery.of(context).viewInsets.bottom,
                 left: 24,
                 right: 24,
                 top: 24,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Évaluer ce restaurant',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Laisser un avis', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.foreground)),
                   const SizedBox(height: 24),
-                  
-                  // Star Selection
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
                       return IconButton(
-                        iconSize: 40,
                         icon: Icon(
                           index < selectedRating ? Icons.star : Icons.star_border,
                           color: AppColors.gold,
+                          size: 40,
                         ),
                         onPressed: () {
-                          setState(() {
-                            selectedRating = index + 1;
-                          });
+                          setModalState(() => selectedRating = index + 1);
                         },
                       );
                     }),
                   ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Comment Text Field
+                  const SizedBox(height: 16),
                   TextField(
+                    controller: _commentController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      hintText: 'Partagez votre expérience (optionnel)',
-                      filled: true,
-                      fillColor: AppColors.card,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      hintText: 'Partagez votre expérience...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
-                  
                   const SizedBox(height: 24),
-                  
-                  // Submit Button
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      minimumSize: const Size(double.infinity, 54),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Merci pour votre avis !')),
-                      );
-                    },
-                    child: const Text(
-                      'Envoyer',
-                      style: TextStyle(color: AppColors.card, fontSize: 16, fontWeight: FontWeight.bold),
+                      onPressed: () async {
+                        setState(() => _isLoadingReviews = true);
+                        Navigator.pop(context);
+                        final success = await context.read<ClientDataProvider>().addBusinessReview(
+                          widget.businessId,
+                          selectedRating,
+                          _commentController.text,
+                        );
+                        if (success) {
+                          _commentController.clear();
+                          await _fetchReviews();
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avis ajouté avec succès !')));
+                        } else {
+                          setState(() => _isLoadingReviews = false);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de l\'ajout de l\'avis.')));
+                        }
+                      },
+                      child: const Text('Envoyer', style: TextStyle(color: AppColors.textWhite, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  const SizedBox(height: 24), // Bottom padding
+                  const SizedBox(height: 24),
                 ],
               ),
             );
-          }
+          },
         );
       },
     );

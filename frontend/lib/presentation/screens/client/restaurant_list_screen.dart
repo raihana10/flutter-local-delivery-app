@@ -224,10 +224,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     // Convert API data to map format and apply search query locally.
     // In production, filtering should probably be done effectively either via provider sorting 
     // or by backend endpoints passing '?search=' and '?category='. 
-    final baseRestaurants = clientData.restaurants.where((r) => r['type_business'] == 'restaurant').toList();
+    final baseRestaurants = clientData.restaurants;
     
     _filteredRestaurants = baseRestaurants.where((restaurant) {
-      final businessUser = restaurant['user'] ?? {};
+      final businessUser = restaurant['app_user'] ?? {};
       final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
       // Category is mocked as restaurant type is uniform for now
       // The backend will handle 'category' mapping later (e.g. types of cuisines) if added to the Database.
@@ -1245,8 +1245,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   }
 
   Widget _buildRestaurantCard(Map<String, dynamic> restaurantInfo, int index) {
-    final businessUser = restaurantInfo['user'] ?? {};
-    final idBusiness = restaurantInfo['id_business'] ?? '0';
+      final businessUser = restaurantInfo['app_user'] ?? {};
+      final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
+      final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1473,10 +1474,28 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                   const SizedBox(width: 8),
 
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: AppColors.mutedForeground.withOpacity(0.6),
-                    size: 16,
+                  Consumer<ClientDataProvider>(
+                    builder: (context, provider, _) {
+                      final idB = int.tryParse(idBusiness) ?? 0;
+                      final isFav = provider.isFavorite(idB);
+                      return GestureDetector(
+                        onTap: () {
+                          if (idB > 0) provider.toggleFavorite(idB);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                            size: 22,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
