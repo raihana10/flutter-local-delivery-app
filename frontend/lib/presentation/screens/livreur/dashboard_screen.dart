@@ -47,10 +47,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _onRefuser() {
-    // A refuser implies ignoring it or removing it from the local list.
-    // For now, doing nothing lets it timeout or someone else take it.
-    // We could also add a 'ignoredCommandes' list in provider but let's keep it simple.
+  void _onRefuser(dynamic commande) {
+    if (commande != null) {
+      context.read<LivreurDashboardProvider>().ignorerCommande(commande.idCommande);
+    }
   }
 
   @override
@@ -74,13 +74,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(height: 16),
                         if (dashboardProvider.isOnline &&
                             dashboardProvider.availableCommandes.isNotEmpty)
-                          NouvelleCommandeCard(
-                            commande:
-                                dashboardProvider.availableCommandes.first,
-                            onAccepter: () => _onAccepter(context,
-                                dashboardProvider.availableCommandes.first),
-                            onRefuser: _onRefuser,
-                          ),
+                          ...dashboardProvider.availableCommandes.map((commande) => Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: NouvelleCommandeCard(
+                                  key: ValueKey(commande.id),
+                                  commande: commande,
+                                  onAccepter: () => _onAccepter(context, commande),
+                                  onRefuser: () => _onRefuser(commande),
+                                ),
+                              )),
                         if (dashboardProvider.isOnline &&
                             dashboardProvider.availableCommandes.isEmpty)
                           _buildWaitingMessage(),
