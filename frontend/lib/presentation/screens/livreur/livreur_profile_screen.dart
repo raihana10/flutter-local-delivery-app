@@ -15,7 +15,8 @@ class LivreurProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mon Profil', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Mon Profil',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -36,17 +37,25 @@ class LivreurProfileScreen extends StatelessWidget {
                   _buildSection(
                     title: 'Paramètres du compte',
                     items: [
-                      _buildListTile(Icons.person_outline, 'Informations personnelles', onTap: () {
+                      _buildListTile(
+                          Icons.person_outline, 'Informations personnelles',
+                          onTap: () {
                         _showEditProfileDialog(context, user);
                       }),
-                      _buildListTile(Icons.pedal_bike_outlined, 'Véhicule et documents', onTap: () {}),
+                      _buildListTile(
+                          Icons.pedal_bike_outlined, 'Véhicule et documents',
+                          onTap: () {}),
                     ],
                   ),
                   const SizedBox(height: 24),
                   _buildSection(
                     title: 'Préférences',
                     items: [
-                      _buildListTile(Icons.language, 'Langue', trailing: Text('Français', style: TextStyle(color: AppColors.mutedForeground)), onTap: () {
+                      _buildListTile(Icons.language, 'Langue',
+                          trailing: Text('Français',
+                              style:
+                                  TextStyle(color: AppColors.mutedForeground)),
+                          onTap: () {
                         // show dialog
                       }),
                       Consumer<ThemeProvider>(
@@ -69,19 +78,22 @@ class LivreurProfileScreen extends StatelessWidget {
                   _buildSection(
                     title: 'Autre',
                     items: [
-                      _buildListTile(Icons.help_outline, 'Aide et support', onTap: () {}),
-                      _buildListTile(Icons.info_outline, 'À propos', onTap: () {}),
+                      _buildListTile(Icons.help_outline, 'Aide et support',
+                          onTap: () {}),
+                      _buildListTile(Icons.info_outline, 'À propos',
+                          onTap: () {}),
                     ],
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Logout Button
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.destructive.withOpacity(0.1),
                       foregroundColor: AppColors.destructive,
                       minimumSize: const Size(double.infinity, 54),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
                     onPressed: () {
@@ -89,7 +101,9 @@ class LivreurProfileScreen extends StatelessWidget {
                       Navigator.of(context).pushReplacementNamed('/');
                     },
                     icon: const Icon(Icons.logout),
-                    label: const Text('Se déconnecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    label: const Text('Se déconnecter',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 40),
                 ],
@@ -99,9 +113,9 @@ class LivreurProfileScreen extends StatelessWidget {
           LivreurBottomNavBar(
             currentIndex: 3,
             onTap: (i) {
-               if (i != 3) {
-                 Navigator.pop(context);
-               }
+              if (i != 3) {
+                Navigator.pop(context);
+              }
             },
           ),
         ],
@@ -137,7 +151,8 @@ class LivreurProfileScreen extends StatelessWidget {
                   color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.camera_alt, size: 16, color: AppColors.primary),
+                child: const Icon(Icons.camera_alt,
+                    size: 16, color: AppColors.primary),
               ),
             ),
           ],
@@ -200,7 +215,11 @@ class LivreurProfileScreen extends StatelessWidget {
                 children: [
                   item,
                   if (idx < items.length - 1)
-                    Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.border),
+                    Divider(
+                        height: 1,
+                        indent: 56,
+                        endIndent: 16,
+                        color: AppColors.border),
                 ],
               );
             }).toList(),
@@ -210,7 +229,8 @@ class LivreurProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildListTile(IconData icon, String title, {Widget? trailing, VoidCallback? onTap}) {
+  Widget _buildListTile(IconData icon, String title,
+      {Widget? trailing, VoidCallback? onTap}) {
     return ListTile(
       onTap: onTap,
       leading: Container(
@@ -228,72 +248,89 @@ class LivreurProfileScreen extends StatelessWidget {
           color: AppColors.foreground,
         ),
       ),
-      trailing: trailing ?? Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.mutedForeground),
+      trailing: trailing ??
+          Icon(Icons.arrow_forward_ios,
+              size: 16, color: AppColors.mutedForeground),
     );
   }
 
   void _showEditProfileDialog(BuildContext context, dynamic user) {
     if (user == null) return;
-    final TextEditingController nameController = TextEditingController(text: user.nom);
-    final TextEditingController phoneController = TextEditingController(text: user.numTl ?? '');
+    final TextEditingController nameController =
+        TextEditingController(text: user.nom);
+    final TextEditingController phoneController =
+        TextEditingController(text: user.numTl ?? '');
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         bool isLoading = false;
-        return StatefulBuilder(
-          builder: (stContext, setState) {
-            return AlertDialog(
-              title: const Text('Modifier le profil'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Nom', hintText: 'Votre nom'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: phoneController,
-                      decoration: const InputDecoration(labelText: 'Numéro de téléphone', hintText: 'Ex: +212...'),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 16),
-                    Text("L'email ne peut pas être modifié.", style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                  ],
-                ),
+        return StatefulBuilder(builder: (stContext, setState) {
+          return AlertDialog(
+            title: const Text('Modifier le profil'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                        labelText: 'Nom', hintText: 'Votre nom'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(
+                        labelText: 'Numéro de téléphone',
+                        hintText: 'Ex: +212...'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  Text("L'email ne peut pas être modifié.",
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.mutedForeground)),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                  onPressed: isLoading ? null : () async {
-                    setState(() => isLoading = true);
-                    final authProvider = context.read<AuthProvider>();
-                    await authProvider.updateUserProfile(
-                      nom: nameController.text.trim(),
-                      numTl: phoneController.text.trim(),
-                    );
-                    
-                    if (stContext.mounted) {
-                      Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(stContext).showSnackBar(
-                        const SnackBar(content: Text('Profil mis à jour avec succès')),
-                      );
-                    }
-                  },
-                  child: isLoading 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.card, strokeWidth: 2))
-                      : const Text('Enregistrer', style: TextStyle(color: AppColors.card)),
-                ),
-              ],
-            );
-          }
-        );
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text('Annuler',
+                    style: TextStyle(color: AppColors.mutedForeground)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary),
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        setState(() => isLoading = true);
+                        final authProvider = context.read<AuthProvider>();
+                        await authProvider.updateUserProfile(
+                          nom: nameController.text.trim(),
+                          numTl: phoneController.text.trim(),
+                        );
+
+                        if (stContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(stContext).showSnackBar(
+                            const SnackBar(
+                                content: Text('Profil mis à jour avec succès')),
+                          );
+                        }
+                      },
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: AppColors.card, strokeWidth: 2))
+                    : const Text('Enregistrer',
+                        style: TextStyle(color: AppColors.card)),
+              ),
+            ],
+          );
+        });
       },
     );
   }

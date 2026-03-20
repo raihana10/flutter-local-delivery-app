@@ -7,7 +7,8 @@ class ClientNotificationsScreen extends StatefulWidget {
   const ClientNotificationsScreen({super.key});
 
   @override
-  State<ClientNotificationsScreen> createState() => _ClientNotificationsScreenState();
+  State<ClientNotificationsScreen> createState() =>
+      _ClientNotificationsScreenState();
 }
 
 class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
@@ -27,7 +28,8 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Notifications',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -38,17 +40,23 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
               onPressed: () async {
                 for (var noti in notifications) {
                   if (noti['est_lu'] == false) {
-                    await context.read<ClientDataProvider>().apiService.markNotificationAsRead(noti['id_not'].toString());
+                    await context
+                        .read<ClientDataProvider>()
+                        .apiService
+                        .markNotificationAsRead(noti['id_not'].toString());
                   }
                 }
                 if (context.mounted) {
                   context.read<ClientDataProvider>().fetchNotifications();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Toutes les notifications marquées comme lues')),
+                    const SnackBar(
+                        content: Text(
+                            'Toutes les notifications marquées comme lues')),
                   );
                 }
               },
-              child: const Text('Tout lire', style: TextStyle(color: AppColors.primary)),
+              child: const Text('Tout lire',
+                  style: TextStyle(color: AppColors.primary)),
             ),
         ],
       ),
@@ -58,7 +66,9 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
               ? _buildEmptyState()
               : RefreshIndicator(
                   onRefresh: () async {
-                    await context.read<ClientDataProvider>().fetchNotifications();
+                    await context
+                        .read<ClientDataProvider>()
+                        .fetchNotifications();
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(20),
@@ -77,7 +87,8 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_off_outlined, size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
+          Icon(Icons.notifications_off_outlined,
+              size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
           const SizedBox(height: 16),
           const Text(
             'Aucune notification',
@@ -100,16 +111,16 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
   Widget _buildNotificationItem(Map<String, dynamic> item) {
     final isRead = item['est_lu'] == true;
     final noti = item['notification'] ?? {};
-    
+
     // Extract data
     final title = noti['titre'] ?? 'Notification';
     final message = noti['message'] ?? '';
     final type = noti['type'] ?? 'info';
-    
+
     // Choose icon and color based on type
     IconData icon = Icons.notifications;
     Color color = AppColors.primary;
-    
+
     switch (type) {
       case 'delivery':
         icon = Icons.delivery_dining;
@@ -136,7 +147,7 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
         final date = DateTime.parse(noti['date']);
         final now = DateTime.now();
         final diff = now.difference(date);
-        
+
         if (diff.inMinutes < 60) {
           timeString = 'Il y a ${diff.inMinutes} min';
         } else if (diff.inHours < 24) {
@@ -154,7 +165,10 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
     return GestureDetector(
       onTap: () async {
         if (!isRead) {
-          final success = await context.read<ClientDataProvider>().apiService.markNotificationAsRead(item['id_not'].toString());
+          final success = await context
+              .read<ClientDataProvider>()
+              .apiService
+              .markNotificationAsRead(item['id_not'].toString());
           if (success && context.mounted) {
             context.read<ClientDataProvider>().fetchNotifications();
           }
@@ -167,7 +181,8 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
           color: isRead ? AppColors.card : AppColors.primary.withOpacity(0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isRead ? AppColors.border : AppColors.primary.withOpacity(0.3),
+            color:
+                isRead ? AppColors.border : AppColors.primary.withOpacity(0.3),
           ),
         ),
         child: Row(
@@ -194,7 +209,8 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
                           title,
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                            fontWeight:
+                                isRead ? FontWeight.w600 : FontWeight.bold,
                             color: AppColors.foreground,
                           ),
                         ),

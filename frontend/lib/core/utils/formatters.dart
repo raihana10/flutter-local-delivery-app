@@ -4,9 +4,9 @@ class Formatters {
   static String toMAD(double amount) {
     if (amount >= 1000) {
       final formatted = amount.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]},',
-      );
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+            (m) => '${m[1]},',
+          );
       return '$formatted MAD';
     }
     return '${amount.toStringAsFixed(0)} MAD';

@@ -216,15 +216,20 @@ class _MarketListScreenState extends State<MarketListScreen>
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
-    
+
     // Replace mockup filtering with API data processing
-    final baseMarkets = clientData.restaurants.where((r) => r['type_business'] == 'supermarche' || r['type_business'] == 'epicerie').toList();
-    
+    final baseMarkets = clientData.restaurants
+        .where((r) =>
+            r['type_business'] == 'supermarche' ||
+            r['type_business'] == 'epicerie')
+        .toList();
+
     _filteredRestaurants = baseMarkets.where((market) {
       final businessUser = market['user'] ?? {};
       final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
       // Category filtering bypassed here because we would need backend mapping.
-      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      bool matchesSearch =
+          _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
       return matchesSearch;
     }).toList();
 
@@ -370,7 +375,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
-                                                      builder: (_) => ClientNotificationsScreen(),
+                                                      builder: (_) =>
+                                                          ClientNotificationsScreen(),
                                                     ),
                                                   );
                                                 },
@@ -379,12 +385,16 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                   height: 48,
                                                   decoration: BoxDecoration(
                                                     color: AppColors.accent,
-                                                    borderRadius: BorderRadius.circular(16),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.accent.withOpacity(0.4),
+                                                        color: AppColors.accent
+                                                            .withOpacity(0.4),
                                                         blurRadius: 12,
-                                                        offset: const Offset(0, 4),
+                                                        offset:
+                                                            const Offset(0, 4),
                                                       ),
                                                     ],
                                                   ),
@@ -392,23 +402,36 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                     alignment: Alignment.center,
                                                     children: [
                                                       const Icon(
-                                                        Icons.notifications_none,
-                                                        color: AppColors.primary,
+                                                        Icons
+                                                            .notifications_none,
+                                                        color:
+                                                            AppColors.primary,
                                                         size: 24,
                                                       ),
-                                                      Consumer<ClientDataProvider>(
-                                                        builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
-                                                          if (!hasUnread) return const SizedBox.shrink();
+                                                      Consumer<
+                                                          ClientDataProvider>(
+                                                        builder:
+                                                            (context, data, _) {
+                                                          final hasUnread = data
+                                                              .notifications
+                                                              .any((n) =>
+                                                                  n['lu'] ==
+                                                                  false);
+                                                          if (!hasUnread)
+                                                            return const SizedBox
+                                                                .shrink();
                                                           return Positioned(
                                                             top: 8,
                                                             right: 8,
                                                             child: Container(
                                                               width: 8,
                                                               height: 8,
-                                                              decoration: const BoxDecoration(
-                                                                color: AppColors.destructive,
-                                                                shape: BoxShape.circle,
+                                                              decoration:
+                                                                  const BoxDecoration(
+                                                                color: AppColors
+                                                                    .destructive,
+                                                                shape: BoxShape
+                                                                    .circle,
                                                               ),
                                                             ),
                                                           );
@@ -702,11 +725,12 @@ class _MarketListScreenState extends State<MarketListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Magasins proches', !_showAll ? 'Voir tout' : '', () {
-                              setState(() {
-                                _showAll = true;
-                              });
-                            }),
+                            'Magasins proches', !_showAll ? 'Voir tout' : '',
+                            () {
+                          setState(() {
+                            _showAll = true;
+                          });
+                        }),
                         const SizedBox(height: 12),
 
                         // Display message if no restaurants found
@@ -766,7 +790,9 @@ class _MarketListScreenState extends State<MarketListScreen>
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
+                            itemCount: _showAll
+                                ? _filteredRestaurants.length
+                                : min(_filteredRestaurants.length, 3),
                             itemBuilder: (context, index) {
                               return _buildRestaurantCard(
                                   _filteredRestaurants[index], index);
@@ -888,7 +914,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                 () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ClientFavoritesScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const ClientFavoritesScreen()),
                   );
                 },
               ),
@@ -1290,14 +1317,14 @@ class _MarketListScreenState extends State<MarketListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: marketInfo['pdp'] != null 
+                        image: marketInfo['pdp'] != null
                             ? DecorationImage(
                                 image: NetworkImage(marketInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: marketInfo['pdp'] == null 
+                      child: marketInfo['pdp'] == null
                           ? Center(
                               child: Text(
                                 '🛒',
@@ -1446,7 +1473,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                           children: [
                             Expanded(
                               child: Text(
-                                marketInfo['description'] ?? 'Supermarché et épicerie',
+                                marketInfo['description'] ??
+                                    'Supermarché et épicerie',
                                 style: TextStyle(
                                   color: AppColors.mutedForeground,
                                   fontSize: 13,

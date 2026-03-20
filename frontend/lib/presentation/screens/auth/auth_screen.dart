@@ -113,9 +113,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
       if (result != null && result.files.isNotEmpty) {
         setState(() {
-          _documentPaths.addAll(result.files.map((file) => file.path!).toList());
+          _documentPaths
+              .addAll(result.files.map((file) => file.path!).toList());
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${result.files.length} document(s) importé(s)'),
@@ -169,14 +170,22 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         nom: _nomController.text.trim(),
-        numTl: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        numTl: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
         role: _selectedRole,
         sexe: _selectedSexe,
         dateNaissance: _selectedDateNaissance,
-        cni: _selectedRole == UserRole.livreur ? _cniController.text.trim() : null,
-        businessType: _selectedRole == UserRole.business ? _selectedBusinessType : null,
-        businessDescription: _selectedRole == UserRole.business ? _businessDescriptionController.text.trim() : null,
-        vehicleType: _selectedRole == UserRole.livreur ? _selectedVehicleType : null,
+        cni: _selectedRole == UserRole.livreur
+            ? _cniController.text.trim()
+            : null,
+        businessType:
+            _selectedRole == UserRole.business ? _selectedBusinessType : null,
+        businessDescription: _selectedRole == UserRole.business
+            ? _businessDescriptionController.text.trim()
+            : null,
+        vehicleType:
+            _selectedRole == UserRole.livreur ? _selectedVehicleType : null,
         documents: _documentPaths.isNotEmpty ? _documentPaths : null,
       );
 
@@ -216,13 +225,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser != null) {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        
+
         // Pour l'instant, nous simulerons une connexion réussie avec Google
         // Plus tard, vous pourrez intégrer avec votre backend
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Connexion Google réussie: ${googleUser.email}'),
@@ -352,8 +361,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                               duration: const Duration(milliseconds: 300),
                               child: Text(
                                 _isLogin
-                                  ? 'Connectez-vous à votre compte'
-                                  : 'Rejoignez notre communauté',
+                                    ? 'Connectez-vous à votre compte'
+                                    : 'Rejoignez notre communauté',
                                 key: ValueKey(_isLogin),
                                 style: TextStyle(
                                   fontSize: 18,
@@ -415,15 +424,23 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     return Opacity(
                                       opacity: _roleSelectionAnimation.value,
                                       child: Transform.scale(
-                                        scale: 0.95 + (_roleSelectionAnimation.value * 0.05),
+                                        scale: 0.95 +
+                                            (_roleSelectionAnimation.value *
+                                                0.05),
                                         child: Row(
                                           children: [
                                             Expanded(
-                                              child: _buildRoleChip(UserRole.client, 'Client', Icons.person),
+                                              child: _buildRoleChip(
+                                                  UserRole.client,
+                                                  'Client',
+                                                  Icons.person),
                                             ),
                                             const SizedBox(width: 12),
                                             Expanded(
-                                              child: _buildRoleChip(UserRole.livreur, 'Livreur', Icons.delivery_dining),
+                                              child: _buildRoleChip(
+                                                  UserRole.livreur,
+                                                  'Livreur',
+                                                  Icons.delivery_dining),
                                             ),
                                           ],
                                         ),
@@ -438,8 +455,12 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     return Opacity(
                                       opacity: _roleSelectionAnimation.value,
                                       child: Transform.scale(
-                                        scale: 0.95 + (_roleSelectionAnimation.value * 0.05),
-                                        child: _buildRoleChip(UserRole.business, 'Commerce', Icons.business, isFullWidth: true),
+                                        scale: 0.95 +
+                                            (_roleSelectionAnimation.value *
+                                                0.05),
+                                        child: _buildRoleChip(UserRole.business,
+                                            'Commerce', Icons.business,
+                                            isFullWidth: true),
                                       ),
                                     );
                                   },
@@ -473,7 +494,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                   if (value == null || value.trim().isEmpty) {
                                     return 'L\'email est requis';
                                   }
-                                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                  if (!RegExp(
+                                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                      .hasMatch(value)) {
                                     return 'Veuillez entrer un email valide';
                                   }
                                   return null;
@@ -488,7 +511,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                 obscureText: _obscurePassword,
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                     color: AppColors.mutedForeground,
                                     size: 20,
                                   ),
@@ -521,16 +546,19 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                               Consumer<AuthProvider>(
                                 builder: (context, authProvider, child) {
                                   return ElevatedButton(
-                                    onPressed: authProvider.isLoading ? null : _submit,
+                                    onPressed:
+                                        authProvider.isLoading ? null : _submit,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: AppColors.accent,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       elevation: 8,
-                                      shadowColor: AppColors.primary.withOpacity(0.3),
+                                      shadowColor:
+                                          AppColors.primary.withOpacity(0.3),
                                     ),
                                     child: authProvider.isLoading
                                         ? const SizedBox(
@@ -538,11 +566,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                             width: 24,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2.5,
-                                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      AppColors.accent),
                                             ),
                                           )
                                         : Text(
-                                            _isLogin ? 'Se connecter' : 'Créer mon compte',
+                                            _isLogin
+                                                ? 'Se connecter'
+                                                : 'Créer mon compte',
                                             style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w600,
@@ -559,24 +591,31 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                               Container(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
-                                  onPressed: _isLoadingGoogle ? null : _signInWithGoogle,
+                                  onPressed: _isLoadingGoogle
+                                      ? null
+                                      : _signInWithGoogle,
                                   icon: _isLoadingGoogle
-                                    ? SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                      ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    AppColors.primary),
+                                          ),
+                                        )
+                                      : Image.asset(
+                                          'assets/google_logo.png',
+                                          height: 20,
+                                          width: 20,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Icon(Icons.search,
+                                                color: AppColors.primary,
+                                                size: 20);
+                                          },
                                         ),
-                                      )
-                                    : Image.asset(
-                                        'assets/google_logo.png',
-                                        height: 20,
-                                        width: 20,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Icon(Icons.search, color: AppColors.primary, size: 20);
-                                        },
-                                      ),
                                   label: Text(
                                     'Continuer avec Google',
                                     style: TextStyle(
@@ -586,8 +625,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     ),
                                   ),
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    side: BorderSide(color: AppColors.border, width: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
+                                    side: BorderSide(
+                                        color: AppColors.border, width: 1.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -605,13 +646,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                     return Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: AppColors.destructive.withOpacity(0.1),
+                                        color: AppColors.destructive
+                                            .withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppColors.destructive.withOpacity(0.3)),
+                                        border: Border.all(
+                                            color: AppColors.destructive
+                                                .withOpacity(0.3)),
                                       ),
                                       child: Row(
                                         children: [
-                                          Icon(Icons.error_outline, color: AppColors.destructive, size: 24),
+                                          Icon(Icons.error_outline,
+                                              color: AppColors.destructive,
+                                              size: 24),
                                           const SizedBox(width: 12),
                                           Expanded(
                                             child: Text(
@@ -624,8 +670,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                             ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.close, size: 20),
-                                            onPressed: () => authProvider.clearError(),
+                                            icon: const Icon(Icons.close,
+                                                size: 20),
+                                            onPressed: () =>
+                                                authProvider.clearError(),
                                             color: AppColors.destructive,
                                           ),
                                         ],
@@ -661,7 +709,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                         setState(() {
                           _isLogin = !_isLogin;
                           _formKey.currentState?.reset();
-                          Provider.of<AuthProvider>(context, listen: false).clearError();
+                          Provider.of<AuthProvider>(context, listen: false)
+                              .clearError();
                         });
                         if (!_isLogin) {
                           _roleSelectionController.forward(from: 0.0);
@@ -690,7 +739,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildRoleChip(UserRole role, String label, IconData icon, {bool isFullWidth = false}) {
+  Widget _buildRoleChip(UserRole role, String label, IconData icon,
+      {bool isFullWidth = false}) {
     final isSelected = _selectedRole == role;
 
     return GestureDetector(
@@ -707,14 +757,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             width: isSelected ? 2 : 1.5,
           ),
           boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -728,7 +778,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? AppColors.accent : AppColors.mutedForeground,
+                color:
+                    isSelected ? AppColors.accent : AppColors.mutedForeground,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 fontSize: 16,
                 letterSpacing: 0.3,
@@ -769,7 +820,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         ),
         filled: true,
         fillColor: AppColors.background,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         prefixIcon: Container(
           padding: const EdgeInsets.only(left: 16, right: 12),
           child: Icon(
@@ -779,11 +831,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           ),
         ),
         suffixIcon: suffixIcon != null
-          ? Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: suffixIcon,
-            )
-          : null,
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: suffixIcon,
+              )
+            : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -861,7 +913,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 label: 'Date de naissance',
                 icon: Icons.calendar_today,
                 value: _selectedDateNaissance,
-                onChanged: (date) => setState(() => _selectedDateNaissance = date),
+                onChanged: (date) =>
+                    setState(() => _selectedDateNaissance = date),
               ),
             ),
           ],
@@ -901,7 +954,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 20),
-        
+
         Text(
           'Informations du livreur',
           style: TextStyle(
@@ -931,7 +984,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 label: 'Date de naissance',
                 icon: Icons.calendar_today,
                 value: _selectedDateNaissance,
-                onChanged: (date) => setState(() => _selectedDateNaissance = date),
+                onChanged: (date) =>
+                    setState(() => _selectedDateNaissance = date),
               ),
             ),
           ],
@@ -950,7 +1004,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           },
         ),
         const SizedBox(height: 20),
-        
+
         // Type de véhicule
         Container(
           padding: const EdgeInsets.all(16),
@@ -980,9 +1034,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   DropdownMenuItem(value: 'scooter', child: Text('🛵 Scooter')),
                   DropdownMenuItem(value: 'voiture', child: Text('🚗 Voiture')),
                   DropdownMenuItem(value: 'velo', child: Text('🚲 Vélo')),
-                  DropdownMenuItem(value: 'camionnette', child: Text('🚐 Camionnette')),
+                  DropdownMenuItem(
+                      value: 'camionnette', child: Text('🚐 Camionnette')),
                 ],
-                onChanged: (value) => setState(() => _selectedVehicleType = value),
+                onChanged: (value) =>
+                    setState(() => _selectedVehicleType = value),
                 validator: (value) {
                   if (value == null || value!.isEmpty) {
                     return 'Le type de véhicule est requis';
@@ -993,9 +1049,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
-        
+
         const SizedBox(height: 20),
-        
+
         // Importation de documents
         Container(
           padding: const EdgeInsets.all(16),
@@ -1016,7 +1072,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Documents upload area
               Container(
                 width: double.infinity,
@@ -1042,20 +1098,22 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                         ElevatedButton.icon(
                           onPressed: _pickDocuments,
                           icon: const Icon(Icons.upload_file, size: 18),
-                          label: const Text('Importer', style: TextStyle(fontSize: 14)),
+                          label: const Text('Importer',
+                              style: TextStyle(fontSize: 14)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.accent,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Documents list
                     if (_documentPaths.isNotEmpty) ...[
                       Text(
@@ -1075,7 +1133,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border, width: 1),
+                            border:
+                                Border.all(color: AppColors.border, width: 1),
                           ),
                           child: Row(
                             children: [
@@ -1103,7 +1162,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                   color: AppColors.destructive,
                                   size: 18,
                                 ),
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                constraints: const BoxConstraints(
+                                    minWidth: 32, minHeight: 32),
                                 padding: EdgeInsets.zero,
                               ),
                             ],
@@ -1117,7 +1177,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
-        
+
         const SizedBox(height: 20),
         _buildTextField(
           controller: _cniController,
@@ -1227,7 +1287,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         ),
         filled: true,
         fillColor: AppColors.background,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         prefixIcon: Container(
           padding: const EdgeInsets.only(left: 16, right: 12),
           child: Icon(
@@ -1279,7 +1340,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       onTap: () async {
         final date = await showDatePicker(
           context: context,
-          initialDate: value ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
+          initialDate:
+              value ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
           firstDate: DateTime(1900),
           lastDate: DateTime.now(),
           builder: (context, child) {
@@ -1305,8 +1367,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         child: TextFormField(
           controller: TextEditingController(
             text: value != null
-              ? '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}'
-              : null,
+                ? '${value.day.toString().padLeft(2, '0')}/${value.month.toString().padLeft(2, '0')}/${value.year}'
+                : null,
           ),
           style: TextStyle(
             color: AppColors.foreground,
@@ -1322,7 +1384,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             ),
             filled: true,
             fillColor: AppColors.background,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             prefixIcon: Container(
               padding: const EdgeInsets.only(left: 16, right: 12),
               child: Icon(

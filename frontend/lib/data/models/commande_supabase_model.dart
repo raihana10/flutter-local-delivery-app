@@ -7,7 +7,7 @@ class CommandeSupabaseModel extends CommandeModel {
   final String statutCommande;
   final String typeCommande;
   final double prixTotal;
-  
+
   // Extra fields for UI display that we will fetch via Joins or use mock for now
   // since the DB might not have all the restaurant info directly inside `commande`
   final String numTlClient;
@@ -22,7 +22,7 @@ class CommandeSupabaseModel extends CommandeModel {
     required this.prixTotal,
     required this.numTlClient,
     this.items = const [],
-    
+
     // Parent fields
     required String id,
     required String restaurant,
@@ -54,14 +54,18 @@ class CommandeSupabaseModel extends CommandeModel {
     //   '...': '...',
     //   'ligne_commande': [ { 'quantite': 2, 'nom_snapshot': 'Burger' } ]
     // }
-    
+
     final clientData = json['client'] as Map<String, dynamic>?;
     final userData = clientData?['app_user'] as Map<String, dynamic>?;
     final String phone = userData?['num_tl'] ?? '';
 
     final adresseData = json['adresse'] as Map<String, dynamic>?;
-    final double? latClient = adresseData != null ? (adresseData['latitude'] as num?)?.toDouble() : null;
-    final double? lngClient = adresseData != null ? (adresseData['longitude'] as num?)?.toDouble() : null;
+    final double? latClient = adresseData != null
+        ? (adresseData['latitude'] as num?)?.toDouble()
+        : null;
+    final double? lngClient = adresseData != null
+        ? (adresseData['longitude'] as num?)?.toDouble()
+        : null;
 
     final lignesData = json['ligne_commande'] as List<dynamic>? ?? [];
     List<String> parsedItems = [];
@@ -82,10 +86,11 @@ class CommandeSupabaseModel extends CommandeModel {
       prixTotal: (json['prix_total'] as num).toDouble(),
       numTlClient: phone,
       items: parsedItems,
-      
+
       // Mapping to old UI fields for compatibility
       id: 'CMD-${json['id_commande']}',
-      restaurant: 'Restaurant (Supabase)', // Temporary until we join with lignes_commande -> produit -> business
+      restaurant:
+          'Restaurant (Supabase)', // Temporary until we join with lignes_commande -> produit -> business
       adresse: adresseData?['ville'] ?? 'Adresse inconnue',
       distance: 2.5, // Mocked for now unless we calculate it
       prix: (json['prix_total'] as num).toDouble(),

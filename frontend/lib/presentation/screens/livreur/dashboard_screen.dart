@@ -20,7 +20,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int  _navIndex    = 0;
+  int _navIndex = 0;
 
   @override
   void initState() {
@@ -30,25 +30,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _onAccepter(BuildContext context, dynamic commande) async {
     final provider = context.read<LivreurDashboardProvider>();
     final success = await provider.accepterCommande(commande);
-    
+
     if (success && mounted) {
-       Navigator.push(
-         context,
-         MaterialPageRoute(
-           builder: (_) => LivraisonActiveScreen(commande: commande),
-         ),
-       );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LivraisonActiveScreen(commande: commande),
+        ),
+      );
     } else if (!success && mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(content: Text(provider.errorMessage ?? 'Erreur lors de l\'acceptation')),
-       );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text(provider.errorMessage ?? 'Erreur lors de l\'acceptation')),
+      );
     }
   }
 
   void _onRefuser() {
-     // A refuser implies ignoring it or removing it from the local list.
-     // For now, doing nothing lets it timeout or someone else take it. 
-     // We could also add a 'ignoredCommandes' list in provider but let's keep it simple.
+    // A refuser implies ignoring it or removing it from the local list.
+    // For now, doing nothing lets it timeout or someone else take it.
+    // We could also add a 'ignoredCommandes' list in provider but let's keep it simple.
   }
 
   @override
@@ -63,44 +65,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _buildHeader(isDark, dashboardProvider),
           Expanded(
             child: dashboardProvider.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.yellow))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.yellow))
                 : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  
-                  if (dashboardProvider.isOnline && dashboardProvider.availableCommandes.isNotEmpty)
-                    NouvelleCommandeCard(
-                      commande:   dashboardProvider.availableCommandes.first,
-                      onAccepter: () => _onAccepter(context, dashboardProvider.availableCommandes.first),
-                      onRefuser:  _onRefuser,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        if (dashboardProvider.isOnline &&
+                            dashboardProvider.availableCommandes.isNotEmpty)
+                          NouvelleCommandeCard(
+                            commande:
+                                dashboardProvider.availableCommandes.first,
+                            onAccepter: () => _onAccepter(context,
+                                dashboardProvider.availableCommandes.first),
+                            onRefuser: _onRefuser,
+                          ),
+                        if (dashboardProvider.isOnline &&
+                            dashboardProvider.availableCommandes.isEmpty)
+                          _buildWaitingMessage(),
+                      ],
                     ),
-                    
-                  if (dashboardProvider.isOnline && dashboardProvider.availableCommandes.isEmpty)
-                    _buildWaitingMessage(),
-                ],
-              ),
-            ),
+                  ),
           ),
           LivreurBottomNavBar(
             currentIndex: _navIndex,
             onTap: (i) {
               setState(() => _navIndex = i);
               if (i == 1 && dashboardProvider.activeCommande != null) {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => LivraisonActiveScreen(commande: dashboardProvider.activeCommande),
-                ));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LivraisonActiveScreen(
+                          commande: dashboardProvider.activeCommande),
+                    ));
               }
               if (i == 2) {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const HistoriqueScreen(),
-                ));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HistoriqueScreen(),
+                    ));
               }
               if (i == 3) {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const LivreurProfileScreen(),
-                ));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LivreurProfileScreen(),
+                    ));
               }
             },
           ),
@@ -112,13 +124,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHeader(bool isDark, LivreurDashboardProvider dashboardProvider) {
     final authProvider = context.watch<AuthProvider>();
     final nom = authProvider.user?.nom ?? 'Livreur';
-    
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
-        top:    MediaQuery.of(context).padding.top + 16,
-        left:   20,
-        right:  20,
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 20,
+        right: 20,
         bottom: 20,
       ),
       color: AppColors.navyDark,
@@ -134,7 +146,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Text(
                     AppStrings.bonjour,
-                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                    style:
+                        TextStyle(fontSize: 14, color: AppColors.textSecondary),
                   ),
                   Row(
                     children: [
@@ -161,14 +174,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     builder: (context, themeProvider, _) => GestureDetector(
                       onTap: () => themeProvider.toggleTheme(),
                       child: Container(
-                        width: 36, height: 36,
+                        width: 36,
+                        height: 36,
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           color: AppColors.navyMedium,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          themeProvider.isDark ? Icons.light_mode : Icons.dark_mode,
+                          themeProvider.isDark
+                              ? Icons.light_mode
+                              : Icons.dark_mode,
                           color: AppColors.yellow,
                           size: 18,
                         ),
@@ -181,7 +197,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (value == 'profile') {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const LivreurProfileScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const LivreurProfileScreen()),
                         );
                       } else if (value == 'logout') {
                         await context.read<AuthProvider>().logout();
@@ -192,14 +209,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(
-                         value: 'profile',
-                         child: Row(
-                            children: [
-                               Icon(Icons.person, color: AppColors.navyDark, size: 20),
-                               SizedBox(width: 8),
-                               Text('Mon Profil'),
-                            ],
-                         ),
+                        value: 'profile',
+                        child: Row(
+                          children: [
+                            Icon(Icons.person,
+                                color: AppColors.navyDark, size: 20),
+                            SizedBox(width: 8),
+                            Text('Mon Profil'),
+                          ],
+                        ),
                       ),
                       const PopupMenuItem(
                         value: 'logout',
@@ -215,7 +233,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: const CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.navyMedium,
-                      child: Icon(Icons.person, color: AppColors.textSecondary, size: 28),
+                      child: Icon(Icons.person,
+                          color: AppColors.textSecondary, size: 28),
                     ),
                   ),
                 ],

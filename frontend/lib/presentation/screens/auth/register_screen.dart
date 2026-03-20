@@ -40,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Autre'
   ];
   final _licenseNumberController = TextEditingController();
-  
+
   // Documents Livreur
   File? _drivingLicenseImage;
   File? _idCardFrontImage;
@@ -52,7 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _businessCategory;
   final _businessDescriptionController = TextEditingController();
   final _registreCommerceController = TextEditingController();
-  
+
   // Documents Business
   File? _businessLogo;
   File? _commerceRegistrationDoc;
@@ -96,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         maxHeight: 1024,
         imageQuality: 85,
       );
-      
+
       if (pickedFile != null) {
         onImagePicked(File(pickedFile.path));
         _showSuccessSnackBar('Fichier téléchargé avec succès');
@@ -149,9 +149,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleSubmit() async {
     // Validation basique
     if (_selectedRole == null) return;
-    
-    if (_emailController.text.trim().isEmpty || 
-        _passwordController.text.trim().isEmpty || 
+
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty ||
         _fullNameController.text.trim().isEmpty) {
       _showErrorSnackBar('Veuillez remplir les informations obligatoires');
       return;
@@ -166,9 +166,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final auth.UserRole mappedRole;
     switch (_selectedRole!) {
-      case UserRole.client: mappedRole = auth.UserRole.client; break;
-      case UserRole.livreur: mappedRole = auth.UserRole.livreur; break;
-      case UserRole.business: mappedRole = auth.UserRole.business; break;
+      case UserRole.client:
+        mappedRole = auth.UserRole.client;
+        break;
+      case UserRole.livreur:
+        mappedRole = auth.UserRole.livreur;
+        break;
+      case UserRole.business:
+        mappedRole = auth.UserRole.business;
+        break;
     }
 
     final request = auth.RegisterRequest(
@@ -202,10 +208,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Navigator.of(context).pushReplacementNamed('/client/home');
         }
       }
-    }
- else {
+    } else {
       if (mounted) {
-        _showErrorSnackBar(authProvider.errorMessage ?? 'Erreur lors de l\'inscription');
+        _showErrorSnackBar(
+            authProvider.errorMessage ?? 'Erreur lors de l\'inscription');
       }
     }
   }
@@ -473,9 +479,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 SizedBox(height: 24),
 
                 // Content based on current step
-                _currentStep == 2
-                    ? _buildStep2Content()
-                    : _buildStep3Content(),
+                _currentStep == 2 ? _buildStep2Content() : _buildStep3Content(),
 
                 SizedBox(height: 32),
               ],
@@ -647,7 +651,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Type de véhicule - Maintenant une vraie liste déroulante
             _buildVehicleDropdown(),
             SizedBox(height: 16),
-            
+
             // Numéro de permis
             _buildTextField(
               label: 'Numéro de permis',
@@ -656,13 +660,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hint: 'Numéro de permis de conduire',
             ),
             SizedBox(height: 16),
-            
+
             // Permis de conduire
             _buildUploadZone(
               label: 'Permis de conduire',
               icon: LucideIcons.upload,
-              description: _drivingLicenseImage != null 
-                  ? '✓ Permis téléchargé' 
+              description: _drivingLicenseImage != null
+                  ? '✓ Permis téléchargé'
                   : 'Télécharger une photo',
               subtext: 'JPG, PNG · Max 5MB',
               file: _drivingLicenseImage,
@@ -677,13 +681,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
             SizedBox(height: 16),
-            
+
             // Carte d'identité recto
             _buildUploadZone(
               label: 'Carte d\'identité (Recto)',
               icon: LucideIcons.fileText,
-              description: _idCardFrontImage != null 
-                  ? '✓ Recto téléchargé' 
+              description: _idCardFrontImage != null
+                  ? '✓ Recto téléchargé'
                   : 'Télécharger le recto',
               subtext: 'JPG, PNG · Max 5MB',
               file: _idCardFrontImage,
@@ -698,13 +702,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
             SizedBox(height: 16),
-            
+
             // Carte d'identité verso
             _buildUploadZone(
               label: 'Carte d\'identité (Verso)',
               icon: LucideIcons.fileText,
-              description: _idCardBackImage != null 
-                  ? '✓ Verso téléchargé' 
+              description: _idCardBackImage != null
+                  ? '✓ Verso téléchargé'
                   : 'Télécharger le verso',
               subtext: 'JPG, PNG · Max 5MB',
               file: _idCardBackImage,
@@ -723,8 +727,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildUploadZone(
               label: 'Logo du commerce',
               icon: LucideIcons.camera,
-              description: _businessLogo != null 
-                  ? '✓ Logo téléchargé' 
+              description: _businessLogo != null
+                  ? '✓ Logo téléchargé'
                   : 'Ajouter votre logo',
               subtext: 'JPG, PNG · Max 5MB',
               file: _businessLogo,
@@ -739,7 +743,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
             SizedBox(height: 16),
-            
+
             // Nom du commerce
             _buildTextField(
               label: 'Nom du commerce',
@@ -748,11 +752,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hint: 'Nom de votre restaurant/commerce',
             ),
             SizedBox(height: 16),
-            
+
             // Catégorie
             _buildCategoryDropdown(),
             SizedBox(height: 16),
-            
+
             // Description
             _buildTextArea(
               label: 'Description',
@@ -760,7 +764,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hint: 'Décrivez votre commerce en quelques mots...',
             ),
             SizedBox(height: 16),
-            
+
             // Registre de commerce
             _buildTextField(
               label: 'Registre de commerce',
@@ -769,13 +773,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hint: 'Numéro RC',
             ),
             SizedBox(height: 16),
-            
+
             // Justificatif RC
             _buildUploadZone(
               label: 'Justificatif RC',
               icon: LucideIcons.fileText,
-              description: _commerceRegistrationDoc != null 
-                  ? '✓ Document téléchargé' 
+              description: _commerceRegistrationDoc != null
+                  ? '✓ Document téléchargé'
                   : 'Télécharger le document',
               subtext: 'PDF, JPG · Max 10MB',
               file: _commerceRegistrationDoc,
@@ -808,7 +812,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  _selectedRole == UserRole.client ? 'Commencer' : 'Créer mon compte',
+                  _selectedRole == UserRole.client
+                      ? 'Commencer'
+                      : 'Créer mon compte',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -881,7 +887,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Icon(
                 icon,
                 size: 22,
-                color: isSelected ? AppColors.primary : AppColors.mutedForeground,
+                color:
+                    isSelected ? AppColors.primary : AppColors.mutedForeground,
               ),
             ),
             SizedBox(width: 16),
@@ -1073,7 +1080,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             value: _selectedCity,
             hint: Row(
               children: [
-                Icon(LucideIcons.mapPin, size: 18, color: AppColors.mutedForeground),
+                Icon(LucideIcons.mapPin,
+                    size: 18, color: AppColors.mutedForeground),
                 SizedBox(width: 8),
                 Text(
                   'Choisir votre ville',
@@ -1087,7 +1095,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     value: city,
                     child: Row(
                       children: [
-                        Icon(LucideIcons.mapPin, size: 16, color: AppColors.accent),
+                        Icon(LucideIcons.mapPin,
+                            size: 16, color: AppColors.accent),
                         SizedBox(width: 8),
                         Text(city),
                       ],
@@ -1135,7 +1144,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             value: _vehicleType,
             hint: Row(
               children: [
-                Icon(LucideIcons.bike, size: 18, color: AppColors.mutedForeground),
+                Icon(LucideIcons.bike,
+                    size: 18, color: AppColors.mutedForeground),
                 SizedBox(width: 8),
                 Text(
                   'Choisir le type de véhicule',
@@ -1154,7 +1164,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           type,
                           style: TextStyle(
-                            fontWeight: _vehicleType == type ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: _vehicleType == type
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -1176,7 +1188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _getVehicleIcon(String vehicleType) {
     IconData iconData;
     Color iconColor = AppColors.accent;
-    
+
     switch (vehicleType) {
       case 'Vélo':
         iconData = LucideIcons.bike;
@@ -1197,7 +1209,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         iconData = Icons.help;
         iconColor = AppColors.mutedForeground;
     }
-    
+
     return Icon(iconData, size: 18, color: iconColor);
   }
 
@@ -1226,7 +1238,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             border: Border.all(
-              color: _businessCategory != null ? AppColors.accent : AppColors.border,
+              color: _businessCategory != null
+                  ? AppColors.accent
+                  : AppColors.border,
               width: _businessCategory != null ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(20),
@@ -1332,7 +1346,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: file != null ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(20),
-              color: file != null ? Colors.green.withOpacity(0.05) : AppColors.card,
+              color: file != null
+                  ? Colors.green.withOpacity(0.05)
+                  : AppColors.card,
             ),
             child: Row(
               children: [
@@ -1340,7 +1356,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: file != null 
+                    color: file != null
                         ? Colors.green.withOpacity(0.1)
                         : AppColors.secondary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -1348,7 +1364,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Icon(
                     file != null ? Icons.check_circle : icon,
                     size: 20,
-                    color: file != null ? Colors.green : AppColors.mutedForeground,
+                    color:
+                        file != null ? Colors.green : AppColors.mutedForeground,
                   ),
                 ),
                 SizedBox(width: 12),
@@ -1360,8 +1377,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         description,
                         style: TextStyle(
                           fontSize: 14,
-                          color: file != null ? Colors.green : AppColors.foreground,
-                          fontWeight: file != null ? FontWeight.w600 : FontWeight.normal,
+                          color: file != null
+                              ? Colors.green
+                              : AppColors.foreground,
+                          fontWeight: file != null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                       if (file == null) ...[

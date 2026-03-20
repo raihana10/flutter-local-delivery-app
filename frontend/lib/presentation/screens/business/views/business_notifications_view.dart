@@ -24,26 +24,39 @@ class BusinessNotificationsView extends StatelessWidget {
                     child: Container(
                       width: 40,
                       height: 40,
-                      decoration: const BoxDecoration(color: AppColors.warmWhite, shape: BoxShape.circle),
-                      child: const Icon(LucideIcons.arrowLeft, color: AppColors.forest, size: 20),
+                      decoration: const BoxDecoration(
+                          color: AppColors.warmWhite, shape: BoxShape.circle),
+                      child: const Icon(LucideIcons.arrowLeft,
+                          color: AppColors.forest, size: 20),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Notifications', style: TextStyle(color: AppColors.forest, fontWeight: FontWeight.bold, fontSize: 20)),
+                  const Text('Notifications',
+                      style: TextStyle(
+                          color: AppColors.forest,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () {},
-                    child: const Text('Tout marquer lu', style: TextStyle(color: AppColors.forest, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: const Text('Tout marquer lu',
+                        style: TextStyle(
+                            color: AppColors.forest,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold)),
                   )
                 ],
               ),
             ),
-            
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 children: [
-                  const Text('Aujourd\'hui', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.mutedForeground)),
+                  const Text('Aujourd\'hui',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.mutedForeground)),
                   const SizedBox(height: 12),
                   _buildNotificationItem(
                     title: 'Nouvelle commande #1045',
@@ -54,24 +67,30 @@ class BusinessNotificationsView extends StatelessWidget {
                   ),
                   _buildNotificationItem(
                     title: 'Commande #1042 livrée',
-                    message: 'La commande pour Alae B. a été livrée avec succès.',
+                    message:
+                        'La commande pour Alae B. a été livrée avec succès.',
                     time: 'Il y a 45 min',
                     type: 'success',
                     isUnread: true,
                   ),
                   const SizedBox(height: 24),
-                  const Text('Hier', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.mutedForeground)),
+                  const Text('Hier',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.mutedForeground)),
                   const SizedBox(height: 12),
                   _buildNotificationItem(
                     title: 'Message du support',
-                    message: 'Votre document de validation a été accepté. Votre profil est maintenant public.',
+                    message:
+                        'Votre document de validation a été accepté. Votre profil est maintenant public.',
                     time: 'Hier, 14:30',
                     type: 'support',
                     isUnread: false,
                   ),
                   _buildNotificationItem(
                     title: 'Nouvelle note !',
-                    message: 'Un client vous a attribué 5 étoiles pour sa commande passée ce matin.',
+                    message:
+                        'Un client vous a attribué 5 étoiles pour sa commande passée ce matin.',
                     time: 'Hier, 10:15',
                     type: 'rating',
                     isUnread: false,
@@ -148,18 +167,36 @@ class BusinessNotificationsView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 14)),
-                    Text(time, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11)),
+                    Text(title,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.forest,
+                            fontSize: 14)),
+                    Text(time,
+                        style: const TextStyle(
+                            color: AppColors.mutedForeground, fontSize: 11)),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(message, style: TextStyle(color: isUnread ? AppColors.forest : AppColors.mutedForeground, fontSize: 13, height: 1.4)),
+                Text(message,
+                    style: TextStyle(
+                        color: isUnread
+                            ? AppColors.forest
+                            : AppColors.mutedForeground,
+                        fontSize: 13,
+                        height: 1.4)),
               ],
             ),
           ),
           if (isUnread) ...[
             const SizedBox(width: 12),
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.amber, shape: BoxShape.circle,)),
+            Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.amber,
+                  shape: BoxShape.circle,
+                )),
           ]
         ],
       ),

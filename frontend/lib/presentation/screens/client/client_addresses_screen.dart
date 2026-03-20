@@ -12,8 +12,6 @@ class ClientAddressesScreen extends StatefulWidget {
 }
 
 class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
-
-
   @override
   Widget build(BuildContext context) {
     final clientData = context.watch<ClientDataProvider>();
@@ -22,7 +20,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mes adresses de livraison', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Mes adresses de livraison',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: AppColors.card,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -44,7 +43,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         onPressed: _showAddAddressBottomSheet,
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_location_alt, color: AppColors.card),
-        label: const Text('Nouvelle adresse', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+        label: const Text('Nouvelle adresse',
+            style:
+                TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -54,7 +55,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.location_off_outlined, size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
+          Icon(Icons.location_off_outlined,
+              size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
           const SizedBox(height: 16),
           const Text(
             'Aucune adresse',
@@ -79,8 +81,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     final isDefault = addressRelation['is_default'] == true;
     final addressModel = addressRelation['adresse'] ?? {};
     final ville = addressModel['ville'] ?? 'Adresse';
-    final idAddress = addressRelation['id_adresse'].toString(); // the linked address
-    
+    final idAddress =
+        addressRelation['id_adresse'].toString(); // the linked address
+
     // We don't have titles in the DB model currently, but we could infer by default status
     final title = isDefault ? 'Adresse Principale' : 'Adresse';
 
@@ -107,7 +110,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isDefault ? AppColors.accent.withOpacity(0.1) : AppColors.background,
+            color: isDefault
+                ? AppColors.accent.withOpacity(0.1)
+                : AppColors.background,
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -129,7 +134,11 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   color: AppColors.accent,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('Par défaut', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                child: const Text('Par défaut',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary)),
               ),
             ],
           ],
@@ -138,30 +147,39 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
           padding: const EdgeInsets.only(top: 8),
           child: Text(
             ville,
-            style: const TextStyle(color: AppColors.mutedForeground, height: 1.4),
+            style:
+                const TextStyle(color: AppColors.mutedForeground, height: 1.4),
           ),
         ),
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: AppColors.mutedForeground),
           onSelected: (value) async {
             if (value == 'default') {
-              final success = await context.read<ClientDataProvider>().updateAddress(idAddress, {'is_default': true});
+              final success = await context
+                  .read<ClientDataProvider>()
+                  .updateAddress(idAddress, {'is_default': true});
               if (mounted && success) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse principale mise à jour')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Adresse principale mise à jour')));
               }
             } else if (value == 'delete') {
-              final success = await context.read<ClientDataProvider>().deleteAddress(idAddress);
+              final success = await context
+                  .read<ClientDataProvider>()
+                  .deleteAddress(idAddress);
               if (mounted && success) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse supprimée')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Adresse supprimée')));
               }
             }
           },
           itemBuilder: (context) => [
             if (!isDefault)
-              const PopupMenuItem(value: 'default', child: Text('Définir par défaut')),
+              const PopupMenuItem(
+                  value: 'default', child: Text('Définir par défaut')),
             const PopupMenuItem(
               value: 'delete',
-              child: Text('Supprimer', style: TextStyle(color: AppColors.destructive)),
+              child: Text('Supprimer',
+                  style: TextStyle(color: AppColors.destructive)),
             ),
           ],
         ),
@@ -195,7 +213,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              
+
               // Geolocation Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -211,7 +229,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Recherche de votre position GPS en cours...')),
+                    const SnackBar(
+                        content: Text(
+                            'Recherche de votre position GPS en cours...')),
                   );
                   // Simulate fetching geolocation and adding
                   Future.delayed(const Duration(seconds: 1), () {
@@ -224,18 +244,25 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                         'titre': 'Position actuelle',
                       }).then((success) {
                         if (mounted && success) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse GPS ajoutée')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Adresse GPS ajoutée')));
                         }
                       });
                     }
                   });
                 },
                 icon: const Icon(Icons.my_location),
-                label: const Text('Utiliser ma position actuelle', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text('Utiliser ma position actuelle',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              
+
               const SizedBox(height: 24),
-              const Center(child: Text('OU', style: TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.bold))),
+              const Center(
+                  child: Text('OU',
+                      style: TextStyle(
+                          color: AppColors.mutedForeground,
+                          fontWeight: FontWeight.bold))),
               const SizedBox(height: 24),
 
               // Manual Entry Form
@@ -244,7 +271,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   labelText: 'Titre (ex: Maison, Bureau)',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 16),
@@ -253,7 +282,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   labelText: 'Ville',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
                 onChanged: (val) {
                   // We would bind a controller here for city
@@ -266,7 +297,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   labelText: 'Adresse complète',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 24),
@@ -274,11 +307,13 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () async {
                   // Fake manual address data
-                  final success = await context.read<ClientDataProvider>().addAddress({
+                  final success =
+                      await context.read<ClientDataProvider>().addAddress({
                     'ville': 'Tétouan', // In real life, value from controller
                     'latitude': 35.5800,
                     'longitude': -5.3700,
@@ -286,13 +321,17 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   if (mounted) {
                     Navigator.pop(context);
                     if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse ajoutée manuellement')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Adresse ajoutée manuellement')));
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur ajout d\'adresse')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Erreur ajout d\'adresse')));
                     }
                   }
                 },
-                child: const Text('Enregistrer l\'adresse', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+                child: const Text('Enregistrer l\'adresse',
+                    style: TextStyle(
+                        color: AppColors.card, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
             ],

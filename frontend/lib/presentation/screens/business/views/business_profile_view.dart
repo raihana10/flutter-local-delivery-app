@@ -16,7 +16,8 @@ class BusinessProfileView extends StatefulWidget {
 
 class _BusinessProfileViewState extends State<BusinessProfileView> {
   bool _isOpen = true;
-  final TextEditingController _prepTimeController = TextEditingController(text: '15');
+  final TextEditingController _prepTimeController =
+      TextEditingController(text: '15');
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +36,18 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                   child: Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(color: AppColors.warmWhite, shape: BoxShape.circle),
-                    child: const Icon(LucideIcons.arrowLeft, color: AppColors.forest, size: 20),
+                    decoration: const BoxDecoration(
+                        color: AppColors.warmWhite, shape: BoxShape.circle),
+                    child: const Icon(LucideIcons.arrowLeft,
+                        color: AppColors.forest, size: 20),
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Profil Business', style: TextStyle(color: AppColors.forest, fontWeight: FontWeight.bold, fontSize: 20)),
+                const Text('Profil Business',
+                    style: TextStyle(
+                        color: AppColors.forest,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20)),
               ],
             ),
           ),
@@ -58,7 +65,8 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     image: const DecorationImage(
-                      image: NetworkImage('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=300&fit=crop'),
+                      image: NetworkImage(
+                          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=300&fit=crop'),
                       fit: BoxFit.cover,
                     ),
                     boxShadow: AppColors.cardShadow,
@@ -68,17 +76,21 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                   bottom: -40,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
                     child: CircleAvatar(
                       radius: 40,
                       backgroundColor: AppColors.warmWhite,
-                      backgroundImage: const NetworkImage('https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200&h=200&fit=crop'),
+                      backgroundImage: const NetworkImage(
+                          'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200&h=200&fit=crop'),
                       child: Align(
                         alignment: Alignment.bottomRight,
                         child: Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: AppColors.forest, shape: BoxShape.circle),
-                          child: const Icon(LucideIcons.camera, color: Colors.white, size: 14),
+                          decoration: const BoxDecoration(
+                              color: AppColors.forest, shape: BoxShape.circle),
+                          child: const Icon(LucideIcons.camera,
+                              color: Colors.white, size: 14),
                         ),
                       ),
                     ),
@@ -93,9 +105,14 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
           const Center(
             child: Column(
               children: [
-                Text('Dar Zitoun', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.forest)),
+                Text('Dar Zitoun',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                        color: AppColors.forest)),
                 SizedBox(height: 4),
-                Text('Restaurant Marocain', style: TextStyle(color: AppColors.mutedForeground)),
+                Text('Restaurant Marocain',
+                    style: TextStyle(color: AppColors.mutedForeground)),
               ],
             ),
           ),
@@ -106,18 +123,32 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: _isOpen ? AppColors.sage.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: _isOpen
+                  ? AppColors.sage.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _isOpen ? AppColors.sage.withOpacity(0.5) : Colors.red.withOpacity(0.5)),
+              border: Border.all(
+                  color: _isOpen
+                      ? AppColors.sage.withOpacity(0.5)
+                      : Colors.red.withOpacity(0.5)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Container(width: 10, height: 10, decoration: BoxDecoration(color: _isOpen ? AppColors.sage : Colors.red, shape: BoxShape.circle)),
+                    Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                            color: _isOpen ? AppColors.sage : Colors.red,
+                            shape: BoxShape.circle)),
                     const SizedBox(width: 12),
-                    Text(_isOpen ? 'Aujourd\'hui: Ouvert' : 'Actuellement Fermé', style: TextStyle(fontWeight: FontWeight.bold, color: _isOpen ? AppColors.sage : Colors.red)),
+                    Text(
+                        _isOpen ? 'Aujourd\'hui: Ouvert' : 'Actuellement Fermé',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isOpen ? AppColors.sage : Colors.red)),
                   ],
                 ),
                 Switch(
@@ -134,17 +165,29 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
           // Menu Settings
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: const Text('Informations Générales', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 16)),
+            child: const Text('Informations Générales',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.forest,
+                    fontSize: 16)),
           ),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                _buildActionTile(LucideIcons.store, 'Type de Business', 'Restaurant', onTap: () {}),
-                _buildActionTile(LucideIcons.clock, 'Horaires d\'ouverture', '08:00 - 23:00', onTap: () {}),
-                _buildActionTile(LucideIcons.timer, 'Temps de préparation moyen', '15 mins', onTap: () {}),
-                _buildActionTile(LucideIcons.mapPin, 'Adresse', '12 Avenue Hassan II, Casablanca', onTap: () {}),
+                _buildActionTile(
+                    LucideIcons.store, 'Type de Business', 'Restaurant',
+                    onTap: () {}),
+                _buildActionTile(
+                    LucideIcons.clock, 'Horaires d\'ouverture', '08:00 - 23:00',
+                    onTap: () {}),
+                _buildActionTile(
+                    LucideIcons.timer, 'Temps de préparation moyen', '15 mins',
+                    onTap: () {}),
+                _buildActionTile(LucideIcons.mapPin, 'Adresse',
+                    '12 Avenue Hassan II, Casablanca',
+                    onTap: () {}),
               ],
             ),
           ),
@@ -152,16 +195,25 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: const Text('Comptes & Sécurité', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 16)),
+            child: const Text('Comptes & Sécurité',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.forest,
+                    fontSize: 16)),
           ),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                _buildActionTile(LucideIcons.fileText, 'Documents de validation', 'Validés', isSuccess: true, onTap: () {}),
-                _buildActionTile(LucideIcons.wallet, 'Détails de paiement', 'Compte bancaire lié', onTap: () {}),
-                _buildActionTile(LucideIcons.logOut, 'Déconnexion', '', isDestructive: true, onTap: () async {
+                _buildActionTile(
+                    LucideIcons.fileText, 'Documents de validation', 'Validés',
+                    isSuccess: true, onTap: () {}),
+                _buildActionTile(LucideIcons.wallet, 'Détails de paiement',
+                    'Compte bancaire lié',
+                    onTap: () {}),
+                _buildActionTile(LucideIcons.logOut, 'Déconnexion', '',
+                    isDestructive: true, onTap: () async {
                   await context.read<AuthProvider>().logout();
                   if (context.mounted) {
                     Navigator.of(context).pushReplacementNamed('/');
@@ -175,19 +227,29 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
     );
   }
 
-  Widget _buildActionTile(IconData icon, String title, String subtitle, {VoidCallback? onTap, bool isDestructive = false, bool isSuccess = false}) {
+  Widget _buildActionTile(IconData icon, String title, String subtitle,
+      {VoidCallback? onTap,
+      bool isDestructive = false,
+      bool isSuccess = false}) {
     Color color = isDestructive ? Colors.red : AppColors.forest;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: AppColors.cardShadow),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: AppColors.cardShadow),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: isDestructive ? Colors.red.withOpacity(0.1) : AppColors.warmWhite, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: isDestructive
+                      ? Colors.red.withOpacity(0.1)
+                      : AppColors.warmWhite,
+                  shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(width: 16),
@@ -195,12 +257,26 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14)),
-                  if (subtitle.isNotEmpty) Text(subtitle, style: TextStyle(color: isSuccess ? AppColors.sage : AppColors.mutedForeground, fontSize: 12, fontWeight: isSuccess ? FontWeight.bold : FontWeight.normal)),
+                  Text(title,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                          fontSize: 14)),
+                  if (subtitle.isNotEmpty)
+                    Text(subtitle,
+                        style: TextStyle(
+                            color: isSuccess
+                                ? AppColors.sage
+                                : AppColors.mutedForeground,
+                            fontSize: 12,
+                            fontWeight: isSuccess
+                                ? FontWeight.bold
+                                : FontWeight.normal)),
                 ],
               ),
             ),
-            const Icon(LucideIcons.chevronRight, color: Colors.black12, size: 20),
+            const Icon(LucideIcons.chevronRight,
+                color: Colors.black12, size: 20),
           ],
         ),
       ),

@@ -7,10 +7,12 @@ class ClientPaymentMethodsScreen extends StatefulWidget {
   const ClientPaymentMethodsScreen({super.key});
 
   @override
-  State<ClientPaymentMethodsScreen> createState() => _ClientPaymentMethodsScreenState();
+  State<ClientPaymentMethodsScreen> createState() =>
+      _ClientPaymentMethodsScreenState();
 }
 
-class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen> {
+class _ClientPaymentMethodsScreenState
+    extends State<ClientPaymentMethodsScreen> {
   final TextEditingController _cardNumberController = TextEditingController();
   final TextEditingController _expiryController = TextEditingController();
   final TextEditingController _cvcController = TextEditingController();
@@ -54,7 +56,8 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Moyens de paiement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Moyens de paiement',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: AppColors.card,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -72,8 +75,11 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   _buildPaymentMethodItem(cashMethod, isLocal: true),
                   ...methods.map((method) {
                     final isDefault = method['is_default'] == true;
-                    final String cardNum = method['numero_carte']?.toString() ?? '****';
-                    final String last4 = cardNum.length > 4 ? cardNum.substring(cardNum.length - 4) : cardNum;
+                    final String cardNum =
+                        method['numero_carte']?.toString() ?? '****';
+                    final String last4 = cardNum.length > 4
+                        ? cardNum.substring(cardNum.length - 4)
+                        : cardNum;
 
                     return _buildPaymentMethodItem({
                       'id': method['id_carte'].toString(),
@@ -92,12 +98,15 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
         onPressed: _showAddCardBottomSheet,
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_card, color: AppColors.card),
-        label: const Text('Ajouter une carte', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+        label: const Text('Ajouter une carte',
+            style:
+                TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Widget _buildPaymentMethodItem(Map<String, dynamic> method, {required bool isLocal}) {
+  Widget _buildPaymentMethodItem(Map<String, dynamic> method,
+      {required bool isLocal}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -140,7 +149,11 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   color: AppColors.accent,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('Par défaut', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                child: const Text('Par défaut',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary)),
               ),
             ],
           ],
@@ -152,35 +165,50 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
             style: const TextStyle(color: AppColors.mutedForeground),
           ),
         ),
-        trailing: isLocal ? null : PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: AppColors.mutedForeground),
-          onSelected: (value) async {
-            if (value == 'default') {
-              final success = await context.read<ClientDataProvider>().setDefaultPaymentMethod(method['id']);
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moyen de paiement principal mis à jour')));
-              }
-            } else if (value == 'delete') {
-              final success = await context.read<ClientDataProvider>().deletePaymentMethod(method['id']);
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte supprimée')));
-              }
-            }
-          },
-          itemBuilder: (context) => [
-            if (!method['is_default'])
-              const PopupMenuItem(value: 'default', child: Text('Définir par défaut')),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Text('Supprimer', style: TextStyle(color: AppColors.destructive)),
-            ),
-          ],
-        ),
+        trailing: isLocal
+            ? null
+            : PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert,
+                    color: AppColors.mutedForeground),
+                onSelected: (value) async {
+                  if (value == 'default') {
+                    final success = await context
+                        .read<ClientDataProvider>()
+                        .setDefaultPaymentMethod(method['id']);
+                    if (success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content:
+                              Text('Moyen de paiement principal mis à jour')));
+                    }
+                  } else if (value == 'delete') {
+                    final success = await context
+                        .read<ClientDataProvider>()
+                        .deletePaymentMethod(method['id']);
+                    if (success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Carte supprimée')));
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (!method['is_default'])
+                    const PopupMenuItem(
+                        value: 'default', child: Text('Définir par défaut')),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Supprimer',
+                        style: TextStyle(color: AppColors.destructive)),
+                  ),
+                ],
+              ),
         onTap: () async {
           if (!method['is_default'] && !isLocal) {
-            await context.read<ClientDataProvider>().setDefaultPaymentMethod(method['id']);
+            await context
+                .read<ClientDataProvider>()
+                .setDefaultPaymentMethod(method['id']);
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moyen de paiement principal mis à jour')));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Moyen de paiement principal mis à jour')));
             }
           }
         },
@@ -226,7 +254,9 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   prefixIcon: const Icon(Icons.credit_card),
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -240,7 +270,9 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                         labelText: 'Date d\'expiration (MM/AA)',
                         filled: true,
                         fillColor: AppColors.card,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                       keyboardType: TextInputType.datetime,
                     ),
@@ -253,7 +285,9 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                         labelText: 'CVC',
                         filled: true,
                         fillColor: AppColors.card,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                       ),
                       keyboardType: TextInputType.number,
                       obscureText: true,
@@ -268,7 +302,9 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   labelText: 'Nom sur la carte',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 24),
@@ -276,13 +312,15 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () async {
-                  if (_cardNumberController.text.isEmpty || _expiryController.text.isEmpty) {
+                  if (_cardNumberController.text.isEmpty ||
+                      _expiryController.text.isEmpty) {
                     return;
                   }
-                  
+
                   final data = {
                     'numero_carte': _cardNumberController.text.trim(),
                     'date_expiration': _expiryController.text.trim(),
@@ -291,16 +329,22 @@ class _ClientPaymentMethodsScreenState extends State<ClientPaymentMethodsScreen>
                   };
 
                   Navigator.pop(ctx);
-                  final success = await context.read<ClientDataProvider>().addPaymentMethodCard(data);
+                  final success = await context
+                      .read<ClientDataProvider>()
+                      .addPaymentMethodCard(data);
 
                   if (success && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Carte ajoutée avec succès')));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Carte ajoutée avec succès')));
                   } else if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Erreur lors de l\'ajout de la carte'), backgroundColor: AppColors.destructive));
+                        content: Text('Erreur lors de l\'ajout de la carte'),
+                        backgroundColor: AppColors.destructive));
                   }
                 },
-                child: const Text('Ajouter cette carte', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+                child: const Text('Ajouter cette carte',
+                    style: TextStyle(
+                        color: AppColors.card, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
             ],

@@ -47,15 +47,17 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
           // ── Contenu ────────────────────────────────────────
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.yellow))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.yellow))
                 : _historique.isEmpty
                     ? const Center(
                         child: Text(
                           "Aucun historique de livraison",
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 16),
                         ),
                       )
-                    :RefreshIndicator(
+                    : RefreshIndicator(
                         onRefresh: _loadData,
                         child: ListView.builder(
                           padding: const EdgeInsets.all(16),
@@ -72,9 +74,9 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
           LivreurBottomNavBar(
             currentIndex: _navIndex,
             onTap: (i) {
-               if (i != _navIndex) {
-                 Navigator.pop(context); // Return to Dashboard
-               }
+              if (i != _navIndex) {
+                Navigator.pop(context); // Return to Dashboard
+              }
             },
           ),
         ],
@@ -87,7 +89,9 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
       width: double.infinity,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 16,
-        left: 20, right: 20, bottom: 20,
+        left: 20,
+        right: 20,
+        bottom: 20,
       ),
       color: Colors.white,
       child: const Text(
@@ -118,7 +122,10 @@ class _HistoriqueTile extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -160,21 +167,28 @@ class _HistoriqueTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                     children: [
-                        const Icon(Icons.location_on, size: 14, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          commande.adresse.length > 25 ? '${commande.adresse.substring(0, 25)}...' : commande.adresse,
-                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                        ),
-                     ],
+                    children: [
+                      const Icon(Icons.location_on,
+                          size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        commande.adresse.length > 25
+                            ? '${commande.adresse.substring(0, 25)}...'
+                            : commande.adresse,
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary),
+                      ),
+                    ],
                   ),
                   if (commande.items.isNotEmpty) ...[
-                     const SizedBox(height: 4),
-                     Text(
-                        '${commande.items.length} article(s)',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
-                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${commande.items.length} article(s)',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic),
+                    ),
                   ]
                 ],
               ),

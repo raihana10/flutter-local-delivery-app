@@ -18,7 +18,8 @@ class LivreurBottomNavBar extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.navyDark,
         boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -2)),
+          BoxShadow(
+              color: Colors.black26, blurRadius: 10, offset: Offset(0, -2)),
         ],
       ),
       child: SafeArea(
@@ -27,10 +28,30 @@ class LivreurBottomNavBar extends StatelessWidget {
           height: 60,
           child: Row(
             children: [
-              _NavItem(index: 0, currentIndex: currentIndex, icon: Icons.home_rounded,         label: AppStrings.navAccueil,   onTap: onTap),
-              _NavItem(index: 1, currentIndex: currentIndex, icon: Icons.near_me_rounded,      label: AppStrings.navLivraison, onTap: onTap),
-              _NavItem(index: 2, currentIndex: currentIndex, icon: Icons.history_rounded, label: 'Historique', onTap: onTap),
-              _NavItem(index: 3, currentIndex: currentIndex, icon: Icons.person_outline_rounded, label: 'Profil', onTap: onTap),
+              _NavItem(
+                  index: 0,
+                  currentIndex: currentIndex,
+                  icon: Icons.home_rounded,
+                  label: AppStrings.navAccueil,
+                  onTap: onTap),
+              _NavItem(
+                  index: 1,
+                  currentIndex: currentIndex,
+                  icon: Icons.near_me_rounded,
+                  label: AppStrings.navLivraison,
+                  onTap: onTap),
+              _NavItem(
+                  index: 2,
+                  currentIndex: currentIndex,
+                  icon: Icons.history_rounded,
+                  label: 'Historique',
+                  onTap: onTap),
+              _NavItem(
+                  index: 3,
+                  currentIndex: currentIndex,
+                  icon: Icons.person_outline_rounded,
+                  label: 'Profil',
+                  onTap: onTap),
             ],
           ),
         ),
@@ -74,14 +95,15 @@ class _NavItem extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color:      selected ? AppColors.yellow : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w600  : FontWeight.normal,
+                color: selected ? AppColors.yellow : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
             // Point indicateur
             const SizedBox(height: 3),
             Container(
-              width: 4, height: 4,
+              width: 4,
+              height: 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: selected ? AppColors.yellow : Colors.transparent,

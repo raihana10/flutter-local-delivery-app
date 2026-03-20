@@ -12,7 +12,9 @@ class ClientFavoritesScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mes Favoris', style: TextStyle(color: AppColors.foreground, fontWeight: FontWeight.bold)),
+        title: const Text('Mes Favoris',
+            style: TextStyle(
+                color: AppColors.foreground, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.foreground),
@@ -22,7 +24,8 @@ class ClientFavoritesScreen extends StatelessWidget {
           final favorites = provider.favorites;
 
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary));
           }
 
           if (favorites.isEmpty) {
@@ -30,7 +33,9 @@ class ClientFavoritesScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.favorite_border, size: 80, color: AppColors.mutedForeground.withOpacity(0.5)),
+                  Icon(Icons.favorite_border,
+                      size: 80,
+                      color: AppColors.mutedForeground.withOpacity(0.5)),
                   const SizedBox(height: 16),
                   const Text(
                     'Aucun favori',
@@ -103,15 +108,17 @@ class ClientFavoritesScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.background,
                                 borderRadius: BorderRadius.circular(12),
-                                image: business['pdp'] != null 
+                                image: business['pdp'] != null
                                     ? DecorationImage(
                                         image: NetworkImage(business['pdp']),
                                         fit: BoxFit.cover,
                                       )
                                     : null,
                               ),
-                              child: business['pdp'] == null 
-                                  ? const Center(child: Text('🏪', style: TextStyle(fontSize: 24)))
+                              child: business['pdp'] == null
+                                  ? const Center(
+                                      child: Text('🏪',
+                                          style: TextStyle(fontSize: 24)))
                                   : null,
                             ),
                           ),
@@ -130,14 +137,20 @@ class ClientFavoritesScreen extends StatelessWidget {
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    const Icon(Icons.star, color: AppColors.gold, size: 14),
+                                    const Icon(Icons.star,
+                                        color: AppColors.gold, size: 14),
                                     const SizedBox(width: 4),
-                                    const Text('4.5', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                    const Text('4.5',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13)),
                                     const SizedBox(width: 8),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withOpacity(0.1),
+                                        color:
+                                            AppColors.primary.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -155,7 +168,8 @@ class ClientFavoritesScreen extends StatelessWidget {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.favorite, color: AppColors.destructive),
+                            icon: const Icon(Icons.favorite,
+                                color: AppColors.destructive),
                             onPressed: () {
                               provider.toggleFavorite(int.parse(idBusiness));
                             },

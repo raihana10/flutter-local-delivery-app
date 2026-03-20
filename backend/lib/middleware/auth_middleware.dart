@@ -23,9 +23,13 @@ Middleware authMiddleware() {
       if (path.startsWith('client/')) {
         final clientId = request.headers['x-client-id'];
         if (clientId == null || clientId.isEmpty) {
-          return Response(401,
-              body: jsonEncode({"error": "Unauthorized access. Missing x-client-id header"}),
-              headers: {'content-type': 'application/json'});
+          return Response(
+            401,
+            body: jsonEncode({
+              "error": "Unauthorized access. Missing x-client-id header",
+            }),
+            headers: {'content-type': 'application/json'},
+          );
         }
         return innerHandler(request);
       }
@@ -33,9 +37,13 @@ Middleware authMiddleware() {
       // 3. Admin Routes Authentication (Default)
       final adminId = request.headers['x-admin-id'];
       if (adminId == null || adminId.isEmpty) {
-        return Response(403,
-            body: jsonEncode({"error": "Unauthorized access. Missing x-admin-id header"}),
-            headers: {'content-type': 'application/json'});
+        return Response(
+          403,
+          body: jsonEncode({
+            "error": "Unauthorized access. Missing x-admin-id header",
+          }),
+          headers: {'content-type': 'application/json'},
+        );
       }
 
       return innerHandler(request);

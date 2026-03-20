@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/mock_super_admin_data.dart';
+import 'package:app/data/datasources/super_admin_api_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -15,13 +15,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
   String _selectedRole = 'Tous';
-  
+
   List<Map<String, dynamic>> notifications = [];
 
   @override
   void initState() {
     super.initState();
-    notifications = List.from(MockSuperAdminData.notifications);
+    _loadNotifs();
+  }
+
+  Future<void> _loadNotifs() async {
+    final res = await SuperAdminApiService().getNotifications();
+    if (mounted) {
+      setState(() {
+        notifications = List<Map<String, dynamic>>.from(res);
+      });
+    }
   }
 
   @override
@@ -45,7 +54,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _titleController.clear();
       _messageController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Notification envoyée au groupe : $_selectedRole')),
+        SnackBar(
+            content: Text('Notification envoyée au groupe : $_selectedRole')),
       );
     }
   }
@@ -55,35 +65,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Centre de Notifications',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
-          if (isDesktop)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 1, child: _buildSendForm()),
-                const SizedBox(width: 24),
-                Expanded(flex: 2, child: _buildHistoryLog()),
-              ],
-            )
-          else
-            Column(
-              children: [
-                _buildSendForm(),
-                const SizedBox(height: 24),
-                _buildHistoryLog(),
-              ],
-            )
-        ],
-      )
-    );
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Centre de Notifications',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            if (isDesktop)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 1, child: _buildSendForm()),
+                  const SizedBox(width: 24),
+                  Expanded(flex: 2, child: _buildHistoryLog()),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  _buildSendForm(),
+                  const SizedBox(height: 24),
+                  _buildHistoryLog(),
+                ],
+              )
+          ],
+        ));
   }
 
   Widget _buildSendForm() {
@@ -96,17 +105,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Envoyer une nouvelle notification', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('Envoyer une nouvelle notification',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
-              const Text('Cible', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Cible',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _selectedRole,
                 decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                items: ['Tous', 'Clients', 'Livreurs', 'Restaurants'].map((String value) {
+                items: ['Tous', 'Clients', 'Livreurs', 'Restaurants']
+                    .map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(value),
@@ -117,25 +131,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              const Text('Titre', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Titre',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
                   hintText: 'Ex: Nouvelle mise à jour !',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 validator: (v) => v!.isEmpty ? 'Titre requis' : null,
               ),
               const SizedBox(height: 16),
-              const Text('Message', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('Message',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _messageController,
                 maxLines: 4,
                 decoration: InputDecoration(
                   hintText: 'Votre message ici...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 validator: (v) => v!.isEmpty ? 'Message requis' : null,
               ),
@@ -160,7 +178,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Historique des Envois & Alertes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Historique des Envois & Alertes',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             ListView.separated(
               shrinkWrap: true,
@@ -169,20 +188,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               separatorBuilder: (context, index) => const Divider(),
               itemBuilder: (context, index) {
                 final notif = notifications[index];
-                final isAlert = notif['type'] == 'alert' || notif['type'] == 'warning';
-                
+                final isAlert =
+                    notif['type'] == 'alert' || notif['type'] == 'warning';
+
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: isAlert ? AppColors.destructive.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                    backgroundColor: isAlert
+                        ? AppColors.destructive.withOpacity(0.1)
+                        : Colors.blue.withOpacity(0.1),
                     child: Icon(
-                      isAlert ? Icons.warning_amber_rounded : Icons.notifications_none,
+                      isAlert
+                          ? Icons.warning_amber_rounded
+                          : Icons.notifications_none,
                       color: isAlert ? AppColors.destructive : Colors.blue,
                     ),
                   ),
-                  title: Text(notif['titre'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(notif['titre'],
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(notif['message']),
-                  trailing: Text(notif['date'], style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  trailing: Text(notif['date'],
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.mutedForeground)),
                 );
               },
             )
@@ -192,4 +219,3 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 }
-

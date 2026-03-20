@@ -51,7 +51,7 @@ class LivreurDashboardProvider extends ChangeNotifier {
 
   void _startListeningToCommandes() {
     _stopListeningToCommandes();
-    
+
     // Listen to commandes that are confirmed or prepared
     _commandesSubscription = _supabase
         .from('commande')
@@ -59,15 +59,13 @@ class LivreurDashboardProvider extends ChangeNotifier {
         .eq('statut_commande', 'confirmee') // Also could listen to 'preparee'
         .listen((data) async {
           if (!_isOnline || _isOnMission) return;
-          
+
           _availableCommandes.clear();
-          
+
           for (var item in data) {
             // Need to fetch joined data (adresse, client phone)
             try {
-              final response = await _supabase
-                  .from('commande')
-                  .select('''
+              final response = await _supabase.from('commande').select('''
                     *,
                     adresse (*),
                     client (
@@ -78,13 +76,12 @@ class LivreurDashboardProvider extends ChangeNotifier {
                       nom_snapshot,
                       prix_snapshot
                     )
-                  ''')
-                  .eq('id_commande', item['id_commande'])
-                  .single();
-                  
+                  ''').eq('id_commande', item['id_commande']).single();
+
               _availableCommandes.add(CommandeSupabaseModel.fromJson(response));
             } catch (e) {
-              debugPrint('Error fetching joined data for order ${item['id_commande']}: $e');
+              debugPrint(
+                  'Error fetching joined data for order ${item['id_commande']}: $e');
             }
           }
           notifyListeners();
@@ -111,44 +108,52 @@ class LivreurDashboardProvider extends ChangeNotifier {
           .select('id_livreur')
           .eq('id_user', userId)
           .single();
-          
+
       final int idLivreur = livreurRes['id_livreur'];
 
       // 2. Try to assign the order in the timeline
       // Using upsert or insert depending on if timeline exists
-      final timelineRes = await _supabase.from('timeline').select('id_timeline').eq('id_commande', commande.idCommande).maybeSingle();
-      
+      final timelineRes = await _supabase
+          .from('timeline')
+          .select('id_timeline')
+          .eq('id_commande', commande.idCommande)
+          .maybeSingle();
+
       if (timelineRes == null) {
-          await _supabase.from('timeline').insert({
-            'id_commande': commande.idCommande,
-            'id_livreur': idLivreur,
-            'statut_tmlne': 'en_livraison'
-          });
+        await _supabase.from('timeline').insert({
+          'id_commande': commande.idCommande,
+          'id_livreur': idLivreur,
+          'statut_tmlne': 'en_livraison'
+        });
       } else {
-          // If a timeline exists, check if it already has a livreur
-          final existingTimeline = await _supabase.from('timeline').select('id_livreur').eq('id_commande', commande.idCommande).single();
-          if (existingTimeline['id_livreur'] != null) {
-              throw Exception("Commande déjà acceptée par un autre livreur");
-          }
-          
-          await _supabase.from('timeline').update({
-            'id_livreur': idLivreur,
-            'statut_tmlne': 'en_livraison'
-          }).eq('id_commande', commande.idCommande);
+        // If a timeline exists, check if it already has a livreur
+        final existingTimeline = await _supabase
+            .from('timeline')
+            .select('id_livreur')
+            .eq('id_commande', commande.idCommande)
+            .single();
+        if (existingTimeline['id_livreur'] != null) {
+          throw Exception("Commande déjà acceptée par un autre livreur");
+        }
+
+        await _supabase.from('timeline').update({
+          'id_livreur': idLivreur,
+          'statut_tmlne': 'en_livraison'
+        }).eq('id_commande', commande.idCommande);
       }
 
       // 3. Update the commande status
-      await _supabase.from('commande').update({
-        'statut_commande': 'en_livraison'
-      }).eq('id_commande', commande.idCommande);
+      await _supabase
+          .from('commande')
+          .update({'statut_commande': 'en_livraison'}).eq(
+              'id_commande', commande.idCommande);
 
       _activeCommande = commande;
       _isOnMission = true;
       _stopListeningToCommandes();
-      
+
       _setLoading(false);
       return true;
-
     } catch (e) {
       _setError(e.toString());
       _setLoading(false);
@@ -157,38 +162,36 @@ class LivreurDashboardProvider extends ChangeNotifier {
   }
 
   Future<bool> terminerLivraison() async {
-     _setLoading(true);
-     _clearError();
-     
-     if (_activeCommande == null) {
-        _setLoading(false);
-        return false;
-     }
+    _setLoading(true);
+    _clearError();
 
-     try {
-       // Update commande
-       await _supabase.from('commande').update({
-         'statut_commande': 'livree'
-       }).eq('id_commande', _activeCommande!.idCommande);
-       
-       // Update timeline
-       await _supabase.from('timeline').update({
-         'statut_tmlne': 'livree'
-       }).eq('id_commande', _activeCommande!.idCommande);
+    if (_activeCommande == null) {
+      _setLoading(false);
+      return false;
+    }
 
-       _activeCommande = null;
-       _isOnMission = false;
-       if (_isOnline) {
-          _startListeningToCommandes();
-       }
-       
-       _setLoading(false);
-       return true;
-     } catch (e) {
-        _setError(e.toString());
-        _setLoading(false);
-        return false;
-     }
+    try {
+      // Update commande
+      await _supabase.from('commande').update({'statut_commande': 'livree'}).eq(
+          'id_commande', _activeCommande!.idCommande);
+
+      // Update timeline
+      await _supabase.from('timeline').update({'statut_tmlne': 'livree'}).eq(
+          'id_commande', _activeCommande!.idCommande);
+
+      _activeCommande = null;
+      _isOnMission = false;
+      if (_isOnline) {
+        _startListeningToCommandes();
+      }
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      return false;
+    }
   }
 
   Future<List<CommandeSupabaseModel>> fetchHistorique() async {
@@ -201,7 +204,7 @@ class LivreurDashboardProvider extends ChangeNotifier {
           .select('id_livreur')
           .eq('id_user', userId)
           .maybeSingle();
-      
+
       if (livreurRes == null) return [];
       final int idLivreur = livreurRes['id_livreur'];
 
@@ -228,7 +231,9 @@ class LivreurDashboardProvider extends ChangeNotifier {
           .eq('timeline.id_livreur', idLivreur)
           .order('updated_at', ascending: false);
 
-      return (response as List).map((e) => CommandeSupabaseModel.fromJson(e)).toList();
+      return (response as List)
+          .map((e) => CommandeSupabaseModel.fromJson(e))
+          .toList();
     } catch (e) {
       debugPrint('Error fetching historique: $e');
       return [];

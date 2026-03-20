@@ -41,7 +41,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Fetch real data once after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -50,7 +50,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     });
 
     _fadeController = AnimationController(
-
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
@@ -338,9 +337,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                       ),
                       Consumer<ClientDataProvider>(
                         builder: (context, data, _) {
-                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                          final hasUnread =
+                              data.notifications.any((n) => n['lu'] == false);
                           if (!hasUnread) return const SizedBox.shrink();
-                          
+
                           return Positioned(
                             top: 12,
                             right: 12,
@@ -811,7 +811,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                   Hero(
+                  Hero(
                     tag: 'restaurant_${restaurantInfo['id_business']}_$index',
                     child: Container(
                       width: 80,
@@ -825,14 +825,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: restaurantInfo['pdp'] != null 
+                        image: restaurantInfo['pdp'] != null
                             ? DecorationImage(
                                 image: NetworkImage(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: restaurantInfo['pdp'] == null 
+                      child: restaurantInfo['pdp'] == null
                           ? Center(
                               child: Text(
                                 '🍔',

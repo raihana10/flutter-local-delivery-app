@@ -16,20 +16,20 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
 
   Future<void> init() async {
-    // We are no longer reliably using Supabase Auth session because of confirmation issues. 
-    // We rely on login() setting the _user variable. 
+    // We are no longer reliably using Supabase Auth session because of confirmation issues.
+    // We rely on login() setting the _user variable.
     // For persistence, you'd want to store the user ID in SharedPreferences, but for now we skip session loading.
-    
+
     // Listen to auth state changes
     _supabase.auth.onAuthStateChange.listen((data) async {
       final supa.AuthChangeEvent event = data.event;
       final supa.Session? session = data.session;
-      
+
       if (event == supa.AuthChangeEvent.signedIn && session != null) {
-         await _fetchUserDetails(session.user.email!);
+        await _fetchUserDetails(session.user.email!);
       } else if (event == supa.AuthChangeEvent.signedOut) {
-         _user = null;
-         notifyListeners();
+        _user = null;
+        notifyListeners();
       }
     });
   }
@@ -42,20 +42,20 @@ class AuthProvider extends ChangeNotifier {
           .select()
           .eq('email', email)
           .maybeSingle();
-      
+
       if (response != null) {
-         _user = User.fromJson(response);
+        _user = User.fromJson(response);
       } else {
-         // Fallback if user is in auth but not in public schema yet
-         _user = User(
-            id: 0, 
-            email: email, 
-            nom: 'Utilisateur',
-            role: UserRole.client, 
-            estActif: true,
-            createdAt: DateTime.now(), 
-            updatedAt: DateTime.now(),
-          );
+        // Fallback if user is in auth but not in public schema yet
+        _user = User(
+          id: 0,
+          email: email,
+          nom: 'Utilisateur',
+          role: UserRole.client,
+          estActif: true,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
       }
       notifyListeners();
     } catch (e) {
@@ -63,7 +63,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateUserProfile({required String nom, required String numTl}) async {
+  Future<bool> updateUserProfile(
+      {required String nom, required String numTl}) async {
     if (_user == null) return false;
     _setLoading(true);
     _clearError();
@@ -72,7 +73,7 @@ class AuthProvider extends ChangeNotifier {
         'nom': nom,
         'num_tl': numTl,
       }).eq('email', _user!.email);
-      
+
       await _fetchUserDetails(_user!.email);
       return true;
     } catch (e) {
@@ -110,19 +111,20 @@ class AuthProvider extends ChangeNotifier {
         _setError('Identifiants invalides');
         return false;
       }
-      
+
       // We assume passwords in the DB are hashed with SHA256 as per the register method below
       final bytes = utf8.encode(password);
       final digest = sha256.convert(bytes);
       final hashedPassword = digest.toString();
 
-      if (response['password'] != hashedPassword && response['password'] != password) {
-         _setError('Identifiants invalides');
-         return false;
+      if (response['password'] != hashedPassword &&
+          response['password'] != password) {
+        _setError('Identifiants invalides');
+        return false;
       }
 
       await _fetchUserDetails(email);
-      return true; 
+      return true;
     } catch (e) {
       _setError('Erreur de connexion: ${e.toString()}');
       return false;
@@ -136,7 +138,9 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
 
     try {
-      if (request.email.isEmpty || request.password.isEmpty || request.nom.isEmpty) {
+      if (request.email.isEmpty ||
+          request.password.isEmpty ||
+          request.nom.isEmpty) {
         _setError('Tous les champs sont requis');
         return false;
       }
@@ -154,54 +158,55 @@ class AuthProvider extends ChangeNotifier {
 
       // 2. Insert into the public custom 'user' table
       if (response.user != null) {
-         // Hash the password for the custom `user` table using crypto SHA256
-         final bytes = utf8.encode(request.password);
-         final digest = sha256.convert(bytes);
-         final hashedPassword = digest.toString();
+        // Hash the password for the custom `user` table using crypto SHA256
+        final bytes = utf8.encode(request.password);
+        final digest = sha256.convert(bytes);
+        final hashedPassword = digest.toString();
 
-         final userData = {
-            'email': request.email,
-            'password': hashedPassword,
-            'nom': request.nom,
-            'num_tl': request.numTl,
-            'role': request.role.value,
-         };
-         
-         final responseUser = await _supabase.from('app_user').insert(userData).select().single();
-         final int userId = responseUser['id_user'];
-         
-         // 3. Insert into the role-specific table based on UserRole
-         if (request.role == UserRole.client) {
-            await _supabase.from('client').insert({
-              'id_user': userId,
-              'sexe': request.sexe,
-            });
-         } else if (request.role == UserRole.livreur) {
-            await _supabase.from('livreur').insert({
-              'id_user': userId,
-              'sexe': request.sexe,
-              'cni': request.cni,
-            });
-         } else if (request.role == UserRole.business) {
-            String bt = 'restaurant';
-            if (request.businessType != null) {
-               final lowerBt = request.businessType!.toLowerCase();
-               if (lowerBt.contains('super')) bt = 'super-marche';
-               else if (lowerBt.contains('pharmacie')) bt = 'pharmacie';
-            }
-            await _supabase.from('business').insert({
-              'id_user': userId,
-              'type_business': bt,
-              'description': request.businessDescription,
-            });
-         }
-         
-         // Fetch details synchronously before returning true so the UI has the role
-         await _fetchUserDetails(request.email);
-         return true;
+        final userData = {
+          'email': request.email,
+          'password': hashedPassword,
+          'nom': request.nom,
+          'num_tl': request.numTl,
+          'role': request.role.value,
+        };
+
+        final responseUser =
+            await _supabase.from('app_user').insert(userData).select().single();
+        final int userId = responseUser['id_user'];
+
+        // 3. Insert into the role-specific table based on UserRole
+        if (request.role == UserRole.client) {
+          await _supabase.from('client').insert({
+            'id_user': userId,
+            'sexe': request.sexe,
+          });
+        } else if (request.role == UserRole.livreur) {
+          await _supabase.from('livreur').insert({
+            'id_user': userId,
+            'sexe': request.sexe,
+            'cni': request.cni,
+          });
+        } else if (request.role == UserRole.business) {
+          String bt = 'restaurant';
+          if (request.businessType != null) {
+            final lowerBt = request.businessType!.toLowerCase();
+            if (lowerBt.contains('super'))
+              bt = 'super-marche';
+            else if (lowerBt.contains('pharmacie')) bt = 'pharmacie';
+          }
+          await _supabase.from('business').insert({
+            'id_user': userId,
+            'type_business': bt,
+            'description': request.businessDescription,
+          });
+        }
+
+        // Fetch details synchronously before returning true so the UI has the role
+        await _fetchUserDetails(request.email);
+        return true;
       }
       return false;
-      
     } on supa.AuthException catch (e) {
       _setError('Erreur d\'inscription: ${e.message}');
       return false;

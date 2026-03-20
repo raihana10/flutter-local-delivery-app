@@ -3,7 +3,6 @@ import 'package:shelf/shelf.dart';
 import '../../supabase/supabase_client.dart';
 
 class ClientFavoritesController {
-  
   // Get all favorites for the authenticated client
   Future<Response> getFavorites(Request request) async {
     final clientId = request.headers['x-client-id'];
@@ -17,9 +16,16 @@ class ClientFavoritesController {
           .select('*, business(*, app_user(*))')
           .eq('id_client', clientId);
 
-      return Response.ok(jsonEncode({'data': favoris}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': favoris}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -36,17 +42,29 @@ class ClientFavoritesController {
       final idBusiness = data['id_business'];
 
       if (idBusiness == null) {
-        return Response(400, body: jsonEncode({'error': 'id_business is required'}), headers: {'content-type': 'application/json'});
+        return Response(
+          400,
+          body: jsonEncode({'error': 'id_business is required'}),
+          headers: {'content-type': 'application/json'},
+        );
       }
 
-      final newFavoris = await SupabaseConfig.client.from('favoris').insert({
-        'id_client': clientId,
-        'id_business': idBusiness,
-      }).select().single();
+      final newFavoris = await SupabaseConfig.client
+          .from('favoris')
+          .insert({'id_client': clientId, 'id_business': idBusiness})
+          .select()
+          .single();
 
-      return Response.ok(jsonEncode({'data': newFavoris}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': newFavoris}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -64,9 +82,16 @@ class ClientFavoritesController {
           .eq('id_client', clientId)
           .eq('id_business', idBusiness);
 
-      return Response.ok(jsonEncode({'message': 'Favorite removed successfully'}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'message': 'Favorite removed successfully'}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }

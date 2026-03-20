@@ -11,6 +11,13 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setLight() { _themeMode = ThemeMode.light; notifyListeners(); }
-  void setDark()  { _themeMode = ThemeMode.dark;  notifyListeners(); }
+  void setLight() {
+    _themeMode = ThemeMode.light;
+    notifyListeners();
+  }
+
+  void setDark() {
+    _themeMode = ThemeMode.dark;
+    notifyListeners();
+  }
 }

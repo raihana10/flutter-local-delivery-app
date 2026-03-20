@@ -38,7 +38,8 @@ class BusinessProduct {
     cat = cat.toLowerCase();
     if (cat.contains('meal') || cat.contains('plat')) return 'meal';
     if (cat.contains('grocery') || cat.contains('epicerie')) return 'grocery';
-    if (cat.contains('pharmacy') || cat.contains('pharmacie')) return 'pharmacy';
+    if (cat.contains('pharmacy') || cat.contains('pharmacie'))
+      return 'pharmacy';
     return 'meal'; // Default
   }
 

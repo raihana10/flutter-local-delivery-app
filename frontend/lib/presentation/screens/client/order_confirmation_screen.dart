@@ -8,7 +8,8 @@ class OrderConfirmationScreen extends StatefulWidget {
   const OrderConfirmationScreen({super.key});
 
   @override
-  State<OrderConfirmationScreen> createState() => _OrderConfirmationScreenState();
+  State<OrderConfirmationScreen> createState() =>
+      _OrderConfirmationScreenState();
 }
 
 class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
@@ -34,7 +35,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final clientData = context.watch<ClientDataProvider>();
     final addresses = clientData.addresses;
     final cartItems = clientData.cartItems;
-    
+
     double subtotal = clientData.cartSubtotal;
     double deliveryFee = 10.0;
     double total = subtotal + deliveryFee;
@@ -42,7 +43,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Confirmation', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Confirmation',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -59,7 +61,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 if (addresses.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text('Aucune adresse disponible', style: TextStyle(color: AppColors.mutedForeground)),
+                    child: Text('Aucune adresse disponible',
+                        style: TextStyle(color: AppColors.mutedForeground)),
                   )
                 else
                   ...List.generate(
@@ -68,10 +71,12 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   ),
                 TextButton.icon(
                   onPressed: _showAddAddressBottomSheet,
-                  icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                  label: const Text('Ajouter une nouvelle adresse', style: TextStyle(color: AppColors.primary)),
+                  icon: const Icon(Icons.add_circle_outline,
+                      color: AppColors.primary),
+                  label: const Text('Ajouter une nouvelle adresse',
+                      style: TextStyle(color: AppColors.primary)),
                 ),
-                
+
                 const SizedBox(height: 32),
                 _buildSectionHeader('Mode de paiement', Icons.payment),
                 const SizedBox(height: 12),
@@ -83,15 +88,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 const SizedBox(height: 32),
                 _buildSectionHeader('Récapitulatif', Icons.receipt_long),
                 const SizedBox(height: 12),
-                _buildOrderSummaryWidget(cartItems.length, subtotal, deliveryFee, total),
-                
+                _buildOrderSummaryWidget(
+                    cartItems.length, subtotal, deliveryFee, total),
+
                 const SizedBox(height: 100), // padding bottom
               ]),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _buildConfirmationBar(total, addresses.isEmpty ? null : addresses[_selectedAddressIndex]),
+      bottomNavigationBar: _buildConfirmationBar(
+          total, addresses.isEmpty ? null : addresses[_selectedAddressIndex]),
     );
   }
 
@@ -118,7 +125,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final addressModel = addressRelation['adresse'] ?? {};
     final ville = addressModel['ville'] ?? 'Adresse';
     final title = isDefault ? 'Adresse Principale' : 'Nouvelle Adresse';
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -130,7 +137,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.05) : AppColors.card,
+          color:
+              isSelected ? AppColors.primary.withOpacity(0.05) : AppColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
@@ -161,7 +169,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: isSelected ? AppColors.primary : AppColors.foreground,
+                      color:
+                          isSelected ? AppColors.primary : AppColors.foreground,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -176,7 +185,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle, color: AppColors.primary, size: 28),
+              const Icon(Icons.check_circle,
+                  color: AppColors.primary, size: 28),
           ],
         ),
       ),
@@ -196,7 +206,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.05) : AppColors.card,
+          color:
+              isSelected ? AppColors.primary.withOpacity(0.05) : AppColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
@@ -246,7 +257,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildOrderSummaryWidget(int itemsCount, double subtotal, double deliveryFee, double total) {
+  Widget _buildOrderSummaryWidget(
+      int itemsCount, double subtotal, double deliveryFee, double total) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -266,16 +278,20 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('$itemsCount articles', style: TextStyle(color: AppColors.mutedForeground)),
-              Text('$subtotal DH', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('$itemsCount articles',
+                  style: TextStyle(color: AppColors.mutedForeground)),
+              Text('$subtotal DH',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Livraison', style: TextStyle(color: AppColors.mutedForeground)),
-              Text('$deliveryFee DH', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text('Livraison',
+                  style: TextStyle(color: AppColors.mutedForeground)),
+              Text('$deliveryFee DH',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const Padding(
@@ -285,8 +301,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total à Payer', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('$total DH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
+              const Text('Total à Payer',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('$total DH',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary)),
             ],
           ),
         ],
@@ -326,50 +347,63 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
             ),
             elevation: 5,
           ),
-          onPressed: _isSubmitting ? null : () async {
-            if (selectedAddress == null) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez sélectionner une adresse')));
-              return;
-            }
-            
-            setState(() { _isSubmitting = true; });
+          onPressed: _isSubmitting
+              ? null
+              : () async {
+                  if (selectedAddress == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Veuillez sélectionner une adresse')));
+                    return;
+                  }
 
-            final clientData = context.read<ClientDataProvider>();
-            final cartItems = clientData.cartItems;
-            
-            final payload = {
-              'id_adresse': selectedAddress['id_adresse'],
-              'type_commande': 'food_delivery',
-              'items': cartItems.map((item) {
-                return {
-                  'quantite': item['quantity'],
-                  'id_produit': item['id'], // Assumes item has an id, fallback to 1 or something if mocked earlier
-                  'prix_snapshot': item['price'],
-                  'nom_snapshot': item['name']
-                };
-              }).toList(),
-            };
-            
-            final success = await clientData.apiService.createOrder(payload);
-            
-            if (mounted) {
-              setState(() { _isSubmitting = false; });
-              if (success != null) {
-                clientData.clearCart();
-                _showSuccessDialog();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la création de la commande')));
-              }
-            }
-          },
-          child: _isSubmitting ? const CircularProgressIndicator(color: AppColors.card) : Text(
-            'Confirmer la commande ($total DH)',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
+                  setState(() {
+                    _isSubmitting = true;
+                  });
+
+                  final clientData = context.read<ClientDataProvider>();
+                  final cartItems = clientData.cartItems;
+
+                  final payload = {
+                    'id_adresse': selectedAddress['id_adresse'],
+                    'type_commande': 'food_delivery',
+                    'items': cartItems.map((item) {
+                      return {
+                        'quantite': item['quantity'],
+                        'id_produit': item[
+                            'id'], // Assumes item has an id, fallback to 1 or something if mocked earlier
+                        'prix_snapshot': item['price'],
+                        'nom_snapshot': item['name']
+                      };
+                    }).toList(),
+                  };
+
+                  final success =
+                      await clientData.apiService.createOrder(payload);
+
+                  if (mounted) {
+                    setState(() {
+                      _isSubmitting = false;
+                    });
+                    if (success != null) {
+                      clientData.clearCart();
+                      _showSuccessDialog();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'Erreur lors de la création de la commande')));
+                    }
+                  }
+                },
+          child: _isSubmitting
+              ? const CircularProgressIndicator(color: AppColors.card)
+              : Text(
+                  'Confirmer la commande ($total DH)',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
         ),
       ),
     );
@@ -390,7 +424,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 color: Colors.green.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle, color: Colors.green, size: 60),
+              child:
+                  const Icon(Icons.check_circle, color: Colors.green, size: 60),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -413,13 +448,15 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {
                 // Navigate back to home (pop everything)
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              child: const Text('Retour à l\'accueil', style: TextStyle(color: AppColors.card)),
+              child: const Text('Retour à l\'accueil',
+                  style: TextStyle(color: AppColors.card)),
             ),
           ],
         ),
@@ -453,7 +490,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              
+
               // Geolocation Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -469,7 +506,9 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Recherche de votre position GPS en cours...')),
+                    const SnackBar(
+                        content: Text(
+                            'Recherche de votre position GPS en cours...')),
                   );
                   // Simulate fetching geolocation and adding
                   Future.delayed(const Duration(seconds: 1), () {
@@ -482,18 +521,25 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                         'titre': 'Position actuelle',
                       }).then((success) {
                         if (mounted && success) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse GPS ajoutée')));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Adresse GPS ajoutée')));
                         }
                       });
                     }
                   });
                 },
                 icon: const Icon(Icons.my_location),
-                label: const Text('Utiliser ma position actuelle', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text('Utiliser ma position actuelle',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              
+
               const SizedBox(height: 24),
-              const Center(child: Text('OU', style: TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.bold))),
+              const Center(
+                  child: Text('OU',
+                      style: TextStyle(
+                          color: AppColors.mutedForeground,
+                          fontWeight: FontWeight.bold))),
               const SizedBox(height: 24),
 
               // Manual Entry Form
@@ -502,7 +548,9 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   labelText: 'Titre (ex: Maison, Bureau)',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 16),
@@ -511,7 +559,9 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   labelText: 'Ville',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
                 onChanged: (val) {
                   // We would bind a controller here for city
@@ -524,7 +574,9 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   labelText: 'Adresse complète',
                   filled: true,
                   fillColor: AppColors.card,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 24),
@@ -532,11 +584,13 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () async {
                   // Fake manual address data
-                  final success = await context.read<ClientDataProvider>().addAddress({
+                  final success =
+                      await context.read<ClientDataProvider>().addAddress({
                     'ville': 'Tétouan', // In real life, value from controller
                     'latitude': 35.5800,
                     'longitude': -5.3700,
@@ -544,13 +598,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   if (mounted) {
                     Navigator.pop(context);
                     if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse ajoutée manuellement')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Adresse ajoutée manuellement')));
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur ajout d\'adresse')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Erreur ajout d\'adresse')));
                     }
                   }
                 },
-                child: const Text('Enregistrer l\'adresse', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+                child: const Text('Enregistrer l\'adresse',
+                    style: TextStyle(
+                        color: AppColors.card, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
             ],

@@ -220,18 +220,21 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
-    
+
     // Convert API data to map format and apply search query locally.
-    // In production, filtering should probably be done effectively either via provider sorting 
-    // or by backend endpoints passing '?search=' and '?category='. 
-    final baseRestaurants = clientData.restaurants.where((r) => r['type_business'] == 'restaurant').toList();
-    
+    // In production, filtering should probably be done effectively either via provider sorting
+    // or by backend endpoints passing '?search=' and '?category='.
+    final baseRestaurants = clientData.restaurants
+        .where((r) => r['type_business'] == 'restaurant')
+        .toList();
+
     _filteredRestaurants = baseRestaurants.where((restaurant) {
       final businessUser = restaurant['user'] ?? {};
       final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
       // Category is mocked as restaurant type is uniform for now
       // The backend will handle 'category' mapping later (e.g. types of cuisines) if added to the Database.
-      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      bool matchesSearch =
+          _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
       return matchesSearch;
     }).toList();
 
@@ -377,7 +380,8 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
-                                                      builder: (_) => ClientNotificationsScreen(),
+                                                      builder: (_) =>
+                                                          ClientNotificationsScreen(),
                                                     ),
                                                   );
                                                 },
@@ -386,12 +390,16 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                   height: 48,
                                                   decoration: BoxDecoration(
                                                     color: AppColors.accent,
-                                                    borderRadius: BorderRadius.circular(16),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.accent.withOpacity(0.4),
+                                                        color: AppColors.accent
+                                                            .withOpacity(0.4),
                                                         blurRadius: 12,
-                                                        offset: const Offset(0, 4),
+                                                        offset:
+                                                            const Offset(0, 4),
                                                       ),
                                                     ],
                                                   ),
@@ -399,23 +407,36 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                     alignment: Alignment.center,
                                                     children: [
                                                       const Icon(
-                                                        Icons.notifications_none,
-                                                        color: AppColors.primary,
+                                                        Icons
+                                                            .notifications_none,
+                                                        color:
+                                                            AppColors.primary,
                                                         size: 24,
                                                       ),
-                                                      Consumer<ClientDataProvider>(
-                                                        builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
-                                                          if (!hasUnread) return const SizedBox.shrink();
+                                                      Consumer<
+                                                          ClientDataProvider>(
+                                                        builder:
+                                                            (context, data, _) {
+                                                          final hasUnread = data
+                                                              .notifications
+                                                              .any((n) =>
+                                                                  n['lu'] ==
+                                                                  false);
+                                                          if (!hasUnread)
+                                                            return const SizedBox
+                                                                .shrink();
                                                           return Positioned(
                                                             top: 8,
                                                             right: 8,
                                                             child: Container(
                                                               width: 8,
                                                               height: 8,
-                                                              decoration: const BoxDecoration(
-                                                                color: AppColors.destructive,
-                                                                shape: BoxShape.circle,
+                                                              decoration:
+                                                                  const BoxDecoration(
+                                                                color: AppColors
+                                                                    .destructive,
+                                                                shape: BoxShape
+                                                                    .circle,
                                                               ),
                                                             ),
                                                           );
@@ -714,11 +735,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Restaurants proches', !_showAll ? 'Voir tout' : '', () {
-                              setState(() {
-                                _showAll = true;
-                              });
-                            }),
+                            'Restaurants proches', !_showAll ? 'Voir tout' : '',
+                            () {
+                          setState(() {
+                            _showAll = true;
+                          });
+                        }),
                         const SizedBox(height: 12),
 
                         // Display message if no restaurants found
@@ -778,7 +800,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
+                            itemCount: _showAll
+                                ? _filteredRestaurants.length
+                                : min(_filteredRestaurants.length, 3),
                             itemBuilder: (context, index) {
                               return _buildRestaurantCard(
                                   _filteredRestaurants[index], index);
@@ -800,6 +824,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
+
   Widget _buildPromotionalBanner() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -899,7 +924,8 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ClientFavoritesScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const ClientFavoritesScreen()),
                   );
                 },
               ),
@@ -1301,14 +1327,14 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: restaurantInfo['pdp'] != null 
+                        image: restaurantInfo['pdp'] != null
                             ? DecorationImage(
                                 image: NetworkImage(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: restaurantInfo['pdp'] == null 
+                      child: restaurantInfo['pdp'] == null
                           ? Center(
                               child: Text(
                                 '🍔',

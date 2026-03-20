@@ -20,20 +20,22 @@ import 'package:app/core/providers/livreur_dashboard_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Try to load .env, but don't crash if it doesn't exist yet (for the instructions to pass)
   try {
     await dotenv.load(fileName: ".env");
-    
+
     // Initialize Supabase if envs are present
-    if (dotenv.env['SUPABASE_URL'] != null && dotenv.env['SUPABASE_URL'] != 'YOUR_SUPABASE_URL') {
+    if (dotenv.env['SUPABASE_URL'] != null &&
+        dotenv.env['SUPABASE_URL'] != 'YOUR_SUPABASE_URL') {
       await Supabase.initialize(
         url: dotenv.env['SUPABASE_URL']!,
         anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
       );
     }
   } catch (e) {
-    debugPrint("Please setup .env file with SUPABASE_URL and SUPABASE_ANON_KEY");
+    debugPrint(
+        "Please setup .env file with SUPABASE_URL and SUPABASE_ANON_KEY");
   }
 
   runApp(
@@ -42,13 +44,17 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
         ChangeNotifierProxyProvider<AuthProvider, ClientDataProvider>(
-          create: (context) => ClientDataProvider(authProvider: context.read<AuthProvider>()),
-          update: (context, auth, previous) => previous ?? ClientDataProvider(authProvider: auth),
+          create: (context) =>
+              ClientDataProvider(authProvider: context.read<AuthProvider>()),
+          update: (context, auth, previous) =>
+              previous ?? ClientDataProvider(authProvider: auth),
         ),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProxyProvider<AuthProvider, LivreurDashboardProvider>(
-          create: (context) => LivreurDashboardProvider(context.read<AuthProvider>()),
-          update: (context, auth, previous) => previous ?? LivreurDashboardProvider(auth),
+          create: (context) =>
+              LivreurDashboardProvider(context.read<AuthProvider>()),
+          update: (context, auth, previous) =>
+              previous ?? LivreurDashboardProvider(auth),
         ),
       ],
       child: const MyApp(),
@@ -98,7 +104,8 @@ class RoleRouter extends StatelessWidget {
         final role = authProvider.user?.role.value;
         if (role == null) {
           // Si le rôle n'est pas encore chargé (ou utilisateur non trouvé dans la base)
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
 
         switch (role) {

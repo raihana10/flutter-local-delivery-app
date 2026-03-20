@@ -3,7 +3,6 @@ import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 
 class UsersController {
-  
   // NOTE: PostgREST JOINs work if foreign keys are properly set up (e.g. user(client(...))).
   // Without exact schema FK knowledge, we assume standard one-to-one joining structures.
   // The generic fallback is querying 'user' and joining the specific role table.
@@ -15,10 +14,29 @@ class UsersController {
           .select('*, client(*)')
           .eq('role', 'client')
           .isFilter('deleted_at', null);
-      
-      return Response.ok(jsonEncode({'data': clients}), headers: {'content-type': 'application/json'});
+
+      final formatted = clients.map((item) {
+        final user = item['app_user'] ?? item;
+        return {
+          ...Map<String, dynamic>.from(item),
+          'nom': user['nom'] ?? '',
+          'email': user['email'] ?? '',
+          'role': user['role'] ?? 'client',
+          'created_at': user['created_at'] ?? item['created_at'],
+          'id_user': user['id_user'] ?? item['id_user'],
+        };
+      }).toList();
+
+      return Response.ok(
+        jsonEncode({'data': formatted}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -30,9 +48,28 @@ class UsersController {
           .eq('role', 'livreur')
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({'data': livreurs}), headers: {'content-type': 'application/json'});
+      final formatted = livreurs.map((item) {
+        final user = item['app_user'] ?? item;
+        return {
+          ...Map<String, dynamic>.from(item),
+          'nom': user['nom'] ?? '',
+          'email': user['email'] ?? '',
+          'role': user['role'] ?? 'livreur',
+          'created_at': user['created_at'] ?? item['created_at'],
+          'id_user': user['id_user'] ?? item['id_user'],
+        };
+      }).toList();
+
+      return Response.ok(
+        jsonEncode({'data': formatted}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -44,9 +81,28 @@ class UsersController {
           .eq('role', 'business')
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({'data': businesses}), headers: {'content-type': 'application/json'});
+      final formatted = businesses.map((item) {
+        final user = item['app_user'] ?? item;
+        return {
+          ...Map<String, dynamic>.from(item),
+          'nom': user['nom'] ?? '',
+          'email': user['email'] ?? '',
+          'role': user['role'] ?? 'business',
+          'created_at': user['created_at'] ?? item['created_at'],
+          'id_user': user['id_user'] ?? item['id_user'],
+        };
+      }).toList();
+
+      return Response.ok(
+        jsonEncode({'data': formatted}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -63,9 +119,16 @@ class UsersController {
         return Response.notFound(jsonEncode({'error': 'User not found'}));
       }
 
-      return Response.ok(jsonEncode({'data': user}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': user}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -84,7 +147,12 @@ class UsersController {
 
       final role = user['role'] as String;
       if (role == 'client') {
-        return Response(400, body: jsonEncode({'error': 'Clients cannot be suspended in this schema.'}));
+        return Response(
+          400,
+          body: jsonEncode({
+            'error': 'Clients cannot be suspended in this schema.',
+          }),
+        );
       }
 
       final table = role == 'livreur' ? 'livreur' : 'business';
@@ -97,7 +165,9 @@ class UsersController {
           .maybeSingle();
 
       if (roleRecord == null) {
-        return Response.notFound(jsonEncode({'error': '$table record not found'}));
+        return Response.notFound(
+          jsonEncode({'error': '$table record not found'}),
+        );
       }
 
       final newStatus = !(roleRecord['est_actif'] as bool);
@@ -108,9 +178,16 @@ class UsersController {
           .eq('id_user', id)
           .select();
 
-      return Response.ok(jsonEncode({'success': true, 'data': updatedUser}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true, 'data': updatedUser}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -122,21 +199,25 @@ class UsersController {
           .eq('id_user', id)
           .isFilter('deleted_at', null)
           .maybeSingle();
-          
+
       if (user == null) {
         return Response.notFound(jsonEncode({'error': 'User not found'}));
       }
-      
+
       final role = user['role'] as String;
       if (role == 'client') {
-        return Response(400, body: jsonEncode({'error': 'Clients do not need validation'}));
+        return Response(
+          400,
+          body: jsonEncode({'error': 'Clients do not need validation'}),
+        );
       }
 
       final table = role == 'livreur' ? 'livreur' : 'business';
       final Map<String, dynamic> updateData = {'est_actif': true};
-      
+
       if (role == 'business') {
-        updateData['documents_validation'] = 'validated'; // in schema this is a varchar
+        updateData['documents_validation'] =
+            'validated'; // in schema this is a varchar
       }
 
       final updatedUser = await SupabaseConfig.client
@@ -146,9 +227,20 @@ class UsersController {
           .isFilter('deleted_at', null)
           .select();
 
-      return Response.ok(jsonEncode({'success': true, 'message': 'User validated', 'data': updatedUser}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({
+          'success': true,
+          'message': 'User validated',
+          'data': updatedUser,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -159,9 +251,16 @@ class UsersController {
           .update({'deleted_at': DateTime.now().toIso8601String()})
           .eq('id_user', id);
 
-      return Response.ok(jsonEncode({'success': true, 'message': 'User deleted successfully'}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true, 'message': 'User deleted successfully'}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }

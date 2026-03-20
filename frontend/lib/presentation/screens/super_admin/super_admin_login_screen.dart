@@ -44,8 +44,9 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
     try {
       final dio = Dio();
       // Replace localhost with your backend URL when deploying
-      const apiUrl = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
-      
+      const apiUrl = String.fromEnvironment('API_URL',
+          defaultValue: 'http://localhost:8084');
+
       final response = await dio.post(
         '$apiUrl/admin/login',
         data: {
@@ -58,13 +59,14 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
         final data = response.data;
         if (data['success'] == true) {
           final adminId = data['id_admin'];
-          
+
           // Save admin_id to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           await prefs.setInt('x-admin-id', adminId as int);
-          
+
           if (mounted) {
-            Navigator.of(context).pushReplacementNamed('/super_admin/dashboard');
+            Navigator.of(context)
+                .pushReplacementNamed('/super_admin/dashboard');
           }
         }
       }
@@ -189,18 +191,22 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   decoration: InputDecoration(
                                     hintText: 'admin@local-delivery.com',
-                                    contentPadding: const EdgeInsets.fromLTRB(40, 12, 16, 12),
+                                    contentPadding: const EdgeInsets.fromLTRB(
+                                        40, 12, 16, 12),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: const BorderSide(color: AppColors.border),
+                                      borderSide: const BorderSide(
+                                          color: AppColors.border),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: const BorderSide(color: AppColors.border),
+                                      borderSide: const BorderSide(
+                                          color: AppColors.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: const BorderSide(color: AppColors.accent),
+                                      borderSide: const BorderSide(
+                                          color: AppColors.accent),
                                     ),
                                     filled: true,
                                     fillColor: AppColors.card,
@@ -239,18 +245,22 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
                                   obscureText: !_showPassword,
                                   decoration: InputDecoration(
                                     hintText: '••••••••',
-                                    contentPadding: const EdgeInsets.fromLTRB(40, 12, 48, 12),
+                                    contentPadding: const EdgeInsets.fromLTRB(
+                                        40, 12, 48, 12),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: const BorderSide(color: AppColors.border),
+                                      borderSide: const BorderSide(
+                                          color: AppColors.border),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: const BorderSide(color: AppColors.border),
+                                      borderSide: const BorderSide(
+                                          color: AppColors.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: const BorderSide(color: AppColors.accent),
+                                      borderSide: const BorderSide(
+                                          color: AppColors.accent),
                                     ),
                                     filled: true,
                                     fillColor: AppColors.card,
@@ -265,7 +275,9 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
                                       });
                                     },
                                     child: Icon(
-                                      _showPassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                                      _showPassword
+                                          ? LucideIcons.eyeOff
+                                          : LucideIcons.eye,
                                       size: 18,
                                       color: AppColors.mutedForeground,
                                     ),
@@ -286,33 +298,37 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                           ),
-                          child: _isLoading 
-                            ? const SizedBox(
-                                height: 20, 
-                                width: 20, 
-                                child: CircularProgressIndicator(color: AppColors.background, strokeWidth: 2)
-                              ) 
-                            : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Connexion Admin',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      color: AppColors.background,
+                                      strokeWidth: 2))
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Connexion Admin',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(LucideIcons.shieldCheck, size: 18),
+                                  ],
                                 ),
-                                SizedBox(width: 8),
-                                Icon(LucideIcons.shieldCheck, size: 18),
-                              ],
-                            ),
                         ),
                         const SizedBox(height: 24),
                         TextButton(
                           onPressed: () {
-                            Navigator.of(context).pushReplacementNamed('/login');
+                            Navigator.of(context)
+                                .pushReplacementNamed('/login');
                           },
-                          child: const Text('Retour à la connexion standard', style: TextStyle(color: AppColors.mutedForeground)),
+                          child: const Text('Retour à la connexion standard',
+                              style:
+                                  TextStyle(color: AppColors.mutedForeground)),
                         )
                       ],
                     ),

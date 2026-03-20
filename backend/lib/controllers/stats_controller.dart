@@ -3,17 +3,21 @@ import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 
 class StatsController {
-  
   Future<Response> getRevenus(Request request) async {
     try {
       final params = request.url.queryParameters;
-      var query = SupabaseConfig.client.from('commande').select('prix_donne, type_commande, created_at').isFilter('deleted_at', null);
+      var query = SupabaseConfig.client
+          .from('commande')
+          .select('prix_donne, type_commande, created_at')
+          .isFilter('deleted_at', null);
 
-      if (params.containsKey('date_debut')) query = query.gte('created_at', params['date_debut']!);
-      if (params.containsKey('date_fin')) query = query.lte('created_at', params['date_fin']!);
+      if (params.containsKey('date_debut'))
+        query = query.gte('created_at', params['date_debut']!);
+      if (params.containsKey('date_fin'))
+        query = query.lte('created_at', params['date_fin']!);
 
       final commandes = await query;
-      
+
       double totalRevenu = 0.0;
       Map<String, double> parType = {};
 
@@ -24,12 +28,16 @@ class StatsController {
         parType[type] = (parType[type] ?? 0.0) + prix;
       }
 
-      return Response.ok(jsonEncode({
-        'revenus_totaux': totalRevenu,
-        'par_type': parType
-      }), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'revenus_totaux': totalRevenu, 'par_type': parType}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -41,9 +49,16 @@ class StatsController {
           .eq('role', 'livreur')
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({'data': livreurs}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': livreurs}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -55,9 +70,16 @@ class StatsController {
           .eq('role', 'business')
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({'data': businesses}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': businesses}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -71,9 +93,16 @@ class StatsController {
           .gte('date_fin', now)
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({'data': promos}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': promos}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }

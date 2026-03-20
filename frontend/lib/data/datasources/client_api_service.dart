@@ -2,7 +2,8 @@ import 'package:dio/dio.dart';
 import '../../core/providers/auth_provider.dart';
 
 class ClientApiService {
-  static const String baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+  static const String baseUrl =
+      String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
   final Dio _dio = Dio();
   final AuthProvider authProvider;
 
@@ -20,7 +21,8 @@ class ClientApiService {
 
   Future<Map<String, dynamic>> getProfile() async {
     try {
-      final response = await _dio.get('$baseUrl/client/profile-address/profile', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/profile-address/profile',
+          options: _getAuthOptions());
       return response.data['data'] as Map<String, dynamic>;
     } catch (e) {
       print('getProfile Error: $e');
@@ -30,7 +32,10 @@ class ClientApiService {
 
   Future<bool> updateProfile(Map<String, dynamic> data) async {
     try {
-      final response = await _dio.patch('$baseUrl/client/profile-address/profile', data: data, options: _getAuthOptions());
+      final response = await _dio.patch(
+          '$baseUrl/client/profile-address/profile',
+          data: data,
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('updateProfile Error: $e');
@@ -40,7 +45,9 @@ class ClientApiService {
 
   Future<List<dynamic>> getAddresses() async {
     try {
-      final response = await _dio.get('$baseUrl/client/profile-address/addresses', options: _getAuthOptions());
+      final response = await _dio.get(
+          '$baseUrl/client/profile-address/addresses',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getAddresses Error: $e');
@@ -50,7 +57,10 @@ class ClientApiService {
 
   Future<bool> addAddress(Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('$baseUrl/client/profile-address/addresses', data: data, options: _getAuthOptions());
+      final response = await _dio.post(
+          '$baseUrl/client/profile-address/addresses',
+          data: data,
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('addAddress Error: $e');
@@ -60,7 +70,10 @@ class ClientApiService {
 
   Future<bool> updateAddress(String id, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.patch('$baseUrl/client/profile-address/addresses/$id', data: data, options: _getAuthOptions());
+      final response = await _dio.patch(
+          '$baseUrl/client/profile-address/addresses/$id',
+          data: data,
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('updateAddress Error: $e');
@@ -70,7 +83,9 @@ class ClientApiService {
 
   Future<bool> deleteAddress(String id) async {
     try {
-      final response = await _dio.delete('$baseUrl/client/profile-address/addresses/$id', options: _getAuthOptions());
+      final response = await _dio.delete(
+          '$baseUrl/client/profile-address/addresses/$id',
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('deleteAddress Error: $e');
@@ -82,7 +97,8 @@ class ClientApiService {
 
   Future<List<dynamic>> getBusinesses(String type) async {
     try {
-      final response = await _dio.get('$baseUrl/client/businesses?type=$type', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/businesses?type=$type',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getBusinesses Error for $type: $e');
@@ -92,27 +108,30 @@ class ClientApiService {
 
   Future<Map<String, dynamic>> getBusinessDetails(String id) async {
     try {
-      final response = await _dio.get('$baseUrl/client/businesses/$id', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/businesses/$id',
+          options: _getAuthOptions());
       return response.data['data'] as Map<String, dynamic>;
     } catch (e) {
-       print('getBusinessDetails Error: $e');
+      print('getBusinessDetails Error: $e');
       return {};
     }
   }
 
   Future<List<dynamic>> getBusinessProducts(String id) async {
     try {
-      final response = await _dio.get('$baseUrl/client/businesses/$id/products', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/businesses/$id/products',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
-       print('getBusinessProducts Error: $e');
+      print('getBusinessProducts Error: $e');
       return [];
     }
   }
 
   Future<List<dynamic>> getBusinessReviews(String id) async {
     try {
-      final response = await _dio.get('$baseUrl/client/businesses/$id/reviews', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/businesses/$id/reviews',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getBusinessReviews Error: $e');
@@ -124,7 +143,8 @@ class ClientApiService {
 
   Future<List<dynamic>> getFavorites() async {
     try {
-      final response = await _dio.get('$baseUrl/client/favorites', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/favorites',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getFavorites Error: $e');
@@ -134,11 +154,8 @@ class ClientApiService {
 
   Future<bool> addFavorite(int idBusiness) async {
     try {
-      final response = await _dio.post(
-        '$baseUrl/client/favorites',
-        data: {'id_business': idBusiness},
-        options: _getAuthOptions()
-      );
+      final response = await _dio.post('$baseUrl/client/favorites',
+          data: {'id_business': idBusiness}, options: _getAuthOptions());
       return response.statusCode == 200;
     } catch (e) {
       print('addFavorite Error: $e');
@@ -149,9 +166,8 @@ class ClientApiService {
   Future<bool> removeFavorite(int idBusiness) async {
     try {
       final response = await _dio.delete(
-        '$baseUrl/client/favorites/$idBusiness',
-        options: _getAuthOptions()
-      );
+          '$baseUrl/client/favorites/$idBusiness',
+          options: _getAuthOptions());
       return response.statusCode == 200;
     } catch (e) {
       print('removeFavorite Error: $e');
@@ -161,15 +177,13 @@ class ClientApiService {
 
   // --- Orders ---
 
-  Future<Map<String, dynamic>?> createOrder(Map<String, dynamic> checkoutData) async {
+  Future<Map<String, dynamic>?> createOrder(
+      Map<String, dynamic> checkoutData) async {
     try {
-      final response = await _dio.post(
-        '$baseUrl/client/orders', 
-        data: checkoutData,
-        options: _getAuthOptions()
-      );
+      final response = await _dio.post('$baseUrl/client/orders',
+          data: checkoutData, options: _getAuthOptions());
       if (response.data['success'] == true) {
-         return response.data['data'] as Map<String, dynamic>;
+        return response.data['data'] as Map<String, dynamic>;
       }
       return null;
     } catch (e) {
@@ -180,7 +194,8 @@ class ClientApiService {
 
   Future<List<dynamic>> getOrders() async {
     try {
-      final response = await _dio.get('$baseUrl/client/orders', options: _getAuthOptions());
+      final response =
+          await _dio.get('$baseUrl/client/orders', options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getOrders Error: $e');
@@ -192,7 +207,8 @@ class ClientApiService {
 
   Future<List<dynamic>> getNotifications() async {
     try {
-      final response = await _dio.get('$baseUrl/client/notifications', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/notifications',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getNotifications Error: $e');
@@ -202,10 +218,12 @@ class ClientApiService {
 
   Future<bool> markNotificationAsRead(String notiId) async {
     try {
-      final response = await _dio.patch('$baseUrl/client/notifications/$notiId/read', options: _getAuthOptions());
+      final response = await _dio.patch(
+          '$baseUrl/client/notifications/$notiId/read',
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
-       print('markNotificationAsRead Error: $e');
+      print('markNotificationAsRead Error: $e');
       return false;
     }
   }
@@ -214,7 +232,8 @@ class ClientApiService {
 
   Future<List<dynamic>> getPaymentMethods() async {
     try {
-      final response = await _dio.get('$baseUrl/client/payment-methods', options: _getAuthOptions());
+      final response = await _dio.get('$baseUrl/client/payment-methods',
+          options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       print('getPaymentMethods Error: $e');
@@ -224,7 +243,8 @@ class ClientApiService {
 
   Future<bool> addPaymentMethod(Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post('$baseUrl/client/payment-methods', data: data, options: _getAuthOptions());
+      final response = await _dio.post('$baseUrl/client/payment-methods',
+          data: data, options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('addPaymentMethod Error: $e');
@@ -234,7 +254,8 @@ class ClientApiService {
 
   Future<bool> deletePaymentMethod(String id) async {
     try {
-      final response = await _dio.delete('$baseUrl/client/payment-methods/$id', options: _getAuthOptions());
+      final response = await _dio.delete('$baseUrl/client/payment-methods/$id',
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('deletePaymentMethod Error: $e');
@@ -244,7 +265,9 @@ class ClientApiService {
 
   Future<bool> setDefaultPaymentMethod(String id) async {
     try {
-      final response = await _dio.patch('$baseUrl/client/payment-methods/$id/default', options: _getAuthOptions());
+      final response = await _dio.patch(
+          '$baseUrl/client/payment-methods/$id/default',
+          options: _getAuthOptions());
       return response.data['success'] == true;
     } catch (e) {
       print('setDefaultPaymentMethod Error: $e');

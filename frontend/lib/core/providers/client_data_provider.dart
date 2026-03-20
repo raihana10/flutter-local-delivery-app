@@ -16,7 +16,7 @@ class ClientDataProvider extends ChangeNotifier {
   List<Map<String, dynamic>> restaurants = [];
   List<Map<String, dynamic>> pharmacies = [];
   List<Map<String, dynamic>> superMarkets = [];
-  
+
   Map<String, dynamic>? profile;
   List<dynamic> addresses = [];
   List<dynamic> orders = [];
@@ -63,7 +63,7 @@ class ClientDataProvider extends ChangeNotifier {
 
   Future<void> fetchHomeData() async {
     if (!authProvider.isAuthenticated) return;
-    
+
     _setLoading(true);
     await Future.wait([
       _fetchRestaurants(),

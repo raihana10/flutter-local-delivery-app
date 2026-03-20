@@ -60,7 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authProvider.errorMessage ?? 'Erreur de connexion')),
+          SnackBar(
+              content:
+                  Text(authProvider.errorMessage ?? 'Erreur de connexion')),
         );
       }
     }
@@ -174,18 +176,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   decoration: InputDecoration(
                                     hintText: 'votre@email.com',
-                                    contentPadding: EdgeInsets.fromLTRB(40, 12, 16, 12),
+                                    contentPadding:
+                                        EdgeInsets.fromLTRB(40, 12, 16, 12),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide(color: AppColors.accent),
+                                      borderSide:
+                                          BorderSide(color: AppColors.accent),
                                     ),
                                     filled: true,
                                     fillColor: AppColors.card,
@@ -227,18 +233,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   obscureText: !_showPassword,
                                   decoration: InputDecoration(
                                     hintText: '••••••••',
-                                    contentPadding: EdgeInsets.fromLTRB(40, 12, 48, 12),
+                                    contentPadding:
+                                        EdgeInsets.fromLTRB(40, 12, 48, 12),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide(color: AppColors.border),
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(20),
-                                      borderSide: BorderSide(color: AppColors.accent),
+                                      borderSide:
+                                          BorderSide(color: AppColors.accent),
                                     ),
                                     filled: true,
                                     fillColor: AppColors.card,
@@ -253,7 +263,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       });
                                     },
                                     child: Icon(
-                                      _showPassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                                      _showPassword
+                                          ? LucideIcons.eyeOff
+                                          : LucideIcons.eye,
                                       size: 18,
                                       color: AppColors.mutedForeground,
                                     ),
@@ -399,7 +411,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            Navigator.of(context).pushReplacementNamed('/register');
+                            Navigator.of(context)
+                                .pushReplacementNamed('/register');
                           },
                           child: Text(
                             'Créer un compte',
@@ -413,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-                  
+
                   // Admin Login Link
                   Padding(
                     padding: EdgeInsets.only(bottom: 24),
@@ -422,7 +435,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () {
                           Navigator.of(context).pushNamed('/super_admin/login');
                         },
-                        icon: Icon(LucideIcons.shieldCheck, size: 16, color: AppColors.destructive),
+                        icon: Icon(LucideIcons.shieldCheck,
+                            size: 16, color: AppColors.destructive),
                         label: Text(
                           'Espace Administrateur',
                           style: TextStyle(color: AppColors.destructive),

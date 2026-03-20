@@ -20,7 +20,8 @@ class RestaurantDetailScreen extends StatefulWidget {
   State<RestaurantDetailScreen> createState() => _RestaurantDetailScreenState();
 }
 
-class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with SingleTickerProviderStateMixin {
+class _RestaurantDetailScreenState extends State<RestaurantDetailScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   bool _isLoadingReviews = true;
@@ -54,22 +55,52 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     {
       'title': 'Populaire',
       'items': [
-        {'name': 'Menu Maxi Burger', 'desc': 'Burger double steak, frites, boisson 33cl', 'price': 65.0, 'image': '🍔'},
-        {'name': 'Pizza Marguerita', 'desc': 'Sauce tomate, mozzarella, basilic frais', 'price': 45.0, 'image': '🍕'},
+        {
+          'name': 'Menu Maxi Burger',
+          'desc': 'Burger double steak, frites, boisson 33cl',
+          'price': 65.0,
+          'image': '🍔'
+        },
+        {
+          'name': 'Pizza Marguerita',
+          'desc': 'Sauce tomate, mozzarella, basilic frais',
+          'price': 45.0,
+          'image': '🍕'
+        },
       ]
     },
     {
       'title': 'Burgers',
       'items': [
-        {'name': 'Cheese Burger', 'desc': 'Steak, cheddar, salade, tomate, oignon', 'price': 40.0, 'image': '🍔'},
-        {'name': 'Chicken Burger', 'desc': 'Poulet croustillant, cheddar, salade', 'price': 45.0, 'image': '🍔'},
+        {
+          'name': 'Cheese Burger',
+          'desc': 'Steak, cheddar, salade, tomate, oignon',
+          'price': 40.0,
+          'image': '🍔'
+        },
+        {
+          'name': 'Chicken Burger',
+          'desc': 'Poulet croustillant, cheddar, salade',
+          'price': 45.0,
+          'image': '🍔'
+        },
       ]
     },
     {
       'title': 'Desserts',
       'items': [
-        {'name': 'Tiramisu', 'desc': 'Fait maison, café et mascarpone', 'price': 25.0, 'image': '🍰'},
-        {'name': 'Fondant au chocolat', 'desc': 'Cœur coulant, glace vanille', 'price': 30.0, 'image': '🧁'},
+        {
+          'name': 'Tiramisu',
+          'desc': 'Fait maison, café et mascarpone',
+          'price': 25.0,
+          'image': '🍰'
+        },
+        {
+          'name': 'Fondant au chocolat',
+          'desc': 'Cœur coulant, glace vanille',
+          'price': 30.0,
+          'image': '🧁'
+        },
       ]
     }
   ];
@@ -87,24 +118,22 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             backgroundColor: AppColors.primary,
             iconTheme: const IconThemeData(color: AppColors.card),
             actions: [
-              Consumer<ClientDataProvider>(
-                builder: (context, provider, child) {
-                  final idBusiness = int.tryParse(widget.businessId) ?? 0;
-                  final isFav = provider.isFavorite(idBusiness);
-                  
-                  return IconButton(
-                    icon: Icon(
-                      isFav ? Icons.favorite : Icons.favorite_border,
-                      color: isFav ? AppColors.destructive : AppColors.card,
-                    ),
-                    onPressed: () {
-                      if (idBusiness > 0) {
-                        provider.toggleFavorite(idBusiness);
-                      }
-                    },
-                  );
-                }
-              ),
+              Consumer<ClientDataProvider>(builder: (context, provider, child) {
+                final idBusiness = int.tryParse(widget.businessId) ?? 0;
+                final isFav = provider.isFavorite(idBusiness);
+
+                return IconButton(
+                  icon: Icon(
+                    isFav ? Icons.favorite : Icons.favorite_border,
+                    color: isFav ? AppColors.destructive : AppColors.card,
+                  ),
+                  onPressed: () {
+                    if (idBusiness > 0) {
+                      provider.toggleFavorite(idBusiness);
+                    }
+                  },
+                );
+              }),
               IconButton(
                 icon: const Icon(Icons.share),
                 onPressed: () {},
@@ -168,11 +197,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _buildInfoBadge(Icons.star, '4.8 (120 avis)', AppColors.accent),
+                      _buildInfoBadge(
+                          Icons.star, '4.8 (120 avis)', AppColors.accent),
                       const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.access_time, '25-35 min', AppColors.primary),
+                      _buildInfoBadge(
+                          Icons.access_time, '25-35 min', AppColors.primary),
                       const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.delivery_dining, '10 DH', AppColors.secondary),
+                      _buildInfoBadge(
+                          Icons.delivery_dining, '10 DH', AppColors.secondary),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -220,7 +252,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     return _buildMenuCategory(_menuCategories[index]);
                   },
                 ),
-                
+
                 // Reviews Tab
                 _buildReviewsTab(),
               ],
@@ -228,7 +260,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
           ),
         ],
       ),
-      
+
       // Floating Cart Button
       floatingActionButton: Consumer<ClientDataProvider>(
         builder: (context, clientData, child) {
@@ -284,7 +316,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
 
   Widget _buildMenuCategory(Map<String, dynamic> category) {
     final items = category['items'] as List<dynamic>;
-    
+
     return Padding(
       padding: const EdgeInsets.only(top: 24, left: 20, right: 20),
       child: Column(
@@ -388,219 +420,229 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (modalContext) => StatefulBuilder(
-        builder: (innerModalContext, setModalState) {
-          final double basePrice = double.tryParse(item['price'].toString()) ?? 0.0;
-          final double totalPrice = basePrice * quantity;
-          
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.75,
-            decoration: const BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(32),
-                topRight: Radius.circular(32),
+      builder: (modalContext) =>
+          StatefulBuilder(builder: (innerModalContext, setModalState) {
+        final double basePrice =
+            double.tryParse(item['price'].toString()) ?? 0.0;
+        final double totalPrice = basePrice * quantity;
+
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(32),
+              topRight: Radius.circular(32),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 20),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.mutedForeground.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            child: Column(
-              children: [
-                // Handle
-                Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 20),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.mutedForeground.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
+
+              // Image & Title
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    item['image'] ?? '🍽️',
+                    style: const TextStyle(fontSize: 60),
                   ),
                 ),
-                
-                // Image & Title
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                      )
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      item['image'] ?? '🍽️',
-                      style: const TextStyle(fontSize: 60),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                item['name'] ?? 'Produit',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.foreground,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${item['price']} DH',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.gold,
+                ),
+              ),
+
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    Text(
+                      item['desc'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: AppColors.mutedForeground,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  item['name'] ?? 'Produit',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.foreground,
-                  ),
+              ),
+
+              // Add to Cart Button
+              Container(
+                padding: EdgeInsets.only(
+                  left: 24,
+                  right: 24,
+                  top: 20,
+                  bottom: MediaQuery.of(context).padding.bottom + 20,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${item['price']} DH',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.gold,
-                  ),
+                decoration: const BoxDecoration(
+                  color: AppColors.card,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -5),
+                    )
+                  ],
                 ),
-                
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      Text(
-                        item['desc'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppColors.mutedForeground,
-                          height: 1.5,
-                        ),
+                child: Row(
+                  children: [
+                    // Quantity
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
-                  ),
-                ),
-                
-                // Add to Cart Button
-                Container(
-                  padding: EdgeInsets.only(
-                    left: 24,
-                    right: 24,
-                    top: 20,
-                    bottom: MediaQuery.of(context).padding.bottom + 20,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: AppColors.card,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 20,
-                        offset: Offset(0, -5),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // Quantity
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.border),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove, color: AppColors.primary),
-                              onPressed: () {
-                                if (quantity > 1) {
-                                  setModalState(() => quantity--);
-                                }
-                              },
-                            ),
-                            Text(
-                              '$quantity',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.foreground,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add, color: AppColors.primary),
-                              onPressed: () {
-                                setModalState(() => quantity++);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      
-                      // Add Button
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accent,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove,
+                                color: AppColors.primary),
+                            onPressed: () {
+                              if (quantity > 1) {
+                                setModalState(() => quantity--);
+                              }
+                            },
                           ),
-                          onPressed: () {
-                            context.read<ClientDataProvider>().addToCart({
-                              'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
-                              'name': item['name'],
-                              'options': '', // Removed options tracking
-                              'price': basePrice,
-                              'quantity': quantity,
-                              'image': item['image'] ?? '🍽️',
-                            });
-                            Navigator.pop(innerModalContext);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${quantity}x ${item['name']} ajouté au panier'),
-                                backgroundColor: AppColors.primary,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                action: SnackBarAction(
-                                  label: 'VOIR',
-                                  textColor: AppColors.accent,
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const CartScreen()),
-                                    );
-                                  },
-                                ),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            'Ajouter - $totalPrice DH',
+                          Text(
+                            '$quantity',
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                              color: AppColors.foreground,
                             ),
+                          ),
+                          IconButton(
+                            icon:
+                                const Icon(Icons.add, color: AppColors.primary),
+                            onPressed: () {
+                              setModalState(() => quantity++);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Add Button
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          context.read<ClientDataProvider>().addToCart({
+                            'id': item['id'] ??
+                                DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                            'name': item['name'],
+                            'options': '', // Removed options tracking
+                            'price': basePrice,
+                            'quantity': quantity,
+                            'image': item['image'] ?? '🍽️',
+                          });
+                          Navigator.pop(innerModalContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  '${quantity}x ${item['name']} ajouté au panier'),
+                              backgroundColor: AppColors.primary,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              action: SnackBarAction(
+                                label: 'VOIR',
+                                textColor: AppColors.accent,
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const CartScreen()),
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Ajouter - $totalPrice DH',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        }
-      ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
-
-
   Widget _buildReviewsTab() {
     if (_isLoadingReviews) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
     }
 
-    final double averageRating = _reviews.isEmpty ? 0.0 : 
-      _reviews.map((r) => r['rating'] as num? ?? 0).reduce((a, b) => a + b) / _reviews.length;
-    
+    final double averageRating = _reviews.isEmpty
+        ? 0.0
+        : _reviews
+                .map((r) => r['rating'] as num? ?? 0)
+                .reduce((a, b) => a + b) /
+            _reviews.length;
+
     int getRatingCount(int stars) {
-      return _reviews.where((r) => (r['rating'] as num? ?? 0).round() == stars).length;
+      return _reviews
+          .where((r) => (r['rating'] as num? ?? 0).round() == stars)
+          .length;
     }
 
     return ListView(
@@ -628,11 +670,22 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   ),
                   Row(
                     children: [
-                      Icon(averageRating >= 1 ? Icons.star : Icons.star_border, color: AppColors.gold, size: 20),
-                      Icon(averageRating >= 2 ? Icons.star : Icons.star_border, color: AppColors.gold, size: 20),
-                      Icon(averageRating >= 3 ? Icons.star : Icons.star_border, color: AppColors.gold, size: 20),
-                      Icon(averageRating >= 4 ? Icons.star : Icons.star_border, color: AppColors.gold, size: 20),
-                      Icon(averageRating >= 5 ? Icons.star : averageRating >= 4.5 ? Icons.star_half : Icons.star_border, color: AppColors.gold, size: 20),
+                      Icon(averageRating >= 1 ? Icons.star : Icons.star_border,
+                          color: AppColors.gold, size: 20),
+                      Icon(averageRating >= 2 ? Icons.star : Icons.star_border,
+                          color: AppColors.gold, size: 20),
+                      Icon(averageRating >= 3 ? Icons.star : Icons.star_border,
+                          color: AppColors.gold, size: 20),
+                      Icon(averageRating >= 4 ? Icons.star : Icons.star_border,
+                          color: AppColors.gold, size: 20),
+                      Icon(
+                          averageRating >= 5
+                              ? Icons.star
+                              : averageRating >= 4.5
+                                  ? Icons.star_half
+                                  : Icons.star_border,
+                          color: AppColors.gold,
+                          size: 20),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -646,20 +699,40 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
               Expanded(
                 child: Column(
                   children: [
-                    _buildRatingBar(5, _reviews.isEmpty ? 0 : getRatingCount(5) / _reviews.length),
-                    _buildRatingBar(4, _reviews.isEmpty ? 0 : getRatingCount(4) / _reviews.length),
-                    _buildRatingBar(3, _reviews.isEmpty ? 0 : getRatingCount(3) / _reviews.length),
-                    _buildRatingBar(2, _reviews.isEmpty ? 0 : getRatingCount(2) / _reviews.length),
-                    _buildRatingBar(1, _reviews.isEmpty ? 0 : getRatingCount(1) / _reviews.length),
+                    _buildRatingBar(
+                        5,
+                        _reviews.isEmpty
+                            ? 0
+                            : getRatingCount(5) / _reviews.length),
+                    _buildRatingBar(
+                        4,
+                        _reviews.isEmpty
+                            ? 0
+                            : getRatingCount(4) / _reviews.length),
+                    _buildRatingBar(
+                        3,
+                        _reviews.isEmpty
+                            ? 0
+                            : getRatingCount(3) / _reviews.length),
+                    _buildRatingBar(
+                        2,
+                        _reviews.isEmpty
+                            ? 0
+                            : getRatingCount(2) / _reviews.length),
+                    _buildRatingBar(
+                        1,
+                        _reviews.isEmpty
+                            ? 0
+                            : getRatingCount(1) / _reviews.length),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Add Review Button
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
@@ -676,19 +749,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             _showAddReviewBottomSheet();
           },
           icon: const Icon(Icons.rate_review),
-          label: const Text('Laisser un avis', style: TextStyle(fontWeight: FontWeight.bold)),
+          label: const Text('Laisser un avis',
+              style: TextStyle(fontWeight: FontWeight.bold)),
         ),
-        
+
         const SizedBox(height: 24),
-        
+
         // Review List
         if (_reviews.isEmpty)
-           const Padding(
-             padding: EdgeInsets.symmetric(vertical: 32),
-             child: Center(
-               child: Text('Aucun avis pour le moment', style: TextStyle(color: AppColors.mutedForeground)),
-             ),
-           )
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(
+              child: Text('Aucun avis pour le moment',
+                  style: TextStyle(color: AppColors.mutedForeground)),
+            ),
+          )
         else
           ..._reviews.map((review) => _buildReviewItem(review)).toList(),
       ],
@@ -700,7 +775,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Text('$stars', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.mutedForeground)),
+          Text('$stars',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.mutedForeground)),
           const SizedBox(width: 8),
           Expanded(
             child: LinearProgressIndicator(
@@ -719,13 +797,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
   Widget _buildReviewItem(dynamic review) {
     final client = review['client'] ?? {};
     final user = client['app_user'] ?? {};
-    final userName = user['nom'] != null && user['prenom'] != null 
+    final userName = user['nom'] != null && user['prenom'] != null
         ? '${user['prenom']} ${user['nom'].toString().substring(0, 1)}.'
         : 'Client Anonyme';
-    final date = review['created_at'] != null 
-        ? DateTime.tryParse(review['created_at'].toString()) 
+    final date = review['created_at'] != null
+        ? DateTime.tryParse(review['created_at'].toString())
         : null;
-    final dateString = date != null ? '${date.day}/${date.month}/${date.year}' : 'Récemment';
+    final dateString =
+        date != null ? '${date.day}/${date.month}/${date.year}' : 'Récemment';
     final rating = review['rating'] as num? ?? 0;
 
     return Container(
@@ -750,11 +829,13 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             children: [
               Text(
                 userName,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               Text(
                 dateString,
-                style: const TextStyle(color: AppColors.mutedForeground, fontSize: 13),
+                style: const TextStyle(
+                    color: AppColors.mutedForeground, fontSize: 13),
               ),
             ],
           ),
@@ -782,7 +863,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
 
   void _showAddReviewBottomSheet() {
     int selectedRating = 5;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // important for keyboard
@@ -791,87 +872,90 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom, // push above keyboard
-                left: 24,
-                right: 24,
-                top: 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Évaluer ce restaurant',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Star Selection
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return IconButton(
-                        iconSize: 40,
-                        icon: Icon(
-                          index < selectedRating ? Icons.star : Icons.star_border,
-                          color: AppColors.gold,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            selectedRating = index + 1;
-                          });
-                        },
-                      );
-                    }),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Comment Text Field
-                  TextField(
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: 'Partagez votre expérience (optionnel)',
-                      filled: true,
-                      fillColor: AppColors.card,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+        return StatefulBuilder(builder: (context, setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context)
+                  .viewInsets
+                  .bottom, // push above keyboard
+              left: 24,
+              right: 24,
+              top: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Évaluer ce restaurant',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 24),
+
+                // Star Selection
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      iconSize: 40,
+                      icon: Icon(
+                        index < selectedRating ? Icons.star : Icons.star_border,
+                        color: AppColors.gold,
                       ),
+                      onPressed: () {
+                        setState(() {
+                          selectedRating = index + 1;
+                        });
+                      },
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Comment Text Field
+                TextField(
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Partagez votre expérience (optionnel)',
+                    filled: true,
+                    fillColor: AppColors.card,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
                   ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Submit Button
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      minimumSize: const Size(double.infinity, 54),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Merci pour votre avis !')),
-                      );
-                    },
-                    child: const Text(
-                      'Envoyer',
-                      style: TextStyle(color: AppColors.card, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Submit Button
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    minimumSize: const Size(double.infinity, 54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  const SizedBox(height: 24), // Bottom padding
-                ],
-              ),
-            );
-          }
-        );
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Merci pour votre avis !')),
+                    );
+                  },
+                  child: const Text(
+                    'Envoyer',
+                    style: TextStyle(
+                        color: AppColors.card,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 24), // Bottom padding
+              ],
+            ),
+          );
+        });
       },
     );
   }

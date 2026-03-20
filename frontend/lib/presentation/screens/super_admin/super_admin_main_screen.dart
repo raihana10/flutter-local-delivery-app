@@ -91,7 +91,8 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
             child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(LucideIcons.shieldCheck, size: 48, color: AppColors.accent),
+                Icon(LucideIcons.shieldCheck,
+                    size: 48, color: AppColors.accent),
                 SizedBox(height: 10),
                 Text(
                   'Super Admin',
@@ -113,13 +114,17 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
                 return ListTile(
                   leading: Icon(
                     _menuItems[index]['icon'],
-                    color: isSelected ? AppColors.accent : AppColors.mutedForeground,
+                    color: isSelected
+                        ? AppColors.accent
+                        : AppColors.mutedForeground,
                   ),
                   title: Text(
                     _menuItems[index]['title'],
                     style: TextStyle(
-                      color: isSelected ? AppColors.accent : AppColors.foreground,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color:
+                          isSelected ? AppColors.accent : AppColors.foreground,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                   selected: isSelected,
@@ -133,8 +138,10 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
             ),
           ),
           ListTile(
-            leading: const Icon(LucideIcons.logOut, color: AppColors.destructive),
-            title: const Text('Déconnexion', style: TextStyle(color: AppColors.destructive)),
+            leading:
+                const Icon(LucideIcons.logOut, color: AppColors.destructive),
+            title: const Text('Déconnexion',
+                style: TextStyle(color: AppColors.destructive)),
             onTap: () {
               Navigator.pushReplacementNamed(context, '/login');
             },
@@ -157,7 +164,8 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
             color: AppColors.primary,
             child: const Column(
               children: [
-                Icon(LucideIcons.shieldCheck, size: 48, color: AppColors.accent),
+                Icon(LucideIcons.shieldCheck,
+                    size: 48, color: AppColors.accent),
                 SizedBox(height: 10),
                 Text(
                   'Super Admin',
@@ -177,31 +185,44 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
               itemBuilder: (context, index) {
                 final isSelected = _selectedIndex == index;
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8.0, vertical: 4.0),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () => _onItemTapped(index),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary.withOpacity(0.05) : Colors.transparent,
+                          color: isSelected
+                              ? AppColors.primary.withOpacity(0.05)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
-                          border: isSelected ? Border.all(color: AppColors.accent.withOpacity(0.3)) : null,
+                          border: isSelected
+                              ? Border.all(
+                                  color: AppColors.accent.withOpacity(0.3))
+                              : null,
                         ),
                         child: Row(
                           children: [
                             Icon(
                               _menuItems[index]['icon'],
-                              color: isSelected ? AppColors.accent : AppColors.mutedForeground,
+                              color: isSelected
+                                  ? AppColors.accent
+                                  : AppColors.mutedForeground,
                             ),
                             const SizedBox(width: 16),
                             Text(
                               _menuItems[index]['title'],
                               style: TextStyle(
-                                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ],
@@ -216,8 +237,10 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: OutlinedButton.icon(
-              icon: const Icon(LucideIcons.logOut, color: AppColors.destructive),
-              label: const Text('Déconnexion', style: TextStyle(color: AppColors.destructive)),
+              icon:
+                  const Icon(LucideIcons.logOut, color: AppColors.destructive),
+              label: const Text('Déconnexion',
+                  style: TextStyle(color: AppColors.destructive)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.destructive),
                 foregroundColor: AppColors.destructive,

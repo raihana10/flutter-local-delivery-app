@@ -28,8 +28,13 @@ class _GainsScreenState extends State<GainsScreen> {
   }
 
   Future<void> _loadData() async {
-    final gains = await LivreurMockDatasource.withDelay(LivreurMockDatasource.mockGains);
-    if (mounted) setState(() { _gains = gains; _isLoading = false; });
+    final gains =
+        await LivreurMockDatasource.withDelay(LivreurMockDatasource.mockGains);
+    if (mounted)
+      setState(() {
+        _gains = gains;
+        _isLoading = false;
+      });
   }
 
   @override
@@ -44,34 +49,35 @@ class _GainsScreenState extends State<GainsScreen> {
           // ── Contenu ────────────────────────────────────────
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.yellow))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.yellow))
                 : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Card Bar Chart
-                  _buildChartCard(),
-                  const SizedBox(height: 24),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Card Bar Chart
+                        _buildChartCard(),
+                        const SizedBox(height: 24),
 
-                  // Titre livraisons récentes
-                  const Text(
-                    AppStrings.livraisonsRecentes,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.navyDark,
+                        // Titre livraisons récentes
+                        const Text(
+                          AppStrings.livraisonsRecentes,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.navyDark,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Liste
+                        ..._gains!.livraisonsRecentes
+                            .map((l) => _LivraisonTile(livraison: l))
+                            .toList(),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Liste
-                  ..._gains!.livraisonsRecentes
-                      .map((l) => _LivraisonTile(livraison: l))
-                      .toList(),
-                ],
-              ),
-            ),
           ),
 
           // ── Bottom Nav ──────────────────────────────────────
@@ -90,7 +96,9 @@ class _GainsScreenState extends State<GainsScreen> {
       width: double.infinity,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 16,
-        left: 20, right: 20, bottom: 20,
+        left: 20,
+        right: 20,
+        bottom: 20,
       ),
       color: Colors.white,
       child: const Text(
@@ -113,7 +121,10 @@ class _GainsScreenState extends State<GainsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -122,9 +133,14 @@ class _GainsScreenState extends State<GainsScreen> {
           // Totaux semaine
           Row(
             children: [
-              _StatBadge(label: "Cette semaine", value: "${_gains!.semaine.toStringAsFixed(0)} MAD"),
+              _StatBadge(
+                  label: "Cette semaine",
+                  value: "${_gains!.semaine.toStringAsFixed(0)} MAD"),
               const SizedBox(width: 12),
-              _StatBadge(label: "Aujourd'hui", value: "${_gains!.aujourdhui.toStringAsFixed(0)} MAD", isSecondary: true),
+              _StatBadge(
+                  label: "Aujourd'hui",
+                  value: "${_gains!.aujourdhui.toStringAsFixed(0)} MAD",
+                  isSecondary: true),
             ],
           ),
           const SizedBox(height: 20),
@@ -150,7 +166,10 @@ class _GainsScreenState extends State<GainsScreen> {
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
                         '${rod.toY.toStringAsFixed(0)} MAD',
-                        const TextStyle(color: AppColors.yellow, fontWeight: FontWeight.bold, fontSize: 12),
+                        const TextStyle(
+                            color: AppColors.yellow,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12),
                       );
                     },
                   ),
@@ -162,15 +181,20 @@ class _GainsScreenState extends State<GainsScreen> {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final i = value.toInt();
-                        if (i < 0 || i >= _jours.length) return const SizedBox.shrink();
+                        if (i < 0 || i >= _jours.length)
+                          return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             _jours[i],
                             style: TextStyle(
                               fontSize: 11,
-                              color: _touchedIndex == i ? AppColors.yellow : AppColors.textSecondary,
-                              fontWeight: _touchedIndex == i ? FontWeight.bold : FontWeight.normal,
+                              color: _touchedIndex == i
+                                  ? AppColors.yellow
+                                  : AppColors.textSecondary,
+                              fontWeight: _touchedIndex == i
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                         );
@@ -185,13 +209,16 @@ class _GainsScreenState extends State<GainsScreen> {
                         if (value == 0) return const SizedBox.shrink();
                         return Text(
                           value.toStringAsFixed(0),
-                          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                              fontSize: 10, color: AppColors.textSecondary),
                         );
                       },
                     ),
                   ),
-                  topTitles:   const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 gridData: FlGridData(
                   show: true,
@@ -209,10 +236,11 @@ class _GainsScreenState extends State<GainsScreen> {
                     barRods: [
                       BarChartRodData(
                         toY: _gains!.parJour[i],
-                        color: isTouched ? AppColors.yellow : AppColors.navyDark,
+                        color:
+                            isTouched ? AppColors.yellow : AppColors.navyDark,
                         width: 22,
                         borderRadius: const BorderRadius.only(
-                          topLeft:  Radius.circular(6),
+                          topLeft: Radius.circular(6),
                           topRight: Radius.circular(6),
                         ),
                       ),
@@ -235,14 +263,17 @@ class _StatBadge extends StatelessWidget {
   final String value;
   final bool isSecondary;
 
-  const _StatBadge({required this.label, required this.value, this.isSecondary = false});
+  const _StatBadge(
+      {required this.label, required this.value, this.isSecondary = false});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Text(label,
+            style:
+                const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
         const SizedBox(height: 2),
         Text(
           value,
@@ -271,7 +302,10 @@ class _LivraisonTile extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -291,7 +325,8 @@ class _LivraisonTile extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 livraison.heure,
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),

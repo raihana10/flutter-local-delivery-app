@@ -6,7 +6,7 @@ class SupabaseConfig {
 
   static void initialize() {
     final env = DotEnv(includePlatformEnvironment: true)..load();
-    
+
     final supabaseUrl = env['SUPABASE_URL'];
     final supabaseAnonKey = env['SUPABASE_ANON_KEY'];
 

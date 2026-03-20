@@ -125,8 +125,8 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
                                 child: Text(
                                   '$tempQty',
                                   style: const TextStyle(
@@ -167,9 +167,14 @@ class _CartScreenState extends State<CartScreen> {
                             item['quantity'] = tempQty;
                           });
                           // force update to notify listeners
-                          final idx = context.read<ClientDataProvider>().cartItems.indexOf(item);
-                          if(idx != -1) {
-                            context.read<ClientDataProvider>().updateCartItem(idx, item);
+                          final idx = context
+                              .read<ClientDataProvider>()
+                              .cartItems
+                              .indexOf(item);
+                          if (idx != -1) {
+                            context
+                                .read<ClientDataProvider>()
+                                .updateCartItem(idx, item);
                           }
                           Navigator.pop(ctx);
                         },
@@ -192,17 +197,17 @@ class _CartScreenState extends State<CartScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          context.read<ClientDataProvider>().removeFromCart(item);
+                          context
+                              .read<ClientDataProvider>()
+                              .removeFromCart(item);
                           Navigator.pop(ctx);
                         },
                         icon: const Icon(Icons.delete_outline,
                             color: AppColors.destructive, size: 18),
                         label: const Text("Supprimer l'article",
-                            style:
-                                TextStyle(color: AppColors.destructive)),
+                            style: TextStyle(color: AppColors.destructive)),
                         style: OutlinedButton.styleFrom(
-                          side:
-                              const BorderSide(color: AppColors.destructive),
+                          side: const BorderSide(color: AppColors.destructive),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -225,7 +230,7 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     final clientData = context.watch<ClientDataProvider>();
     final cartItems = clientData.cartItems;
-    
+
     double subtotal = clientData.cartSubtotal;
     double deliveryFee = 10.0;
     double total = subtotal + deliveryFee;
@@ -288,8 +293,7 @@ class _CartScreenState extends State<CartScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.card,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
             ),
@@ -388,31 +392,42 @@ class _CartScreenState extends State<CartScreen> {
                         onTap: () {
                           if (item['quantity'] > 1) {
                             item['quantity']--;
-                            final idx = context.read<ClientDataProvider>().cartItems.indexOf(item);
-                            if(idx != -1) context.read<ClientDataProvider>().updateCartItem(idx, item);
+                            final idx = context
+                                .read<ClientDataProvider>()
+                                .cartItems
+                                .indexOf(item);
+                            if (idx != -1)
+                              context
+                                  .read<ClientDataProvider>()
+                                  .updateCartItem(idx, item);
                           }
                         },
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          child:
-                              Icon(Icons.remove, size: 16, color: AppColors.primary),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Icon(Icons.remove,
+                              size: 16, color: AppColors.primary),
                         ),
                       ),
                       Text(
                         '${item['quantity']}',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       GestureDetector(
                         onTap: () {
                           item['quantity']++;
-                          final idx = context.read<ClientDataProvider>().cartItems.indexOf(item);
-                          if(idx != -1) context.read<ClientDataProvider>().updateCartItem(idx, item);
+                          final idx = context
+                              .read<ClientDataProvider>()
+                              .cartItems
+                              .indexOf(item);
+                          if (idx != -1)
+                            context
+                                .read<ClientDataProvider>()
+                                .updateCartItem(idx, item);
                         },
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           child: Icon(Icons.add,
                               size: 16, color: AppColors.primary),
                         ),
@@ -428,10 +443,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-
-
-  Widget _buildOrderSummary(
-      double subtotal, double deliveryFee, double total) {
+  Widget _buildOrderSummary(double subtotal, double deliveryFee, double total) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

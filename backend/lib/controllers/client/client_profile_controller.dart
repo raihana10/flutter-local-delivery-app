@@ -3,11 +3,10 @@ import 'package:shelf/shelf.dart';
 import '../../supabase/supabase_client.dart';
 
 class ClientProfileController {
-  
   // ==========================================
   // Profile Methods
   // ==========================================
-  
+
   Future<Response> getProfile(Request request) async {
     final clientId = request.headers['x-client-id'];
     if (clientId == null) return Response.forbidden('Missing client id');
@@ -24,9 +23,16 @@ class ClientProfileController {
         return Response.notFound(jsonEncode({'error': 'User not found'}));
       }
 
-      return Response.ok(jsonEncode({'data': user}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': user}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -44,9 +50,10 @@ class ClientProfileController {
 
       if (data.containsKey('nom')) userData['nom'] = data['nom'];
       if (data.containsKey('num_tl')) userData['num_tl'] = data['num_tl'];
-      
+
       if (data.containsKey('sexe')) clientData['sexe'] = data['sexe'];
-      if (data.containsKey('date_naissance')) clientData['date_naissance'] = data['date_naissance'];
+      if (data.containsKey('date_naissance'))
+        clientData['date_naissance'] = data['date_naissance'];
 
       // Update user table
       if (userData.isNotEmpty) {
@@ -64,9 +71,16 @@ class ClientProfileController {
             .eq('id_user', clientId);
       }
 
-      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -87,9 +101,16 @@ class ClientProfileController {
           .isFilter('deleted_at', null)
           .order('is_default', ascending: false);
 
-      return Response.ok(jsonEncode({'data': addresses}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': addresses}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -102,7 +123,11 @@ class ClientProfileController {
       final data = jsonDecode(payload) as Map<String, dynamic>;
 
       if (!data.containsKey('latitude') || !data.containsKey('longitude')) {
-        return Response(400, body: jsonEncode({'error': 'Latitude and longitude are required'}), headers: {'content-type': 'application/json'});
+        return Response(
+          400,
+          body: jsonEncode({'error': 'Latitude and longitude are required'}),
+          headers: {'content-type': 'application/json'},
+        );
       }
 
       // First insert the address
@@ -126,10 +151,19 @@ class ClientProfileController {
           })
           .select()
           .single();
-      
-      return Response.ok(jsonEncode({'data': {'adresse': newAddress, 'user_adresse': userAddress}}), headers: {'content-type': 'application/json'});
+
+      return Response.ok(
+        jsonEncode({
+          'data': {'adresse': newAddress, 'user_adresse': userAddress},
+        }),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -140,11 +174,13 @@ class ClientProfileController {
     try {
       final payload = await request.readAsString();
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      
+
       final updateData = <String, dynamic>{};
       if (data.containsKey('ville')) updateData['ville'] = data['ville'];
-      if (data.containsKey('latitude')) updateData['latitude'] = data['latitude'];
-      if (data.containsKey('longitude')) updateData['longitude'] = data['longitude'];
+      if (data.containsKey('latitude'))
+        updateData['latitude'] = data['latitude'];
+      if (data.containsKey('longitude'))
+        updateData['longitude'] = data['longitude'];
 
       if (updateData.isNotEmpty) {
         await SupabaseConfig.client
@@ -152,14 +188,14 @@ class ClientProfileController {
             .update(updateData)
             .eq('id_adresse', addressId);
       }
-      
+
       if (data.containsKey('is_default')) {
         // First set all other addresses to not default if this one is true
         if (data['is_default'] == true) {
-           await SupabaseConfig.client
-            .from('user_adresse')
-            .update({'is_default': false})
-            .eq('id_user', clientId);
+          await SupabaseConfig.client
+              .from('user_adresse')
+              .update({'is_default': false})
+              .eq('id_user', clientId);
         }
 
         await SupabaseConfig.client
@@ -168,9 +204,16 @@ class ClientProfileController {
             .match({'id_user': clientId, 'id_adresse': addressId});
       }
 
-      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -180,14 +223,21 @@ class ClientProfileController {
 
     try {
       // Unlink address from user
-      await SupabaseConfig.client
-          .from('user_adresse')
-          .delete()
-          .match({'id_user': clientId, 'id_adresse': addressId});
-      
-      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+      await SupabaseConfig.client.from('user_adresse').delete().match({
+        'id_user': clientId,
+        'id_adresse': addressId,
+      });
+
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }

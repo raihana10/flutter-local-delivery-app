@@ -3,7 +3,6 @@ import 'package:shelf/shelf.dart';
 import '../../supabase/supabase_client.dart';
 
 class ClientOrdersController {
-  
   // Create a new order (Checkout)
   Future<Response> createOrder(Request request) async {
     final userId = request.headers['x-client-id'];
@@ -55,25 +54,25 @@ class ClientOrdersController {
       final idCommande = commande['id_commande'];
 
       // 3. Insert Ligne Commandes
-      final lignesAInserer = cartItems.map((item) => {
-        'id_commande': idCommande,
-        'id_produit': item['id_produit'],
-        'quantite': item['quantite'],
-        'prix_snapshot': item['prix_snapshot'],
-        'nom_snapshot': item['nom_snapshot']
-      }).toList();
+      final lignesAInserer = cartItems
+          .map(
+            (item) => {
+              'id_commande': idCommande,
+              'id_produit': item['id_produit'],
+              'quantite': item['quantite'],
+              'prix_snapshot': item['prix_snapshot'],
+              'nom_snapshot': item['nom_snapshot'],
+            },
+          )
+          .toList();
 
-      await SupabaseConfig.client
-          .from('ligne_commande')
-          .insert(lignesAInserer);
+      await SupabaseConfig.client.from('ligne_commande').insert(lignesAInserer);
 
       // 4. Create Timeline
-      await SupabaseConfig.client
-          .from('timeline')
-          .insert({
-            'id_commande': idCommande,
-            'statut_tmlne': 'confirmee',
-          });
+      await SupabaseConfig.client.from('timeline').insert({
+        'id_commande': idCommande,
+        'statut_tmlne': 'confirmee',
+      });
 
       // Refetch whole order with details
       final fullOrder = await SupabaseConfig.client
@@ -82,9 +81,16 @@ class ClientOrdersController {
           .eq('id_commande', idCommande)
           .single();
 
-      return Response.ok(jsonEncode({'success': true, 'data': fullOrder}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true, 'data': fullOrder}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -99,11 +105,11 @@ class ClientOrdersController {
           .select('id_client')
           .eq('id_user', userId)
           .maybeSingle();
-      
+
       if (clientRecord == null) {
         return Response.notFound(jsonEncode({'error': 'Client not found'}));
       }
-      
+
       final idClient = clientRecord['id_client'];
 
       final orders = await SupabaseConfig.client
@@ -113,9 +119,16 @@ class ClientOrdersController {
           .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
 
-      return Response.ok(jsonEncode({'data': orders}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': orders}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -128,11 +141,19 @@ class ClientOrdersController {
           .eq('id_commande', id)
           .maybeSingle();
 
-      if (timeline == null) return Response.notFound(jsonEncode({'error': 'Timeline not found'}));
+      if (timeline == null)
+        return Response.notFound(jsonEncode({'error': 'Timeline not found'}));
 
-      return Response.ok(jsonEncode({'data': timeline}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': timeline}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }

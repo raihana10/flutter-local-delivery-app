@@ -1,6 +1,6 @@
 enum UserRole {
   client('client'),
-  livreur('livreur'), 
+  livreur('livreur'),
   business('business'),
   superAdmin('super_admin');
 
@@ -44,8 +44,10 @@ class User {
       numTl: json['num_tl'],
       role: UserRole.fromString(json['role'] ?? 'client'),
       estActif: json['est_actif'] ?? true,
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+          json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(
+          json['updated_at'] ?? DateTime.now().toIso8601String()),
     );
   }
 
@@ -109,11 +111,13 @@ class Client {
       id: json['id_client'] ?? 0,
       idUser: json['id_user'] ?? 0,
       sexe: json['sexe'],
-      dateNaissance: json['date_naissance'] != null 
-          ? DateTime.parse(json['date_naissance']) 
+      dateNaissance: json['date_naissance'] != null
+          ? DateTime.parse(json['date_naissance'])
           : null,
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.parse(
+          json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(
+          json['updated_at'] ?? DateTime.now().toIso8601String()),
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
@@ -185,7 +189,8 @@ class RegisterRequest {
       'num_tl': numTl,
       'role': role.value,
       'sexe': sexe,
-      'date_naissance': dateNaissance?.toIso8601String().split('T')[0], // Format YYYY-MM-DD
+      'date_naissance':
+          dateNaissance?.toIso8601String().split('T')[0], // Format YYYY-MM-DD
       'cni': cni,
       'business_type': businessType,
       'business_description': businessDescription,
@@ -219,9 +224,13 @@ class Livreur {
       id: json['id_livreur'] ?? 0,
       idUser: json['id_user'] ?? 0,
       vehicleType: json['vehicle_type'],
-      documents: json['documents'] != null ? List<String>.from(json['documents']) : null,
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
+      documents: json['documents'] != null
+          ? List<String>.from(json['documents'])
+          : null,
+      createdAt: DateTime.parse(
+          json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(
+          json['updated_at'] ?? DateTime.now().toIso8601String()),
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }

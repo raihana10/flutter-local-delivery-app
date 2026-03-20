@@ -14,7 +14,7 @@ class ClientPaymentMethodsController {
           .select('id_client')
           .eq('id_user', clientId)
           .single();
-      
+
       final actualClientId = clientResponse['id_client'];
 
       final methods = await SupabaseConfig.client
@@ -24,9 +24,16 @@ class ClientPaymentMethodsController {
           .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
 
-      return Response.ok(jsonEncode({'data': methods}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': methods}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -36,7 +43,7 @@ class ClientPaymentMethodsController {
 
     try {
       final payload = jsonDecode(await request.readAsString());
-      
+
       final clientResponse = await SupabaseConfig.client
           .from('client')
           .select('id_client')
@@ -60,9 +67,16 @@ class ClientPaymentMethodsController {
         'is_default': payload['is_default'] ?? false,
       });
 
-      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -76,9 +90,16 @@ class ClientPaymentMethodsController {
           .update({'deleted_at': DateTime.now().toIso8601String()})
           .eq('id_carte', id);
 
-      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -106,9 +127,16 @@ class ClientPaymentMethodsController {
           .update({'is_default': true})
           .eq('id_carte', id);
 
-      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }
