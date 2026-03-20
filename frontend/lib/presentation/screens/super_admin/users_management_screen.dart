@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
+import '../business/business_main_screen.dart';
 
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
@@ -10,7 +11,8 @@ class UsersManagementScreen extends StatefulWidget {
   State<UsersManagementScreen> createState() => _UsersManagementScreenState();
 }
 
-class _UsersManagementScreenState extends State<UsersManagementScreen> with SingleTickerProviderStateMixin {
+class _UsersManagementScreenState extends State<UsersManagementScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<Map<String, dynamic>> users = [];
   String _filterStatus = 'Tous';
@@ -30,20 +32,21 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
     setState(() => _isLoading = true);
     try {
       final clients = await _apiService.getClients();
+      print('CLIENTS RESPONSE: $clients');
       final livreurs = await _apiService.getLivreurs();
       final businesses = await _apiService.getBusinesses();
-      
+
       if (mounted) {
         setState(() {
           users = [
-             ...clients.map((e) => Map<String, dynamic>.from(e)),
-             ...livreurs.map((e) => Map<String, dynamic>.from(e)),
-             ...businesses.map((e) => Map<String, dynamic>.from(e))
+            ...clients.map((e) => Map<String, dynamic>.from(e)),
+            ...livreurs.map((e) => Map<String, dynamic>.from(e)),
+            ...businesses.map((e) => Map<String, dynamic>.from(e))
           ];
           _isLoading = false;
         });
       }
-    } catch(e) {
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -54,7 +57,8 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
     super.dispose();
   }
 
-  void _showConfirmationDialog(int userId, bool currentStatus, String userName) {
+  void _showConfirmationDialog(
+      int userId, bool currentStatus, String userName) {
     final actionName = currentStatus ? 'Suspendre' : 'Activer';
     final color = currentStatus ? AppColors.destructive : Colors.green;
 
@@ -62,20 +66,24 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
       context: context,
       builder: (context) => AlertDialog(
         title: Text('$actionName l\'utilisateur ?'),
-        content: Text('Êtes-vous sûr de vouloir ${actionName.toLowerCase()} le compte de $userName ?'),
+        content: Text(
+            'Êtes-vous sûr de vouloir ${actionName.toLowerCase()} le compte de $userName ?'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
+            child: const Text('Annuler',
+                style: TextStyle(color: AppColors.mutedForeground)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: color, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
               _toggleUserStatus(userId, currentStatus);
             },
-            child: Text('Confirmer', style: const TextStyle(fontWeight: FontWeight.bold)),
+            child: Text('Confirmer',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -91,7 +99,8 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
           users[index] = Map<String, dynamic>.from(users[index]);
           users[index]['est_actif'] = !currentStatus;
           if (!currentStatus) {
-              users[index]['documents_validation'] = 'validated'; // schema uses varchar for business/livreur? or we just use truthy visual
+            users[index]['documents_validation'] =
+                'validated'; // schema uses varchar for business/livreur? or we just use truthy visual
           }
         }
       });
@@ -124,11 +133,12 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Documents approuvés et compte activé.')),
+          const SnackBar(
+              content: Text('Documents approuvés et compte activé.')),
         );
       }
     } else {
-       if (mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: ${res['error'] ?? 'Inconnue'}')),
         );
@@ -146,7 +156,8 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Veuillez vérifier le document fourni par l\'utilisateur avant de l\'approuver sur la plateforme.'),
+            const Text(
+                'Veuillez vérifier le document fourni par l\'utilisateur avant de l\'approuver sur la plateforme.'),
             const SizedBox(height: 16),
             Container(
               height: 200,
@@ -157,33 +168,42 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
                 border: Border.all(color: AppColors.border),
                 image: const DecorationImage(
                   // A placeholder image of a fake driver license / ID card from unsplash
-                  image: NetworkImage('https://images.unsplash.com/photo-1621503820251-5121bdfaf3c9?auto=format&fit=crop&q=80&w=400'),
+                  image: NetworkImage(
+                      'https://images.unsplash.com/photo-1621503820251-5121bdfaf3c9?auto=format&fit=crop&q=80&w=400'),
                   fit: BoxFit.cover,
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            const Text('Permis de conduire / RC', style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+            const Text('Permis de conduire / RC',
+                style:
+                    TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer', style: TextStyle(color: AppColors.mutedForeground)),
+            child: const Text('Fermer',
+                style: TextStyle(color: AppColors.mutedForeground)),
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.cancel, size: 16),
             label: const Text('Rejeter'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.destructive, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.destructive,
+                foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Documents rejetés. L\'utilisateur sera notifié.')));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content:
+                      Text('Documents rejetés. L\'utilisateur sera notifié.')));
             },
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.check_circle, size: 16),
             label: const Text('Approuver'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
               _validateDocuments(userId);
@@ -209,7 +229,9 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Détails de l\'utilisateur', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text('Détails de l\'utilisateur',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
@@ -220,20 +242,21 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
               const SizedBox(height: 16),
               _buildDetailRow(LucideIcons.user, 'Nom Complet', user['nom']),
               _buildDetailRow(LucideIcons.mail, 'Email', user['email']),
-              _buildDetailRow(LucideIcons.calendar, 'Date d\'inscription', (user['created_at'] as String).substring(0, 10)),
-              _buildDetailRow(LucideIcons.tag, 'Rôle', user['role'].toString().toUpperCase()),
-              
+              _buildDetailRow(LucideIcons.calendar, 'Date d\'inscription',
+                  (user['created_at'] as String).substring(0, 10)),
+              _buildDetailRow(LucideIcons.tag, 'Rôle',
+                  user['role'].toString().toUpperCase()),
               if (user['role'] == 'business')
-                 _buildDetailRow(LucideIcons.store, 'Type', user['type_business'] ?? 'Non spécifié'),
-                 
+                _buildDetailRow(LucideIcons.store, 'Type',
+                    user['type_business'] ?? 'Non spécifié'),
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                     backgroundColor: AppColors.primary,
-                     foregroundColor: AppColors.background,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.background,
                   ),
                   child: const Text('Fermer'),
                 ),
@@ -257,8 +280,12 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.mutedForeground)),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w500)),
               ],
             ),
           )
@@ -298,14 +325,19 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.filter_list, size: 20, color: AppColors.mutedForeground),
+                  const Icon(Icons.filter_list,
+                      size: 20, color: AppColors.mutedForeground),
                   const SizedBox(width: 8),
-                  const Text('Filtres : ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Filtres : ',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.border)),
+                decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border)),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _filterStatus,
@@ -325,7 +357,10 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.border)),
+                decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border)),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _filterDate,
@@ -347,55 +382,71 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
           ),
         ),
         Expanded(
-          child: _isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildPaginatedTable('client'),
-                  _buildPaginatedTable('livreur'),
-                  _buildPaginatedTable('business'),
-                ],
-              ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildPaginatedTable('client'),
+                    _buildPaginatedTable('livreur'),
+                    _buildPaginatedTable('business'),
+                  ],
+                ),
         ),
       ],
     );
   }
 
   Widget _buildPaginatedTable(String role) {
-    var filteredUsers = users.where((u) => u['role'] == role && !u.containsKey('deleted_at')).toList();
+    // ✅ Vérifier que deleted_at est null, pas que la clé est absente
+var filteredUsers = users
+    .where((u) => u['role'] == role && u['deleted_at'] == null)
+    .toList();
 
     if (_filterStatus != 'Tous') {
       final isActif = _filterStatus == 'Actif';
-      filteredUsers = filteredUsers.where((u) => u['est_actif'] == isActif).toList();
+      filteredUsers =
+          filteredUsers.where((u) => u['est_actif'] == isActif).toList();
     }
 
     if (_filterDate == 'Ce mois-ci') {
-        // Implementation logic for date filtering if necessary
+      // Implementation logic for date filtering if necessary
     }
 
     List<DataColumn> columns = [
-      const DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('Nom', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+      const DataColumn(
+          label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
+      const DataColumn(
+          label: Text('Nom', style: TextStyle(fontWeight: FontWeight.bold))),
+      const DataColumn(
+          label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+      const DataColumn(
+          label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
     ];
 
     if (role == 'business') {
-      columns.add(const DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))));
-      columns.add(const DataColumn(label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
+      columns.add(const DataColumn(
+          label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))));
+      columns.add(const DataColumn(
+          label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
     } else if (role == 'livreur') {
-      columns.add(const DataColumn(label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
+      columns.add(const DataColumn(
+          label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
     }
 
-    columns.add(const DataColumn(label: Text('Statut', style: TextStyle(fontWeight: FontWeight.bold))));
-    columns.add(const DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))));
+    columns.add(const DataColumn(
+        label: Text('Statut', style: TextStyle(fontWeight: FontWeight.bold))));
+    columns.add(const DataColumn(
+        label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: PaginatedDataTable(
-        header: Text('Liste des $role${role.endsWith('s') ? '' : 's'}', style: const TextStyle(fontWeight: FontWeight.bold)),
-        rowsPerPage: filteredUsers.length > 5 ? 5 : (filteredUsers.isEmpty ? 1 : filteredUsers.length),
+        header: Text('Liste des $role${role.endsWith('s') ? '' : 's'}',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        rowsPerPage: filteredUsers.length > 5
+            ? 5
+            : (filteredUsers.isEmpty ? 1 : filteredUsers.length),
         columns: columns,
         source: _UserDataTableSource(
           data: filteredUsers,
@@ -403,6 +454,20 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> with Sing
           onStatusToggle: _showConfirmationDialog,
           onViewDetails: _showUserModal,
           onValidate: _showDocumentValidationModal,
+          onManageBusiness: (user) {
+            final biz = user['business'];
+            final idBusinessStr = biz is List
+                ? (biz.isNotEmpty ? biz[0]['id_business'] : null)
+                : (biz != null ? biz['id_business'] : null);
+            final idBusiness = int.tryParse(idBusinessStr?.toString() ?? '');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    BusinessMainScreen(idBusiness: idBusiness),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -415,6 +480,7 @@ class _UserDataTableSource extends DataTableSource {
   final void Function(int, bool, String) onStatusToggle;
   final void Function(Map<String, dynamic>) onViewDetails;
   final void Function(int, String) onValidate;
+  final void Function(Map<String, dynamic>) onManageBusiness;
 
   _UserDataTableSource({
     required this.data,
@@ -422,21 +488,25 @@ class _UserDataTableSource extends DataTableSource {
     required this.onStatusToggle,
     required this.onViewDetails,
     required this.onValidate,
+    required this.onManageBusiness,
   });
 
   @override
   DataRow? getRow(int index) {
     if (index >= data.length) return null;
     final user = data[index];
-    
-    // In our Postgres schema, est_actif doesn't exist on Client, 
+
+    // In our Postgres schema, est_actif doesn't exist on Client,
     // it's only on livreur / business.  Safely fallback.
     final estActif = user['est_actif'] ?? true;
     final docsValidStr = user['documents_validation']?.toString();
-    final hasDocs = docsValidStr != null && docsValidStr != 'false' && docsValidStr.isNotEmpty;
+    final hasDocs = docsValidStr != null &&
+        docsValidStr != 'false' &&
+        docsValidStr.isNotEmpty;
 
     List<DataCell> cells = [
-      DataCell(Text('#${user['id_user']}', style: const TextStyle(fontWeight: FontWeight.bold))),
+      DataCell(Text('#${user['id_user']}',
+          style: const TextStyle(fontWeight: FontWeight.bold))),
       DataCell(Text(user['nom'])),
       DataCell(Text(user['email'])),
       DataCell(Text((user['created_at'] as String).substring(0, 10))),
@@ -470,7 +540,9 @@ class _UserDataTableSource extends DataTableSource {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: estActif ? Colors.green.withOpacity(0.1) : AppColors.destructive.withOpacity(0.1),
+            color: estActif
+                ? Colors.green.withOpacity(0.1)
+                : AppColors.destructive.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -491,21 +563,32 @@ class _UserDataTableSource extends DataTableSource {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(LucideIcons.eye, color: AppColors.secondary, size: 20),
+              icon: const Icon(LucideIcons.eye,
+                  color: AppColors.secondary, size: 20),
               tooltip: 'Voir Profil',
               onPressed: () => onViewDetails(user),
             ),
+            if (role == 'business')
+              IconButton(
+                icon: const Icon(LucideIcons.externalLink,
+                    color: AppColors.primary, size: 20),
+                tooltip: 'Gérer Business',
+                onPressed: () => onManageBusiness(user),
+              ),
             if (!hasDocs && (role == 'livreur' || role == 'business'))
               IconButton(
-                icon: const Icon(Icons.fact_check, color: AppColors.accent, size: 20),
+                icon: const Icon(Icons.fact_check,
+                    color: AppColors.accent, size: 20),
                 tooltip: 'Vérifier Documents',
                 onPressed: () => onValidate(user['id_user'], user['nom']),
               ),
             IconButton(
-              icon: Icon(estActif ? LucideIcons.ban : LucideIcons.check, 
-                color: estActif ? AppColors.destructive : Colors.green, size: 20),
+              icon: Icon(estActif ? LucideIcons.ban : LucideIcons.check,
+                  color: estActif ? AppColors.destructive : Colors.green,
+                  size: 20),
               tooltip: estActif ? 'Suspendre' : 'Activer',
-              onPressed: () => onStatusToggle(user['id_user'], estActif, user['nom']),
+              onPressed: () =>
+                  onStatusToggle(user['id_user'], estActif, user['nom']),
             ),
           ],
         ),
@@ -524,5 +607,3 @@ class _UserDataTableSource extends DataTableSource {
   @override
   int get selectedRowCount => 0;
 }
-
-
