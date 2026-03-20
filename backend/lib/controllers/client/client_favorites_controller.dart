@@ -12,10 +12,23 @@ class ClientFavoritesController {
     }
 
     try {
+      // x-client-id is id_user; resolve to id_client first
+      final clientRecord = await SupabaseConfig.client
+          .from('client')
+          .select('id_client')
+          .eq('id_user', clientId)
+          .maybeSingle();
+
+      if (clientRecord == null) {
+        return Response(404, body: jsonEncode({'error': 'Client profile not found'}), headers: {'content-type': 'application/json'});
+      }
+
+      final idClient = clientRecord['id_client'];
+
       final favoris = await SupabaseConfig.client
           .from('favoris')
           .select('*, business(*, app_user(*))')
-          .eq('id_client', clientId);
+          .eq('id_client', idClient);
 
       return Response.ok(jsonEncode({'data': favoris}), headers: {'content-type': 'application/json'});
     } catch (e) {
@@ -39,8 +52,19 @@ class ClientFavoritesController {
         return Response(400, body: jsonEncode({'error': 'id_business is required'}), headers: {'content-type': 'application/json'});
       }
 
+      // x-client-id is id_user; resolve to id_client
+      final clientRecord = await SupabaseConfig.client
+          .from('client')
+          .select('id_client')
+          .eq('id_user', clientId)
+          .maybeSingle();
+
+      if (clientRecord == null) {
+        return Response(404, body: jsonEncode({'error': 'Client profile not found'}), headers: {'content-type': 'application/json'});
+      }
+
       final newFavoris = await SupabaseConfig.client.from('favoris').insert({
-        'id_client': clientId,
+        'id_client': clientRecord['id_client'],
         'id_business': idBusiness,
       }).select().single();
 
@@ -58,10 +82,21 @@ class ClientFavoritesController {
     }
 
     try {
+      // Resolve id_client from id_user
+      final clientRecord = await SupabaseConfig.client
+          .from('client')
+          .select('id_client')
+          .eq('id_user', clientId)
+          .maybeSingle();
+
+      if (clientRecord == null) {
+        return Response(404, body: jsonEncode({'error': 'Client profile not found'}), headers: {'content-type': 'application/json'});
+      }
+
       await SupabaseConfig.client
           .from('favoris')
           .delete()
-          .eq('id_client', clientId)
+          .eq('id_client', clientRecord['id_client'])
           .eq('id_business', idBusiness);
 
       return Response.ok(jsonEncode({'message': 'Favorite removed successfully'}), headers: {'content-type': 'application/json'});

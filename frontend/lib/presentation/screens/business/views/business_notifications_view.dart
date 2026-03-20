@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/providers/business_data_provider.dart';
 import '../business_main_screen.dart';
 
 class BusinessNotificationsView extends StatelessWidget {
@@ -8,8 +10,30 @@ class BusinessNotificationsView extends StatelessWidget {
 
   const BusinessNotificationsView({super.key, required this.onNavigate});
 
+  String _formatDate(String isoString) {
+    try {
+      final date = DateTime.parse(isoString);
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+      if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return isoString;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<BusinessDataProvider>();
+    
+    if (provider.isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.forest));
+    }
+
+    final notifications = provider.notifications;
+    final unreadCount = notifications.where((n) => n['est_lu'] == false).length;
+
     return Stack(
       children: [
         Column(
@@ -31,53 +55,46 @@ class BusinessNotificationsView extends StatelessWidget {
                   const SizedBox(width: 12),
                   const Text('Notifications', style: TextStyle(color: AppColors.forest, fontWeight: FontWeight.bold, fontSize: 20)),
                   const Spacer(),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Text('Tout marquer lu', style: TextStyle(color: AppColors.forest, fontSize: 12, fontWeight: FontWeight.bold)),
-                  )
+                  if (unreadCount > 0)
+                    GestureDetector(
+                      onTap: () => provider.markAllAsRead(),
+                      child: const Text('Tout marquer lu', style: TextStyle(color: AppColors.forest, fontSize: 12, fontWeight: FontWeight.bold)),
+                    )
                 ],
               ),
             ),
             
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                children: [
-                  const Text('Aujourd\'hui', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.mutedForeground)),
-                  const SizedBox(height: 12),
-                  _buildNotificationItem(
-                    title: 'Nouvelle commande #1045',
-                    message: 'Mohamed A. a commandé 3 plats. Préparez-la !',
-                    time: 'Il y a 2 min',
-                    type: 'order',
-                    isUnread: true,
+              child: notifications.isEmpty
+                ? const Center(child: Text('Aucune notification récente.', style: TextStyle(color: AppColors.mutedForeground)))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) {
+                      final notifDoc = notifications[index];
+                      final notifData = notifDoc['notification'] ?? {};
+                      
+                      final idNot = notifDoc['id_not'].toString();
+                      final isUnread = notifDoc['est_lu'] == false;
+                      final type = notifData['type'] ?? 'order';
+                      final title = notifData['titre'] ?? 'Notification';
+                      final message = notifData['message'] ?? '';
+                      final time = _formatDate(notifData['created_at'] ?? '');
+
+                      return GestureDetector(
+                        onTap: () {
+                          if (isUnread) provider.markAsRead(idNot);
+                        },
+                        child: _buildNotificationItem(
+                          title: title,
+                          message: message,
+                          time: time,
+                          type: type,
+                          isUnread: isUnread,
+                        ),
+                      );
+                    },
                   ),
-                  _buildNotificationItem(
-                    title: 'Commande #1042 livrée',
-                    message: 'La commande pour Alae B. a été livrée avec succès.',
-                    time: 'Il y a 45 min',
-                    type: 'success',
-                    isUnread: true,
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('Hier', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.mutedForeground)),
-                  const SizedBox(height: 12),
-                  _buildNotificationItem(
-                    title: 'Message du support',
-                    message: 'Votre document de validation a été accepté. Votre profil est maintenant public.',
-                    time: 'Hier, 14:30',
-                    type: 'support',
-                    isUnread: false,
-                  ),
-                  _buildNotificationItem(
-                    title: 'Nouvelle note !',
-                    message: 'Un client vous a attribué 5 étoiles pour sa commande passée ce matin.',
-                    time: 'Hier, 10:15',
-                    type: 'rating',
-                    isUnread: false,
-                  ),
-                ],
-              ),
             ),
           ],
         ),

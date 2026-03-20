@@ -29,8 +29,19 @@ Middleware authMiddleware() {
         }
         return innerHandler(request);
       }
+      
+      // 3. Business Routes Authentication
+      if (path.startsWith('business/')) {
+        final businessId = request.headers['x-business-id'];
+        if (businessId == null || businessId.isEmpty) {
+          return Response(401,
+              body: jsonEncode({"error": "Unauthorized access. Missing x-business-id header"}),
+              headers: {'content-type': 'application/json'});
+        }
+        return innerHandler(request);
+      }
 
-      // 3. Admin Routes Authentication (Default)
+      // 4. Admin Routes Authentication (Default)
       final adminId = request.headers['x-admin-id'];
       if (adminId == null || adminId.isEmpty) {
         return Response(403,

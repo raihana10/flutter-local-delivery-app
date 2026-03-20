@@ -29,7 +29,8 @@ class LivreurBottomNavBar extends StatelessWidget {
             children: [
               _NavItem(index: 0, currentIndex: currentIndex, icon: Icons.home_rounded,         label: AppStrings.navAccueil,   onTap: onTap),
               _NavItem(index: 1, currentIndex: currentIndex, icon: Icons.near_me_rounded,      label: AppStrings.navLivraison, onTap: onTap),
-              _NavItem(index: 2, currentIndex: currentIndex, icon: Icons.account_balance_wallet_rounded, label: AppStrings.navGains, onTap: onTap),
+              _NavItem(index: 2, currentIndex: currentIndex, icon: Icons.history_rounded, label: 'Historique', onTap: onTap),
+              _NavItem(index: 3, currentIndex: currentIndex, icon: Icons.person_outline_rounded, label: 'Profil', onTap: onTap),
             ],
           ),
         ),

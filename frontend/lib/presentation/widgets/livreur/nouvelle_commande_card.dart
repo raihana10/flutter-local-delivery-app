@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import 'package:app/data/models/commande_supabase_model.dart';
 import '../../../data/models/commande_model.dart';
 
 class NouvelleCommandeCard extends StatefulWidget {
@@ -91,6 +92,33 @@ class _NouvelleCommandeCardState extends State<NouvelleCommandeCard> {
           ),
 
           const SizedBox(height: 12),
+          
+          if (widget.commande is CommandeSupabaseModel && (widget.commande as CommandeSupabaseModel).items.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: (widget.commande as CommandeSupabaseModel).items.take(3).map((item) {
+                  return Text(
+                    '• $item',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.navyDark,
+                    ),
+                  );
+                }).toList()..addAll([
+                  if ((widget.commande as CommandeSupabaseModel).items.length > 3)
+                    const Text(
+                      '  ...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.navyMedium,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    )
+                ]),
+              ),
+            ),
 
           // Prix
           Text(

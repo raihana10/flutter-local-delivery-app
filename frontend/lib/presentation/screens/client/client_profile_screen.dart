@@ -9,9 +9,14 @@ import 'client_payment_methods_screen.dart';
 
 import '../../../core/providers/client_data_provider.dart';
 
-class ClientProfileScreen extends StatelessWidget {
+class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
 
+  @override
+  State<ClientProfileScreen> createState() => _ClientProfileScreenState();
+}
+
+class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final authUser = context.watch<AuthProvider>().user;
@@ -32,7 +37,7 @@ class ClientProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             // User Header
-            _buildProfileHeader(context, profile, authUser),
+            _buildProfileHeader(profile, authUser),
             const SizedBox(height: 32),
 
             // Profile Sections
@@ -101,8 +106,11 @@ class ClientProfileScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              onPressed: () {
-                context.read<AuthProvider>().logout();
+              onPressed: () async {
+                await context.read<AuthProvider>().logout();
+                if (mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                }
               },
               icon: const Icon(Icons.logout),
               label: const Text('Se déconnecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -114,40 +122,18 @@ class ClientProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
+  Widget _buildProfileHeader(Map<String, dynamic>? profile, dynamic authUser) {
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 2),
-              ),
-              child: const Icon(
-                Icons.person,
-                size: 50,
-                color: AppColors.primary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                _showEditPhotoBottomSheet(context);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: AppColors.accent,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.camera_alt, size: 16, color: AppColors.primary),
-              ),
-            ),
-          ],
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.primary, width: 2),
+          ),
+          child: const Icon(Icons.person, size: 50, color: AppColors.primary),
         ),
         const SizedBox(height: 16),
         Text(
@@ -239,38 +225,8 @@ class ClientProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showEditPhotoBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choisir depuis la galerie'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ouverture de la galerie...')));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Prendre une photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ouverture de l\'appareil photo...')));
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  // Removed _showEditPhotoBottomSheet because client has no photo field in DB
+
 
   void _showEditProfileDialog(BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
     String getName() => profile?['nom'] ?? authUser?.nom ?? '';

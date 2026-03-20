@@ -217,11 +217,10 @@ class _MarketListScreenState extends State<MarketListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Replace mockup filtering with API data processing
-    final baseMarkets = clientData.restaurants.where((r) => r['type_business'] == 'supermarche' || r['type_business'] == 'epicerie').toList();
+    final baseMarkets = clientData.superMarkets;
     
     _filteredRestaurants = baseMarkets.where((market) {
-      final businessUser = market['user'] ?? {};
+      final businessUser = market['app_user'] ?? {};
       final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
       // Category filtering bypassed here because we would need backend mapping.
       bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
@@ -1234,7 +1233,7 @@ class _MarketListScreenState extends State<MarketListScreen>
   }
 
   Widget _buildRestaurantCard(Map<String, dynamic> marketInfo, int index) {
-    final businessUser = marketInfo['user'] ?? {};
+    final businessUser = marketInfo['app_user'] ?? {};
     final idBusiness = marketInfo['id_business'] ?? '0';
 
     return Container(
@@ -1479,10 +1478,28 @@ class _MarketListScreenState extends State<MarketListScreen>
 
                   const SizedBox(width: 8),
 
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: AppColors.mutedForeground.withOpacity(0.6),
-                    size: 16,
+                  Consumer<ClientDataProvider>(
+                    builder: (context, provider, _) {
+                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
+                      final isFav = provider.isFavorite(idB);
+                      return GestureDetector(
+                        onTap: () {
+                          if (idB > 0) provider.toggleFavorite(idB);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                            size: 22,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

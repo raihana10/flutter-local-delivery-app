@@ -66,11 +66,13 @@ class ClientBusinessesController {
       final reviews = await SupabaseConfig.client
           .from('store_review')
           .select('*, client(*, app_user(*))')
-          .eq('id_business', id)
+          .eq('id_business', int.tryParse(id) ?? id)
           .isFilter('deleted_at', null);
 
+      print('DEBUG: Found ${reviews.length} reviews for business $id');
       return Response.ok(jsonEncode({'data': reviews}), headers: {'content-type': 'application/json'});
     } catch (e) {
+      print('getBusinessReviews Error for $id: $e');
       return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
     }
   }

@@ -187,6 +187,10 @@ class ClientDataProvider extends ChangeNotifier {
     return await apiService.getBusinessReviews(id);
   }
 
+  Future<bool> addBusinessReview(String id, int rating, String comment) async {
+    return await apiService.addBusinessReview(id, rating, comment);
+  }
+
   // --- Favorites ---
 
   Future<void> fetchFavorites() async {
@@ -195,14 +199,14 @@ class ClientDataProvider extends ChangeNotifier {
   }
 
   bool isFavorite(int idBusiness) {
-    return favorites.any((f) => f['id_business'] == idBusiness);
+    return favorites.any((f) => f['id_business'].toString() == idBusiness.toString());
   }
 
   Future<void> toggleFavorite(int idBusiness) async {
     if (isFavorite(idBusiness)) {
       final success = await apiService.removeFavorite(idBusiness);
       if (success) {
-        favorites.removeWhere((f) => f['id_business'] == idBusiness);
+        favorites.removeWhere((f) => f['id_business'].toString() == idBusiness.toString());
         notifyListeners();
       }
     } else {

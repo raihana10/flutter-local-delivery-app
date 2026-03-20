@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/constants/app_strings.dart';
-import 'package:app/data/models/commande_model.dart';
-import 'package:app/data/datasources/livreur_mock_datasource.dart';
+import 'package:app/data/models/commande_supabase_model.dart';
+import 'package:app/core/providers/livreur_dashboard_provider.dart';
 
 class LivraisonActiveScreen extends StatefulWidget {
-  final CommandeModel? commande;
+  final CommandeSupabaseModel? commande;
   const LivraisonActiveScreen({super.key, this.commande});
   @override
   State<LivraisonActiveScreen> createState() => _LivraisonActiveScreenState();
@@ -15,21 +17,22 @@ class LivraisonActiveScreen extends StatefulWidget {
 
 class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
   int _currentStep = 0;
-  late CommandeModel _commande;
+  late CommandeSupabaseModel _commande;
   final MapController _mapController = MapController();
   final LatLng _livreurPos = const LatLng(35.5740, -5.3680);
 
   @override
   void initState() {
     super.initState();
-    _commande = widget.commande ?? LivreurMockDatasource.mockCommande;
+    // Assuming commande is always passed; if not, you'd typically handle the error gracefully
+    _commande = widget.commande!;
   }
 
   LatLng get _restaurantPos => LatLng(_commande.latRestaurant ?? 35.5711, _commande.lngRestaurant ?? -5.3694);
   LatLng get _clientPos     => LatLng(_commande.latClient ?? 35.5750, _commande.lngClient ?? -5.3720);
   LatLng get _targetPos     => _currentStep == 0 ? _restaurantPos : _clientPos;
 
-  void _confirmerEtape() {
+  Future<void> _confirmerEtape() async {
     if (_currentStep == 0) {
       setState(() => _currentStep = 1);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -37,25 +40,63 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
         backgroundColor: AppColors.navyDark,
       ));
     } else {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Livraison terminée ! 🎉', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Text('Vous avez gagné ${_commande.prix.toStringAsFixed(0)} MAD', style: const TextStyle(fontSize: 16)),
-          actions: [
-            TextButton(
-              onPressed: () { Navigator.pop(context); Navigator.pop(context); },
-              child: const Text('Retour au tableau de bord', style: TextStyle(color: AppColors.navyDark, fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-      );
+      final success = await context.read<LivreurDashboardProvider>().terminerLivraison();
+      if (success && mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Livraison terminée ! 🎉', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: Text('Vous avez gagné ${_commande.prix.toStringAsFixed(0)} MAD', style: const TextStyle(fontSize: 16)),
+            actions: [
+              TextButton(
+                onPressed: () { 
+                   Navigator.pop(context); // close dialog
+                   Navigator.pop(context); // back to dashboard
+                },
+                child: const Text('Retour au tableau de bord', style: TextStyle(color: AppColors.navyDark, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+        );
+      } else if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+           content: Text('Erreur lors de la confirmation de livraison.'),
+           backgroundColor: Colors.red,
+         ));
+      }
+    }
+  }
+
+  Future<void> _callerClient() async {
+    final tel = _commande.numTlClient;
+    if (tel.isNotEmpty) {
+      final Uri url = Uri(scheme: 'tel', path: tel);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Impossible d\'appeler le numéro: $tel')),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Numéro de téléphone non disponible')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // If commande is null by any chance (should not happen), pop.
+    if (widget.commande == null) {
+      return const Scaffold(body: Center(child: Text("Erreur: aucune commande active")));
+    }
+    
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surfaceColor = isDark ? const Color(0xFF1A2340) : Colors.white;
     return Scaffold(
@@ -143,15 +184,19 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
             )),
         const SizedBox(height: 10),
         SizedBox(width: double.infinity, height: 50,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.yellow, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
-              onPressed: _confirmerEtape,
-              child: Text(_currentStep == 0 ? AppStrings.confirmerPriseEnCharge : AppStrings.confirmerLivraison,
-                  style: const TextStyle(color: AppColors.navyDark, fontWeight: FontWeight.bold, fontSize: 15)),
+            child: Consumer<LivreurDashboardProvider>(
+              builder: (context, provider, _) => ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.yellow, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                onPressed: provider.isLoading ? null : _confirmerEtape,
+                child: provider.isLoading 
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.navyDark, strokeWidth: 2))
+                  : Text(_currentStep == 0 ? AppStrings.confirmerPriseEnCharge : AppStrings.confirmerLivraison,
+                    style: const TextStyle(color: AppColors.navyDark, fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
             )),
         const SizedBox(height: 10),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _ContactButton(icon: Icons.phone, onTap: () {}),
+          _ContactButton(icon: Icons.phone, onTap: _callerClient),
           const SizedBox(width: 12),
           _ContactButton(icon: Icons.chat_bubble_outline, onTap: () {}),
         ]),

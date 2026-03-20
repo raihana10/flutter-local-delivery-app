@@ -217,11 +217,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Replace mockup filtering with API data processing
-    final basePharmacies = clientData.restaurants.where((r) => r['type_business'] == 'pharmacie').toList();
+    final basePharmacies = clientData.pharmacies;
     
     _filteredRestaurants = basePharmacies.where((pharmacy) {
-      final businessUser = pharmacy['user'] ?? {};
+      final businessUser = pharmacy['app_user'] ?? {};
       final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
       // Category filtering bypassed here because we would need backend mapping.
       bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
@@ -1235,7 +1234,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   }
 
   Widget _buildRestaurantCard(Map<String, dynamic> pharmacyInfo, int index) {
-    final businessUser = pharmacyInfo['user'] ?? {};
+    final businessUser = pharmacyInfo['app_user'] ?? {};
     final idBusiness = pharmacyInfo['id_business'] ?? '0';
 
     return Container(
