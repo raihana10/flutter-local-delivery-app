@@ -17,6 +17,44 @@ class ClientDataProvider extends ChangeNotifier {
   List<Map<String, dynamic>> pharmacies = [];
   List<Map<String, dynamic>> superMarkets = [];
   
+  String? _activeCity;
+  
+  String get currentCity {
+    if (_activeCity != null) return _activeCity!;
+    if (addresses.isNotEmpty) {
+      final def = addresses.firstWhere((a) => a['is_default'] == true, orElse: () => addresses.first);
+      return def['adresse']?['ville'] ?? 'Tétouan';
+    }
+    return 'Tétouan';
+  }
+
+  void setActiveCity(String city) {
+    _activeCity = city;
+    notifyListeners();
+  }
+
+  List<Map<String, dynamic>> _filterByCity(List<Map<String, dynamic>> list) {
+    final city = currentCity.toLowerCase().trim();
+    if (city.isEmpty) return list;
+    
+    return list.where((b) {
+      final appUser = b['app_user'] ?? {};
+      final userAddresses = appUser['user_adresse'] as List<dynamic>? ?? [];
+      if (userAddresses.isEmpty) return true; // Show businesses with no address
+      
+      for (var ua in userAddresses) {
+        final adr = ua['adresse'] ?? {};
+        final v = (adr['ville'] ?? '').toString().toLowerCase().trim();
+        if (v == city) return true;
+      }
+      return false;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> get filteredRestaurants => _filterByCity(restaurants);
+  List<Map<String, dynamic>> get filteredPharmacies => _filterByCity(pharmacies);
+  List<Map<String, dynamic>> get filteredSuperMarkets => _filterByCity(superMarkets);
+  
   Map<String, dynamic>? profile;
   List<dynamic> addresses = [];
   List<dynamic> orders = [];

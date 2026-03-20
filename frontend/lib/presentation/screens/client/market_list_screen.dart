@@ -217,7 +217,7 @@ class _MarketListScreenState extends State<MarketListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    final baseMarkets = clientData.superMarkets;
+    final baseMarkets = clientData.filteredSuperMarkets;
     
     _filteredRestaurants = baseMarkets.where((market) {
       final businessUser = market['app_user'] ?? {};
@@ -346,14 +346,16 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                         size: 16,
                                                       ),
                                                       const SizedBox(width: 6),
-                                                      Text(
-                                                        'Tétouan, Maroc',
-                                                        style: TextStyle(
-                                                          color:
-                                                              AppColors.accent,
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w600,
+                                                      Consumer<ClientDataProvider>(
+                                                        builder: (context, data, _) => Text(
+                                                          '${data.currentCity}, Maroc',
+                                                          style: TextStyle(
+                                                            color:
+                                                                AppColors.accent,
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
                                                         ),
                                                       ),
                                                     ],
