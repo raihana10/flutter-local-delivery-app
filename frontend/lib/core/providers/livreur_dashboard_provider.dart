@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app/data/models/commande_supabase_model.dart';
 import 'package:app/core/providers/auth_provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 class LivreurDashboardProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -16,6 +17,7 @@ class LivreurDashboardProvider extends ChangeNotifier {
   List<CommandeSupabaseModel> _availableCommandes = [];
   CommandeSupabaseModel? _activeCommande;
   StreamSubscription? _commandesSubscription;
+  final Set<int> _ignoredCommandes = {};
 
   LivreurDashboardProvider(this._authProvider) {
     // If the user logs out, clean up
@@ -49,20 +51,33 @@ class LivreurDashboardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _startListeningToCommandes() {
+  void ignorerCommande(int idCommande) {
+    _ignoredCommandes.add(idCommande);
+    _availableCommandes.removeWhere((c) => c.idCommande == idCommande);
+    notifyListeners();
+  }
+
+  void _startListeningToCommandes() async {
     _stopListeningToCommandes();
+
+    Position? pos;
+    try {
+      pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    } catch (_) {}
 
     // Listen to commandes that are confirmed or prepared
     _commandesSubscription = _supabase
         .from('commande')
         .stream(primaryKey: ['id_commande'])
-        .eq('statut_commande', 'confirmee') // Also could listen to 'preparee'
+        .inFilter('statut_commande', const ['confirmee', 'preparee'])
         .listen((data) async {
           if (!_isOnline || _isOnMission) return;
 
           _availableCommandes.clear();
 
           for (var item in data) {
+            if (_ignoredCommandes.contains(item['id_commande'])) continue;
+
             // Need to fetch joined data (adresse, client phone)
             try {
               final response = await _supabase.from('commande').select('''
@@ -74,16 +89,28 @@ class LivreurDashboardProvider extends ChangeNotifier {
                     ligne_commande (
                       quantite,
                       nom_snapshot,
-                      prix_snapshot
+                      prix_snapshot,
+                      produit (
+                        business (
+                          app_user (
+                            nom,
+                            user_adresse (
+                              adresse (latitude, longitude)
+                            )
+                          )
+                        )
+                      )
                     )
                   ''').eq('id_commande', item['id_commande']).single();
 
-              _availableCommandes.add(CommandeSupabaseModel.fromJson(response));
+              _availableCommandes.add(CommandeSupabaseModel.fromJson(response, driverLat: pos?.latitude, driverLng: pos?.longitude));
             } catch (e) {
               debugPrint(
                   'Error fetching joined data for order ${item['id_commande']}: $e');
             }
           }
+          
+          _availableCommandes.sort((a, b) => a.distance.compareTo(b.distance));
           notifyListeners();
         });
   }
@@ -220,7 +247,17 @@ class LivreurDashboardProvider extends ChangeNotifier {
             ligne_commande (
               quantite,
               nom_snapshot,
-              prix_snapshot
+              prix_snapshot,
+              produit (
+                business (
+                  app_user (
+                    nom,
+                    user_adresse (
+                      adresse (latitude, longitude)
+                    )
+                  )
+                )
+              )
             ),
             timeline!inner (
               id_livreur,
