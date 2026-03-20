@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/mock_super_admin_data.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
 
@@ -14,11 +13,13 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _apiService = SuperAdminApiService();
-  
+
   bool _isLoading = true;
   Map<String, dynamic> _stats = {};
   Map<String, dynamic> _alerts = {};
   List<dynamic> _liveDrivers = [];
+  List<dynamic> _chartData = [];
+  List<dynamic> _ordersStatus = [];
 
   @override
   void initState() {
@@ -30,13 +31,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final stats = await _apiService.getKPIs();
       final alerts = await _apiService.getAlerts();
-      final drivers = await _apiService.getLiveDrivers();
-      
+      final driversResponse = await _apiService.getLiveDrivers();
+
       if (mounted) {
         setState(() {
           _stats = stats;
           _alerts = alerts;
-          _liveDrivers = drivers;
+          _liveDrivers = driversResponse is List
+              ? driversResponse
+              : ((driversResponse as Map<String, dynamic>)['data'] as List<dynamic>? ?? []);
+          _chartData = (stats['weeklyRevenue'] as List<dynamic>?) ?? [];
+          _ordersStatus = (stats['ordersByStatus'] as List<dynamic>?) ?? [];
           _isLoading = false;
         });
       }
@@ -85,10 +90,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 1.5,
       children: [
-        _buildKPICard('Commandes Actives', _stats['commandes_actives']?.toString() ?? '0', LucideIcons.package2, AppColors.accent),
-        _buildKPICard('Revenus du jour', '${_stats['revenus_jour'] ?? 0} MAD', LucideIcons.coins, Colors.green),
-        _buildKPICard('Livreurs actifs', _stats['livreurs_actifs']?.toString() ?? '0', LucideIcons.bike, Colors.blue),
-        _buildKPICard('Nouveaux Utilisateurs', _stats['nouveaux_users']?.toString() ?? '0', LucideIcons.userPlus, Colors.purple),
+        _buildKPICard(
+            'Commandes Actives',
+            _stats['commandes_actives']?.toString() ?? '0',
+            LucideIcons.package2,
+            AppColors.accent),
+        _buildKPICard('Revenus du jour', '${_stats['revenus_jour'] ?? 0} MAD',
+            LucideIcons.coins, Colors.green),
+        _buildKPICard(
+            'Livreurs actifs',
+            _stats['livreurs_actifs']?.toString() ?? '0',
+            LucideIcons.bike,
+            Colors.blue),
+        _buildKPICard(
+            'Nouveaux Utilisateurs',
+            _stats['nouveaux_users']?.toString() ?? '0',
+            LucideIcons.userPlus,
+            Colors.purple),
       ],
     );
   }
@@ -110,7 +128,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(fontSize: 14, color: AppColors.mutedForeground),
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.mutedForeground),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -127,7 +146,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Text(
               value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.foreground),
+              style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.foreground),
             ),
           ],
         ),
@@ -137,7 +159,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildChartsSection(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
-    
+
     if (isDesktop) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +190,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Évolution des revenus (Semaine)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Évolution des revenus (Semaine)',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
               height: 250,
@@ -183,8 +206,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= MockSuperAdminData.weeklyRevenue.length) return const Text('');
-                          return Text(MockSuperAdminData.weeklyRevenue[value.toInt()]['day']);
+                          if (value.toInt() >= _chartData.length)
+                            return const Text('');
+                          return Text(_chartData[value.toInt()]['day'] ?? '');
                         },
                         reservedSize: 30,
                       ),
@@ -192,20 +216,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(showTitles: false),
                     ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: const FlGridData(show: false),
                   borderData: FlBorderData(show: false),
-                  barGroups: MockSuperAdminData.weeklyRevenue.asMap().entries.map((entry) {
+                  barGroups: _chartData
+                      .asMap()
+                      .entries
+                      .map((entry) {
                     return BarChartGroupData(
                       x: entry.key,
                       barRods: [
                         BarChartRodData(
-                          toY: entry.value['revenue'].toDouble(),
+                          toY: (entry.value['revenue'] ?? 0).toDouble(),
                           color: AppColors.primary,
                           width: 20,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(4)),
                         )
                       ],
                     );
@@ -229,7 +259,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Statuts des commandes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Statuts des commandes',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
               height: 200,
@@ -237,13 +268,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 PieChartData(
                   sectionsSpace: 2,
                   centerSpaceRadius: 40,
-                  sections: MockSuperAdminData.ordersByStatus.map((status) {
+                  sections: _ordersStatus.map((status) {
                     return PieChartSectionData(
-                      color: Color(status['color']),
-                      value: status['count'].toDouble(),
-                      title: '${status['count']}',
+                      color: Color(status['color'] ?? 0xFF000000),
+                      value: (status['count'] ?? 0).toDouble(),
+                      title: '${status['count'] ?? 0}',
                       radius: 50,
-                      titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      titleStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
                     );
                   }).toList(),
                 ),
@@ -251,14 +285,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
             Column(
-              children: MockSuperAdminData.ordersByStatus.map((status) {
+              children: _ordersStatus.map((status) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Row(
                     children: [
-                      Container(width: 12, height: 12, color: Color(status['color'])),
+                      Container(
+                          width: 12, height: 12, color: Color(status['color'] ?? 0xFF000000)),
                       const SizedBox(width: 8),
-                      Text(status['status']),
+                      Text(status['status'] ?? 'Inconnu'),
                     ],
                   ),
                 );
@@ -278,7 +313,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (var order in blockedOrders) {
       dynamicAlerts.add({
         'titre': 'Commande bloquée',
-        'message': 'La commande #${order['id_commande']} est bloquée depuis ${order['blocked_since']}.',
+        'message':
+            'La commande #${order['id_commande']} est bloquée depuis ${order['blocked_since']}.',
         'type': 'warning',
         'date': 'A l\'instant',
       });
@@ -286,15 +322,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (var user in pendingUsers) {
       dynamicAlerts.add({
         'titre': 'Validation en attente',
-        'message': 'L\'utilisateur #${user['id_user']} attend la validation de ses documents.',
+        'message':
+            'L\'utilisateur #${user['id_user']} attend la validation de ses documents.',
         'type': 'alert',
         'date': 'A l\'instant',
       });
     }
 
-    if (dynamicAlerts.isEmpty) {
-      dynamicAlerts.addAll(MockSuperAdminData.notifications);
-    }
+    // dynamicAlerts.addAll(MockSuperAdminData.notifications);
 
     return Card(
       elevation: 4,
@@ -309,7 +344,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Icon(LucideIcons.bellRing, color: AppColors.destructive),
                 SizedBox(width: 8),
-                Text('Alertes système', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.destructive)),
+                Text('Alertes système',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.destructive)),
               ],
             ),
             const SizedBox(height: 16),
@@ -324,15 +363,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: isAlert ? AppColors.destructive.withOpacity(0.1) : AppColors.accent.withOpacity(0.1),
+                    backgroundColor: isAlert
+                        ? AppColors.destructive.withOpacity(0.1)
+                        : AppColors.accent.withOpacity(0.1),
                     child: Icon(
-                      isAlert ? Icons.warning_amber_rounded : Icons.info_outline,
+                      isAlert
+                          ? Icons.warning_amber_rounded
+                          : Icons.info_outline,
                       color: isAlert ? AppColors.destructive : AppColors.accent,
                     ),
                   ),
-                  title: Text(notif['titre'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(notif['titre'],
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(notif['message']),
-                  trailing: Text(notif['date'], style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                  trailing: Text(notif['date'],
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.mutedForeground)),
                 );
               },
             )
@@ -355,15 +401,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Live Map - Positions des Livreurs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Live Map - Positions des Livreurs',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12)),
                   child: Row(
                     children: [
-                      Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                      Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                              color: Colors.green, shape: BoxShape.circle)),
                       const SizedBox(width: 6),
-                      const Text('En direct', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                      const Text('En direct',
+                          style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
                     ],
                   ),
                 ),
@@ -378,18 +437,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.border),
                 image: const DecorationImage(
-                  // A beautiful, legal, public placeholder map grid image 
-                  image: NetworkImage('https://api.maptiler.com/maps/basic-v2/256/0/0/0.png?key=get_your_own_OpIi9ZULNHzrESv6T2vL'),
+                  // A beautiful, legal, public placeholder map grid image
+                  image: NetworkImage(
+                      'https://api.maptiler.com/maps/basic-v2/256/0/0/0.png?key=get_your_own_OpIi9ZULNHzrESv6T2vL'),
                   fit: BoxFit.cover,
                 ),
               ),
               child: Stack(
-                children: MockSuperAdminData.liveDrivers.map((driver) {
+                children: _liveDrivers.where((d) => 
+                    d['position_order'] != null &&
+                    d['position_order']['lat'] != null &&
+                    d['position_order']['lng'] != null
+                ).map((driver) {
                   final isMission = driver['status'] == 'en_mission';
                   // Simulate coordinates on the center of the viewport
-                  final alignX = (driver['lng'] - (-5.36)) * 10;
-                  final alignY = (driver['lat'] - 35.58) * -10; // Invert lat for visual accuracy
-                  
+                  final alignX = ((driver['position_order']['lng'] as num) - (-5.36)) * 10;
+                  final alignY = ((driver['position_order']['lat'] as num) - 35.58) * -10; // Invert lat for visual accuracy
+
                   return Align(
                     alignment: Alignment(
                       alignX.clamp(-1.0, 1.0),
@@ -404,15 +468,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: isMission ? AppColors.primary : Colors.green,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: [BoxShadow(color: isMission ? AppColors.primary.withOpacity(0.5) : Colors.green.withOpacity(0.5), blurRadius: 8, spreadRadius: 2)],
+                            boxShadow: [
+                              BoxShadow(
+                                  color: isMission
+                                      ? AppColors.primary.withOpacity(0.5)
+                                      : Colors.green.withOpacity(0.5),
+                                  blurRadius: 8,
+                                  spreadRadius: 2)
+                            ],
                           ),
-                          child: Icon(isMission ? LucideIcons.bike : LucideIcons.check, color: Colors.white, size: 16),
+                          child: Icon(
+                              isMission ? LucideIcons.bike : LucideIcons.check,
+                              color: Colors.white,
+                              size: 16),
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)]),
-                          child: Text(driver['nom'], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black12, blurRadius: 4)
+                              ]),
+                          child: Text(driver['nom'],
+                              style: const TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.bold)),
                         )
                       ],
                     ),
@@ -426,4 +508,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
-
