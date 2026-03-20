@@ -3,30 +3,32 @@ import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 
 class DashboardController {
-  
   Future<Response> getKPIs(Request request) async {
     try {
       final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
+      final todayStart = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).toIso8601String();
 
       // Active Orders
       final activeOrdersRes = await SupabaseConfig.client
           .from('commande')
           .select('id_commande')
-          .neq('statut_commande', 'livree')
-          .neq('statut_commande', 'annulee')
+          .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison'])
           .isFilter('deleted_at', null);
-      
+
       // Today's Revenue
       final revenueRes = await SupabaseConfig.client
           .from('commande')
-          .select('prix_donne')
+          .select('prix_total')
           .gte('created_at', todayStart)
           .isFilter('deleted_at', null);
-      
+
       double dailyRevenue = 0.0;
       for (var row in revenueRes) {
-        dailyRevenue += (row['prix_donne'] as num).toDouble();
+        dailyRevenue += (row['prix_total'] as num).toDouble();
       }
 
       // Active Drivers
@@ -43,15 +45,22 @@ class DashboardController {
           .gte('created_at', todayStart)
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({
-        'commandes_actives': activeOrdersRes.length,
-        'revenus_jour': dailyRevenue,
-        'livreurs_actifs': activeDriversRes.length,
-        'nouveaux_users': newUsersRes.length,
-      }), headers: {'content-type': 'application/json'});
-
+      return Response.ok(
+        jsonEncode({
+          'commandes_actives': activeOrdersRes.length,
+          'revenus_jour': dailyRevenue,
+          'livreurs_actifs': activeDriversRes.length,
+          'nouveaux_users': newUsersRes.length,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      print('KPIs ERROR: $e');
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -59,8 +68,10 @@ class DashboardController {
     // Note: Complex analytical group-by queries on PostgREST might require RPC functions
     // We simulate the daily grouping at the application level for recent days
     try {
-      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
-      
+      final sevenDaysAgo = DateTime.now()
+          .subtract(const Duration(days: 7))
+          .toIso8601String();
+
       final recentOrders = await SupabaseConfig.client
           .from('commande')
           .select('created_at, prix_donne')
@@ -69,13 +80,20 @@ class DashboardController {
 
       // Simple aggregation logic would exist here
       // Returning payload directly to satisfy the endpoint shape constraints
-      return Response.ok(jsonEncode({
-        'success': true,
-        'message': 'Chart data aggregated from recent orders',
-        'data': recentOrders
-      }), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({
+          'success': true,
+          'message': 'Chart data aggregated from recent orders',
+          'data': recentOrders,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -89,7 +107,9 @@ class DashboardController {
           .isFilter('deleted_at', null);
 
       // Blocked orders > 30min (simulated check here, DB usually has a created_at)
-      final thirtyMinsAgo = DateTime.now().subtract(const Duration(minutes: 30)).toIso8601String();
+      final thirtyMinsAgo = DateTime.now()
+          .subtract(const Duration(minutes: 30))
+          .toIso8601String();
       final blockedOrders = await SupabaseConfig.client
           .from('commande')
           .select('id_commande, statut_commande, created_at')
@@ -97,13 +117,19 @@ class DashboardController {
           .lte('created_at', thirtyMinsAgo)
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({
-        'pending_validations': pendingDocs,
-        'blocked_orders': blockedOrders,
-      }), headers: {'content-type': 'application/json'});
-
+      return Response.ok(
+        jsonEncode({
+          'pending_validations': pendingDocs,
+          'blocked_orders': blockedOrders,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -111,13 +137,32 @@ class DashboardController {
     try {
       final liveDrivers = await SupabaseConfig.client
           .from('timeline')
-          .select('id_livreur, position_order')
+          .select('id_livreur, position_order, statut_tmlne, livreur(id_livreur, app_user:id_user(nom))')
           .eq('statut_tmlne', 'en_livraison')
           .isFilter('deleted_at', null);
 
-      return Response.ok(jsonEncode({'data': liveDrivers}), headers: {'content-type': 'application/json'});
+      final formatted = liveDrivers.map((d) {
+        final livreur = d['livreur'];
+        final user = livreur != null ? livreur['app_user'] : null;
+        return {
+          'id_livreur': d['id_livreur'],
+          'position_order': d['position_order'],
+          'statut_tmlne': d['statut_tmlne'],
+          'nom': user?['nom'] ?? 'Livreur #${d['id_livreur']}',
+          'status': d['statut_tmlne'] == 'en_livraison' ? 'en_mission' : 'libre',
+        };
+      }).toList();
+
+      return Response.ok(
+        jsonEncode({'data': formatted}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }
