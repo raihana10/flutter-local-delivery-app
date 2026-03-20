@@ -224,7 +224,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     // Convert API data to map format and apply search query locally.
     // In production, filtering should probably be done effectively either via provider sorting 
     // or by backend endpoints passing '?search=' and '?category='. 
-    final baseRestaurants = clientData.restaurants;
+    final baseRestaurants = clientData.filteredRestaurants;
     
     _filteredRestaurants = baseRestaurants.where((restaurant) {
       final businessUser = restaurant['app_user'] ?? {};
@@ -354,14 +354,16 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                         size: 16,
                                                       ),
                                                       const SizedBox(width: 6),
-                                                      Text(
-                                                        'Tétouan, Maroc',
-                                                        style: TextStyle(
-                                                          color:
-                                                              AppColors.accent,
-                                                          fontSize: 13,
-                                                          fontWeight:
-                                                              FontWeight.w600,
+                                                      Consumer<ClientDataProvider>(
+                                                        builder: (context, data, _) => Text(
+                                                          '${data.currentCity}, Maroc',
+                                                          style: TextStyle(
+                                                            color:
+                                                                AppColors.accent,
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
                                                         ),
                                                       ),
                                                     ],

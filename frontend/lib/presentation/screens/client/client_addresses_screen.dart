@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 
 import 'package:provider/provider.dart';
 import '../../../core/providers/client_data_provider.dart';
+import '../../../core/services/location_service.dart';
 
 class ClientAddressesScreen extends StatefulWidget {
   const ClientAddressesScreen({super.key});
@@ -191,153 +192,251 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return const _AddAddressBottomSheet();
+      },
+    );
+  }
+}
+
+class _AddAddressBottomSheet extends StatefulWidget {
+  const _AddAddressBottomSheet();
+
+  @override
+  State<_AddAddressBottomSheet> createState() => _AddAddressBottomSheetState();
+}
+
+class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
+  final _titleController = TextEditingController();
+  final _villeController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _locationService = LocationService();
+  
+  double? _latitude;
+  double? _longitude;
+  bool _isLoadingGps = false;
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _villeController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingGps = true);
+    
+    try {
+      final position = await _locationService.getCurrentPosition();
+      if (position != null) {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+
+        final addressData = await _locationService.getAddressFromCoordinates(_latitude!, _longitude!);
+        if (addressData != null && addressData['address'] != null) {
+          final address = addressData['address'];
+          final city = address['city'] ?? address['town'] ?? address['village'] ?? address['state'] ?? 'Inconnue';
+          final road = address['road'] ?? '';
+          final num = address['house_number'] ?? '';
+          
+          setState(() {
+            _villeController.text = city;
+            _addressController.text = '$num $road'.trim();
+            if (_titleController.text.isEmpty) {
+              _titleController.text = 'Position actuelle';
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Position GPS trouvée')));
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'obtenir la position GPS. Avez-vous autorisé la localisation ?')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la géolocalisation')));
+    } finally {
+      setState(() => _isLoadingGps = false);
+    }
+  }
+
+  Future<void> _saveAddress() async {
+    if (_villeController.text.isEmpty || _latitude == null || _longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Veuillez rechercher une adresse exacte ou utiliser la géolocalisation.')));
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    final success = await context.read<ClientDataProvider>().addAddress({
+      'titre': _titleController.text.isEmpty ? 'Adresse' : _titleController.text,
+      'ville': _villeController.text,
+      'latitude': _latitude,
+      'longitude': _longitude,
+      'is_default': false,
+    });
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      Navigator.pop(context);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse ajoutée avec succès')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de l\'ajout de l\'adresse')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Ajouter une adresse',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Ajouter une adresse',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+          const SizedBox(height: 24),
+          
+          // Geolocation Button
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              foregroundColor: AppColors.primary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: AppColors.primary),
               ),
-              const SizedBox(height: 24),
+            ),
+            onPressed: _isLoadingGps ? null : _getCurrentLocation,
+            icon: _isLoadingGps 
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location),
+            label: Text(_isLoadingGps ? 'Recherche en cours...' : 'Utiliser ma position actuelle', style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          
+          const SizedBox(height: 24),
+          const Center(child: Text('OU', style: TextStyle(color: AppColors.mutedForeground, fontWeight: FontWeight.bold))),
+          const SizedBox(height: 24),
 
-              // Geolocation Button
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  foregroundColor: AppColors.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.primary),
+          // Manual Entry Form
+          TextField(
+            controller: _titleController,
+            decoration: InputDecoration(
+              labelText: 'Titre (ex: Maison, Bureau)',
+              filled: true,
+              fillColor: AppColors.card,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          Autocomplete<Map<String, dynamic>>(
+            optionsBuilder: (TextEditingValue textEditingValue) async {
+              if (textEditingValue.text.length < 3) {
+                return const Iterable<Map<String, dynamic>>.empty();
+              }
+              return await _locationService.searchAddress(textEditingValue.text);
+            },
+            displayStringForOption: (option) => option['display_name'] ?? '',
+            onSelected: (Map<String, dynamic> selection) {
+              setState(() {
+                _latitude = double.tryParse(selection['lat']?.toString() ?? '');
+                _longitude = double.tryParse(selection['lon']?.toString() ?? '');
+                _addressController.text = selection['display_name'] ?? '';
+                
+                final address = selection['address'];
+                if (address != null) {
+                  _villeController.text = address['city'] ?? address['town'] ?? address['village'] ?? address['state'] ?? '';
+                }
+              });
+            },
+            fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+              if (_addressController.text.isNotEmpty && textEditingController.text.isEmpty) {
+                 textEditingController.text = _addressController.text;
+              }
+              return TextField(
+                controller: textEditingController,
+                focusNode: focusNode,
+                maxLines: 2,
+                minLines: 1,
+                decoration: InputDecoration(
+                  labelText: 'Rechercher une adresse exacte',
+                  filled: true,
+                  fillColor: AppColors.card,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.mutedForeground),
+                ),
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width - 48,
+                    color: AppColors.card,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(option['display_name'] ?? '', style: const TextStyle(fontSize: 14)),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Recherche de votre position GPS en cours...')),
-                  );
-                  // Simulate fetching geolocation and adding
-                  Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) {
-                      context.read<ClientDataProvider>().addAddress({
-                        'ville': 'Tétouan',
-                        'latitude': 35.5800,
-                        'longitude': -5.3700,
-                        'is_default': false,
-                        'titre': 'Position actuelle',
-                      }).then((success) {
-                        if (mounted && success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Adresse GPS ajoutée')));
-                        }
-                      });
-                    }
-                  });
-                },
-                icon: const Icon(Icons.my_location),
-                label: const Text('Utiliser ma position actuelle',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-
-              const SizedBox(height: 24),
-              const Center(
-                  child: Text('OU',
-                      style: TextStyle(
-                          color: AppColors.mutedForeground,
-                          fontWeight: FontWeight.bold))),
-              const SizedBox(height: 24),
-
-              // Manual Entry Form
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Titre (ex: Maison, Bureau)',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Ville',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                onChanged: (val) {
-                  // We would bind a controller here for city
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Adresse complète',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () async {
-                  // Fake manual address data
-                  final success =
-                      await context.read<ClientDataProvider>().addAddress({
-                    'ville': 'Tétouan', // In real life, value from controller
-                    'latitude': 35.5800,
-                    'longitude': -5.3700,
-                  });
-                  if (mounted) {
-                    Navigator.pop(context);
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Adresse ajoutée manuellement')));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Erreur ajout d\'adresse')));
-                    }
-                  }
-                },
-                child: const Text('Enregistrer l\'adresse',
-                    style: TextStyle(
-                        color: AppColors.card, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 24),
-            ],
+              );
+            },
           ),
-        );
-      },
+          const SizedBox(height: 16),
+          TextField(
+            controller: _villeController,
+            decoration: InputDecoration(
+              labelText: 'Ville',
+              filled: true,
+              fillColor: AppColors.card,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: _isSaving ? null : _saveAddress,
+            child: _isSaving 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.card, strokeWidth: 2))
+                : const Text('Enregistrer l\'adresse', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
     );
   }
 }
