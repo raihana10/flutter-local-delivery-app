@@ -3,15 +3,12 @@ import 'package:shelf/shelf.dart';
 import '../../supabase/supabase_client.dart';
 
 class ClientBusinessesController {
+  
   // Get businesses by type (restaurant, super-marche, pharmacie)
   Future<Response> getBusinessesByType(Request request) async {
     final type = request.url.queryParameters['type'];
     if (type == null || type.isEmpty) {
-      return Response(
-        400,
-        body: jsonEncode({'error': 'type parameter is required'}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response(400, body: jsonEncode({'error': 'type parameter is required'}), headers: {'content-type': 'application/json'});
     }
 
     try {
@@ -22,16 +19,9 @@ class ClientBusinessesController {
           .eq('est_actif', true)
           .isFilter('deleted_at', null);
 
-      return Response.ok(
-        jsonEncode({'data': businesses}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response.ok(jsonEncode({'data': businesses}), headers: {'content-type': 'application/json'});
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
     }
   }
 
@@ -49,16 +39,9 @@ class ClientBusinessesController {
         return Response.notFound(jsonEncode({'error': 'Business not found'}));
       }
 
-      return Response.ok(
-        jsonEncode({'data': business}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response.ok(jsonEncode({'data': business}), headers: {'content-type': 'application/json'});
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
     }
   }
 
@@ -71,16 +54,9 @@ class ClientBusinessesController {
           .eq('id_business', id)
           .isFilter('deleted_at', null);
 
-      return Response.ok(
-        jsonEncode({'data': products}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response.ok(jsonEncode({'data': products}), headers: {'content-type': 'application/json'});
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
     }
   }
 
@@ -90,19 +66,14 @@ class ClientBusinessesController {
       final reviews = await SupabaseConfig.client
           .from('store_review')
           .select('*, client(*, app_user(*))')
-          .eq('id_business', id)
+          .eq('id_business', int.tryParse(id) ?? id)
           .isFilter('deleted_at', null);
 
-      return Response.ok(
-        jsonEncode({'data': reviews}),
-        headers: {'content-type': 'application/json'},
-      );
+      print('DEBUG: Found ${reviews.length} reviews for business $id');
+      return Response.ok(jsonEncode({'data': reviews}), headers: {'content-type': 'application/json'});
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      print('getBusinessReviews Error for $id: $e');
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
     }
   }
 }

@@ -139,6 +139,20 @@ class ClientApiService {
     }
   }
 
+  Future<bool> addBusinessReview(String id, int rating, String comment) async {
+    try {
+      final response = await _dio.post(
+        '$baseUrl/client/businesses/$id/reviews', 
+        data: {'rating': rating, 'comment': comment}, 
+        options: _getAuthOptions()
+      );
+      return response.data['success'] == true;
+    } catch (e) {
+      print('addBusinessReview Error: $e');
+      return false;
+    }
+  }
+
   // --- Favorites ---
 
   Future<List<dynamic>> getFavorites() async {

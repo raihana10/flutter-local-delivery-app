@@ -9,9 +9,14 @@ import 'client_payment_methods_screen.dart';
 
 import '../../../core/providers/client_data_provider.dart';
 
-class ClientProfileScreen extends StatelessWidget {
+class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
 
+  @override
+  State<ClientProfileScreen> createState() => _ClientProfileScreenState();
+}
+
+class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final authUser = context.watch<AuthProvider>().user;
@@ -21,8 +26,7 @@ class ClientProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mon Profil',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Mon Profil', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.foreground,
         elevation: 0,
@@ -33,32 +37,21 @@ class ClientProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             // User Header
-            _buildProfileHeader(context, profile, authUser),
+            _buildProfileHeader(profile, authUser),
             const SizedBox(height: 32),
 
             // Profile Sections
             _buildSection(
               title: 'Paramètres du compte',
               items: [
-                _buildListTile(
-                    Icons.person_outline, 'Informations personnelles',
-                    onTap: () {
+                _buildListTile(Icons.person_outline, 'Informations personnelles', onTap: () {
                   _showEditProfileDialog(context, profile, authUser);
                 }),
-                _buildListTile(
-                    Icons.location_on_outlined, 'Adresses de livraison',
-                    onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ClientAddressesScreen()));
+                _buildListTile(Icons.location_on_outlined, 'Adresses de livraison', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientAddressesScreen()));
                 }),
-                _buildListTile(Icons.payment_outlined, 'Moyens de paiement',
-                    onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ClientPaymentMethodsScreen()));
+                _buildListTile(Icons.payment_outlined, 'Moyens de paiement', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ClientPaymentMethodsScreen()));
                 }),
               ],
             ),
@@ -66,22 +59,16 @@ class ClientProfileScreen extends StatelessWidget {
             _buildSection(
               title: 'Préférences',
               items: [
-                _buildListTile(Icons.notifications_none, 'Mes notifications',
-                    onTap: () {
+                _buildListTile(Icons.notifications_none, 'Mes notifications', onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => const ClientNotificationsScreen()),
+                    MaterialPageRoute(builder: (_) => const ClientNotificationsScreen()),
                   );
                 }),
-                _buildListTile(Icons.notifications_active_outlined,
-                    'Paramètres des notifications', onTap: () {
+                _buildListTile(Icons.notifications_active_outlined, 'Paramètres des notifications', onTap: () {
                   _showNotificationSettingsBottomSheet(context);
                 }),
-                _buildListTile(Icons.language, 'Langue',
-                    trailing: Text('Français',
-                        style: TextStyle(color: AppColors.mutedForeground)),
-                    onTap: () {
+                _buildListTile(Icons.language, 'Langue', trailing: Text('Français', style: TextStyle(color: AppColors.mutedForeground)), onTap: () {
                   _showLanguageDialog(context);
                 }),
                 Consumer<ThemeProvider>(
@@ -104,29 +91,29 @@ class ClientProfileScreen extends StatelessWidget {
             _buildSection(
               title: 'Autre',
               items: [
-                _buildListTile(Icons.help_outline, 'Aide et support',
-                    onTap: () {}),
+                _buildListTile(Icons.help_outline, 'Aide et support', onTap: () {}),
                 _buildListTile(Icons.info_outline, 'À propos', onTap: () {}),
               ],
             ),
             const SizedBox(height: 32),
-
+            
             // Logout Button
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.destructive.withOpacity(0.1),
                 foregroundColor: AppColors.destructive,
                 minimumSize: const Size(double.infinity, 54),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              onPressed: () {
-                context.read<AuthProvider>().logout();
+              onPressed: () async {
+                await context.read<AuthProvider>().logout();
+                if (mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                }
               },
               icon: const Icon(Icons.logout),
-              label: const Text('Se déconnecter',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              label: const Text('Se déconnecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 40),
           ],
@@ -135,42 +122,18 @@ class ClientProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(
-      BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
+  Widget _buildProfileHeader(Map<String, dynamic>? profile, dynamic authUser) {
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 2),
-              ),
-              child: const Icon(
-                Icons.person,
-                size: 50,
-                color: AppColors.primary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                _showEditPhotoBottomSheet(context);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: AppColors.accent,
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    Icon(Icons.camera_alt, size: 16, color: AppColors.primary),
-              ),
-            ),
-          ],
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.primary, width: 2),
+          ),
+          child: const Icon(Icons.person, size: 50, color: AppColors.primary),
         ),
         const SizedBox(height: 16),
         Text(
@@ -230,11 +193,7 @@ class ClientProfileScreen extends StatelessWidget {
                 children: [
                   item,
                   if (idx < items.length - 1)
-                    Divider(
-                        height: 1,
-                        indent: 56,
-                        endIndent: 16,
-                        color: AppColors.border),
+                    Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.border),
                 ],
               );
             }).toList(),
@@ -244,8 +203,7 @@ class ClientProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildListTile(IconData icon, String title,
-      {Widget? trailing, VoidCallback? onTap}) {
+  Widget _buildListTile(IconData icon, String title, {Widget? trailing, VoidCallback? onTap}) {
     return ListTile(
       onTap: onTap,
       leading: Container(
@@ -263,53 +221,18 @@ class ClientProfileScreen extends StatelessWidget {
           color: AppColors.foreground,
         ),
       ),
-      trailing: trailing ??
-          Icon(Icons.arrow_forward_ios,
-              size: 16, color: AppColors.mutedForeground),
+      trailing: trailing ?? Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.mutedForeground),
     );
   }
 
-  void _showEditPhotoBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choisir depuis la galerie'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Ouverture de la galerie...')));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Prendre une photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Ouverture de l\'appareil photo...')));
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  // Removed _showEditPhotoBottomSheet because client has no photo field in DB
 
-  void _showEditProfileDialog(
-      BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
+
+  void _showEditProfileDialog(BuildContext context, Map<String, dynamic>? profile, dynamic authUser) {
     String getName() => profile?['nom'] ?? authUser?.nom ?? '';
     String getEmail() => profile?['email'] ?? authUser?.email ?? '';
     String getPhone() => profile?['num_tl'] ?? '';
-
+    
     // Extract client relation info if it exists
     Map<String, dynamic>? clientInfo;
     if (profile?['client'] is List && (profile?['client'] as List).isNotEmpty) {
@@ -321,114 +244,97 @@ class ClientProfileScreen extends StatelessWidget {
     String getBirthDate() => clientInfo?['date_naissance'] ?? '';
     String getSexe() => clientInfo?['sexe'] ?? 'femme';
 
-    final TextEditingController nameController =
-        TextEditingController(text: getName());
-    final TextEditingController emailController =
-        TextEditingController(text: getEmail());
-    final TextEditingController phoneController =
-        TextEditingController(text: getPhone());
-    final TextEditingController birthDateController =
-        TextEditingController(text: getBirthDate());
+    final TextEditingController nameController = TextEditingController(text: getName());
+    final TextEditingController emailController = TextEditingController(text: getEmail());
+    final TextEditingController phoneController = TextEditingController(text: getPhone());
+    final TextEditingController birthDateController = TextEditingController(text: getBirthDate());
     String selectedGender = getSexe();
-    if (selectedGender != 'homme' && selectedGender != 'femme')
-      selectedGender = 'femme';
+    if (selectedGender != 'homme' && selectedGender != 'femme') selectedGender = 'femme';
 
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Modifier le profil'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                        labelText: 'Nom', hintText: 'Votre nom'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: emailController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                        labelText: 'Email', hintText: 'Votre email'),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: phoneController,
-                    decoration: const InputDecoration(
-                        labelText: 'Numéro de téléphone',
-                        hintText: 'Ex: +212...'),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: birthDateController,
-                    decoration: const InputDecoration(
-                        labelText: 'Date de naissance', hintText: 'JJ/MM/AAAA'),
-                    keyboardType: TextInputType.datetime,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedGender,
-                    decoration: const InputDecoration(labelText: 'Sexe'),
-                    items: const [
-                      DropdownMenuItem(value: 'homme', child: Text('Homme')),
-                      DropdownMenuItem(value: 'femme', child: Text('Femme')),
-                    ],
-                    onChanged: (val) {
-                      setState(() {
-                        if (val != null) selectedGender = val;
-                      });
-                    },
-                  ),
-                ],
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Modifier le profil'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Nom', hintText: 'Votre nom'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: emailController,
+                      readOnly: true,
+                      decoration: const InputDecoration(labelText: 'Email', hintText: 'Votre email'),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: phoneController,
+                      decoration: const InputDecoration(labelText: 'Numéro de téléphone', hintText: 'Ex: +212...'),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: birthDateController,
+                      decoration: const InputDecoration(labelText: 'Date de naissance', hintText: 'JJ/MM/AAAA'),
+                      keyboardType: TextInputType.datetime,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedGender,
+                      decoration: const InputDecoration(labelText: 'Sexe'),
+                      items: const [
+                        DropdownMenuItem(value: 'homme', child: Text('Homme')),
+                        DropdownMenuItem(value: 'femme', child: Text('Femme')),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          if (val != null) selectedGender = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Annuler',
-                    style: TextStyle(color: AppColors.mutedForeground)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary),
-                onPressed: () async {
-                  final data = {
-                    'nom': nameController.text.trim(),
-                    'num_tl': phoneController.text.trim(),
-                    'sexe': selectedGender,
-                    'date_naissance': birthDateController.text.trim(),
-                  };
-
-                  final success = await context
-                      .read<ClientDataProvider>()
-                      .updateProfile(data);
-
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(success
-                              ? 'Profil mis à jour avec succès'
-                              : 'Erreur lors de la mise à jour')),
-                    );
-                  }
-                },
-                child: const Text('Enregistrer',
-                    style: TextStyle(color: AppColors.card)),
-              ),
-            ],
-          );
-        });
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                final data = {
+                  'nom': nameController.text.trim(),
+                  'num_tl': phoneController.text.trim(),
+                  'sexe': selectedGender,
+                  'date_naissance': birthDateController.text.trim(),
+                };
+                
+                final success = await context.read<ClientDataProvider>().updateProfile(data);
+                
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(success ? 'Profil mis à jour avec succès' : 'Erreur lors de la mise à jour')),
+                  );
+                }
+              },
+              child: const Text('Enregistrer', style: TextStyle(color: AppColors.card)),
+            ),
+          ],
+        );
+          }
+        );
       },
     );
   }
-
   void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -447,16 +353,14 @@ class ClientProfileScreen extends StatelessWidget {
                 title: const Text('Arabe'),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Langue changée en Arabe')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Langue changée en Arabe')));
                 },
               ),
               ListTile(
                 title: const Text('Anglais'),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Langue changée en Anglais')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Langue changée en Anglais')));
                 },
               ),
             ],
@@ -488,51 +392,34 @@ class ClientProfileScreen extends StatelessWidget {
                   children: [
                     const Text(
                       'Paramètres des notifications',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.foreground),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.foreground),
                     ),
                     const SizedBox(height: 24),
                     SwitchListTile(
-                      title: const Text('Notifications Push',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text(
-                          'Autoriser les alertes sur votre téléphone',
-                          style: TextStyle(color: AppColors.mutedForeground)),
+                      title: const Text('Notifications Push', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Autoriser les alertes sur votre téléphone', style: TextStyle(color: AppColors.mutedForeground)),
                       activeColor: AppColors.primary,
                       value: pushEnabled,
                       onChanged: (val) => setState(() => pushEnabled = val),
                     ),
                     SwitchListTile(
-                      title: const Text('Mises à jour de livraison',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Suivi de commande, statut livreur',
-                          style: TextStyle(color: AppColors.mutedForeground)),
+                      title: const Text('Mises à jour de livraison', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Suivi de commande, statut livreur', style: TextStyle(color: AppColors.mutedForeground)),
                       activeColor: AppColors.primary,
                       value: deliveryUpdatesEnabled,
-                      onChanged: pushEnabled
-                          ? (val) =>
-                              setState(() => deliveryUpdatesEnabled = val)
-                          : null,
+                      onChanged: pushEnabled ? (val) => setState(() => deliveryUpdatesEnabled = val) : null,
                     ),
                     SwitchListTile(
-                      title: const Text('Promotions & Offres',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Nouveaux restaurants, réductions',
-                          style: TextStyle(color: AppColors.mutedForeground)),
+                      title: const Text('Promotions & Offres', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Nouveaux restaurants, réductions', style: TextStyle(color: AppColors.mutedForeground)),
                       activeColor: AppColors.primary,
                       value: promoEnabled,
-                      onChanged: pushEnabled
-                          ? (val) => setState(() => promoEnabled = val)
-                          : null,
+                      onChanged: pushEnabled ? (val) => setState(() => promoEnabled = val) : null,
                     ),
                     const Divider(height: 32),
                     SwitchListTile(
-                      title: const Text('Notifications par Email',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Recevoir les reçus par email',
-                          style: TextStyle(color: AppColors.mutedForeground)),
+                      title: const Text('Notifications par Email', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Recevoir les reçus par email', style: TextStyle(color: AppColors.mutedForeground)),
                       activeColor: AppColors.primary,
                       value: emailEnabled,
                       onChanged: (val) => setState(() => emailEnabled = val),
@@ -542,22 +429,15 @@ class ClientProfileScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         minimumSize: const Size(double.infinity, 54),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Paramètres de notifications enregistrés')),
+                          const SnackBar(content: Text('Paramètres de notifications enregistrés')),
                         );
                       },
-                      child: const Text('Enregistrer',
-                          style: TextStyle(
-                              color: AppColors.card,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
+                      child: const Text('Enregistrer', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ],
                 ),

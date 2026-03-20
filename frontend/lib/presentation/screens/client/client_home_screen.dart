@@ -235,7 +235,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                         const Color(0xFFE53935),
                         () => setState(() => _selectedCategory = 'pharmacie')),
                     _buildCategoryCircle(
-                        'Supermarché',
+                        'Courses',
                         '🛒',
                         _supermarcheScale,
                         const Color(0xFF43A047),
@@ -772,7 +772,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     if (data.restaurants.isEmpty) return const SizedBox.shrink();
 
     final restaurantInfo = data.restaurants[index % data.restaurants.length];
-    final user = restaurantInfo['user'] ?? {};
+    final user = restaurantInfo['app_user'] ?? {};
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

@@ -216,18 +216,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
-
-    // Replace mockup filtering with API data processing
-    final basePharmacies = clientData.restaurants
-        .where((r) => r['type_business'] == 'pharmacie')
-        .toList();
-
+    
+    final basePharmacies = clientData.pharmacies;
+    
     _filteredRestaurants = basePharmacies.where((pharmacy) {
-      final businessUser = pharmacy['user'] ?? {};
+      final businessUser = pharmacy['app_user'] ?? {};
       final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
       // Category filtering bypassed here because we would need backend mapping.
-      bool matchesSearch =
-          _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
       return matchesSearch;
     }).toList();
 
@@ -373,8 +369,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          ClientNotificationsScreen(),
+                                                      builder: (_) => ClientNotificationsScreen(),
                                                     ),
                                                   );
                                                 },
@@ -383,16 +378,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                   height: 48,
                                                   decoration: BoxDecoration(
                                                     color: AppColors.accent,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            16),
+                                                    borderRadius: BorderRadius.circular(16),
                                                     boxShadow: [
                                                       BoxShadow(
-                                                        color: AppColors.accent
-                                                            .withOpacity(0.4),
+                                                        color: AppColors.accent.withOpacity(0.4),
                                                         blurRadius: 12,
-                                                        offset:
-                                                            const Offset(0, 4),
+                                                        offset: const Offset(0, 4),
                                                       ),
                                                     ],
                                                   ),
@@ -400,36 +391,23 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                     alignment: Alignment.center,
                                                     children: [
                                                       const Icon(
-                                                        Icons
-                                                            .notifications_none,
-                                                        color:
-                                                            AppColors.primary,
+                                                        Icons.notifications_none,
+                                                        color: AppColors.primary,
                                                         size: 24,
                                                       ),
-                                                      Consumer<
-                                                          ClientDataProvider>(
-                                                        builder:
-                                                            (context, data, _) {
-                                                          final hasUnread = data
-                                                              .notifications
-                                                              .any((n) =>
-                                                                  n['lu'] ==
-                                                                  false);
-                                                          if (!hasUnread)
-                                                            return const SizedBox
-                                                                .shrink();
+                                                      Consumer<ClientDataProvider>(
+                                                        builder: (context, data, _) {
+                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
                                                             right: 8,
                                                             child: Container(
                                                               width: 8,
                                                               height: 8,
-                                                              decoration:
-                                                                  const BoxDecoration(
-                                                                color: AppColors
-                                                                    .destructive,
-                                                                shape: BoxShape
-                                                                    .circle,
+                                                              decoration: const BoxDecoration(
+                                                                color: AppColors.destructive,
+                                                                shape: BoxShape.circle,
                                                               ),
                                                             ),
                                                           );
@@ -723,12 +701,11 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Pharmacies proches', !_showAll ? 'Voir tout' : '',
-                            () {
-                          setState(() {
-                            _showAll = true;
-                          });
-                        }),
+                            'Pharmacies proches', !_showAll ? 'Voir tout' : '', () {
+                              setState(() {
+                                _showAll = true;
+                              });
+                            }),
                         const SizedBox(height: 12),
 
                         // Display message if no restaurants found
@@ -788,9 +765,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _showAll
-                                ? _filteredRestaurants.length
-                                : min(_filteredRestaurants.length, 3),
+                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
                             itemBuilder: (context, index) {
                               return _buildRestaurantCard(
                                   _filteredRestaurants[index], index);
@@ -804,6 +779,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 ),
               ],
             ),
+
           ],
         ),
       ),
@@ -912,8 +888,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) => const ClientFavoritesScreen()),
+                    MaterialPageRoute(builder: (_) => const ClientFavoritesScreen()),
                   );
                 },
               ),
@@ -1259,7 +1234,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
   }
 
   Widget _buildRestaurantCard(Map<String, dynamic> pharmacyInfo, int index) {
-    final businessUser = pharmacyInfo['user'] ?? {};
+    final businessUser = pharmacyInfo['app_user'] ?? {};
     final idBusiness = pharmacyInfo['id_business'] ?? '0';
 
     return Container(
@@ -1315,14 +1290,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: pharmacyInfo['pdp'] != null
+                        image: pharmacyInfo['pdp'] != null 
                             ? DecorationImage(
                                 image: NetworkImage(pharmacyInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: pharmacyInfo['pdp'] == null
+                      child: pharmacyInfo['pdp'] == null 
                           ? Center(
                               child: Text(
                                 '💊',
