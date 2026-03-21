@@ -8,6 +8,7 @@ import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_stats_screen.dart';
 
 class HistoriqueScreen extends StatefulWidget {
   const HistoriqueScreen({super.key});
@@ -74,9 +75,9 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
 
           // ── Bottom Nav ──────────────────────────────────────
           LivreurBottomNavBar(
-            currentIndex: 2,
+            currentIndex: 3,
             onTap: (i) {
-              if (i == 2) return;
+              if (i == 3) return;
               final provider = context.read<LivreurDashboardProvider>();
               if (i == 0) {
                 Navigator.pushReplacement(
@@ -88,7 +89,12 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: provider.activeCommande)),
                 );
-              } else if (i == 3) {
+              } else if (i == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => LivreurStatsScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 4) {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(pageBuilder: (_,__,___) => const LivreurProfileScreen(), transitionDuration: Duration.zero),
