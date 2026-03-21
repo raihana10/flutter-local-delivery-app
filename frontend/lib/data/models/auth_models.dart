@@ -159,12 +159,13 @@ class RegisterRequest {
   final UserRole role;
   final String? sexe;
   final DateTime? dateNaissance;
-  // Additional fields for role-specific data
-  final String? cni; // For livreur
-  final String? businessType; // For business
-  final String? businessDescription; // For business
-  final String? vehicleType; // For livreur
-  final List<String>? documents; // For livreur
+  final String? cni;
+  final String? businessType;
+  final String? businessDescription;
+  final String? businessPdp;        // ← URL logo uploadé
+  final String? documentsValidation; // ← URL(s) documents uploadés
+  final double? latitude;
+  final double? longitude;
 
   const RegisterRequest({
     required this.email,
@@ -177,27 +178,28 @@ class RegisterRequest {
     this.cni,
     this.businessType,
     this.businessDescription,
-    this.vehicleType,
-    this.documents,
+    this.businessPdp,
+    this.documentsValidation,
+    this.latitude,
+    this.longitude,
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-      'nom': nom,
-      'num_tl': numTl,
-      'role': role.value,
-      'sexe': sexe,
-      'date_naissance':
-          dateNaissance?.toIso8601String().split('T')[0], // Format YYYY-MM-DD
-      'cni': cni,
-      'business_type': businessType,
-      'business_description': businessDescription,
-      'vehicle_type': vehicleType,
-      'documents': documents,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'email': email,
+    'password': password,
+    'nom': nom,
+    'num_tl': numTl,
+    'role': role.value,
+    'sexe': sexe,
+    'date_naissance': dateNaissance?.toIso8601String(),
+    'cni': cni,
+    'business_type': businessType,
+    'business_description': businessDescription,
+    'business_pdp': businessPdp,
+    'documents_validation': documentsValidation,
+    'latitude': latitude,
+    'longitude': longitude,
+  };
 }
 
 class Livreur {

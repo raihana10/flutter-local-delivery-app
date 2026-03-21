@@ -57,6 +57,7 @@ void main(List<String> args) async {
 
   // Mount API modules
   router.mount('/admin', AuthRoutes().router);
+  router.mount('/auth', AuthRoutes().router);
   router.mount('/admin/dashboard', DashboardRoutes().router);
   router.mount('/admin/users', UsersRoutes().router);
   router.mount('/admin/commandes', CommandesRoutes().router);

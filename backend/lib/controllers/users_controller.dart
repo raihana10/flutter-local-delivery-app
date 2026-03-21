@@ -215,11 +215,6 @@ class UsersController {
       final table = role == 'livreur' ? 'livreur' : 'business';
       final Map<String, dynamic> updateData = {'est_actif': true};
 
-      if (role == 'business') {
-        updateData['documents_validation'] =
-            'validated'; // in schema this is a varchar
-      }
-
       final updatedUser = await SupabaseConfig.client
           .from(table)
           .update(updateData)

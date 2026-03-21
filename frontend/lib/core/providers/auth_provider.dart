@@ -174,31 +174,72 @@ class AuthProvider extends ChangeNotifier {
         final responseUser =
             await _supabase.from('app_user').insert(userData).select().single();
         final int userId = responseUser['id_user'];
+        
+        // Prepare constraints for Postgres
+        String? dateNaissanceStr;
+        if (request.dateNaissance != null) {
+          dateNaissanceStr = "\${request.dateNaissance!.year}-\${request.dateNaissance!.month.toString().padLeft(2, '0')}-\${request.dateNaissance!.day.toString().padLeft(2, '0')}";
+        }
+
+        String? cleanDocsUrl = request.documentsValidation;
+        if (cleanDocsUrl != null && cleanDocsUrl.isNotEmpty) {
+          cleanDocsUrl = cleanDocsUrl.replaceAll(RegExp(r'https:\/\/[^\/]+\/storage\/v1\/object\/public\/alae\/'), '');
+        }
+
+        String? cleanPdpUrl = request.businessPdp;
+        if (cleanPdpUrl != null && cleanPdpUrl.isNotEmpty) {
+          cleanPdpUrl = cleanPdpUrl.replaceAll(RegExp(r'https:\/\/[^\/]+\/storage\/v1\/object\/public\/alae\/'), '');
+        }
 
         // 3. Insert into the role-specific table based on UserRole
         if (request.role == UserRole.client) {
           await _supabase.from('client').insert({
             'id_user': userId,
             'sexe': request.sexe,
+            'date_naissance': dateNaissanceStr,
           });
         } else if (request.role == UserRole.livreur) {
           await _supabase.from('livreur').insert({
             'id_user': userId,
             'sexe': request.sexe,
+            'date_naissance': dateNaissanceStr,
             'cni': request.cni,
+            'documents_validation': cleanDocsUrl,
+            'est_actif': false,
           });
         } else if (request.role == UserRole.business) {
           String bt = 'restaurant';
           if (request.businessType != null) {
             final lowerBt = request.businessType!.toLowerCase();
-            if (lowerBt.contains('super'))
+            if (lowerBt.contains('super')) {
               bt = 'super-marche';
-            else if (lowerBt.contains('pharmacie')) bt = 'pharmacie';
+            } else if (lowerBt.contains('pharmacie')) {
+              bt = 'pharmacie';
+            }
           }
           await _supabase.from('business').insert({
             'id_user': userId,
             'type_business': bt,
             'description': request.businessDescription,
+            'documents_validation': cleanDocsUrl,
+            'pdp': cleanPdpUrl,
+            'est_actif': false,
+            'is_open': false,
+          });
+        }
+
+        // 4. Insert address if geolocation provided
+        if (request.latitude != null && request.longitude != null) {
+          final adresse = await _supabase.from('adresse').insert({
+            'ville': 'Localisation GPS',
+            'latitude': request.latitude,
+            'longitude': request.longitude,
+          }).select().single();
+
+          await _supabase.from('user_adresse').insert({
+            'id_user': userId,
+            'id_adresse': adresse['id_adresse'],
+            'is_default': true,
           });
         }
 

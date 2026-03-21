@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app/data/models/auth_models.dart' as auth;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 enum UserRole { client, livreur, business }
 
@@ -26,8 +30,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  String? _selectedCity;
-  final _addressController = TextEditingController();
+  LatLng? _selectedLocation;
+  final MapController _mapController = MapController();
+
+  // Client fields
+  String? _selectedSexe;
+  DateTime? _selectedDateNaissance;
 
   // Livreur fields
   String? _vehicleType;
@@ -42,23 +50,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _licenseNumberController = TextEditingController();
 
   // Documents Livreur
-  File? _drivingLicenseImage;
-  File? _idCardFrontImage;
-  File? _idCardBackImage;
+  String? _drivingLicenseUrl;
+  String? _idCardFrontUrl;
+  String? _idCardBackUrl;
+
+  XFile? _drivingLicenseFile;
+  XFile? _idCardFrontFile;
+  XFile? _idCardBackFile;
   final ImagePicker _imagePicker = ImagePicker();
 
   // Business fields
-  final _businessNameController = TextEditingController();
   String? _businessCategory;
   final _businessDescriptionController = TextEditingController();
   final _registreCommerceController = TextEditingController();
 
   // Documents Business
-  File? _businessLogo;
-  File? _commerceRegistrationDoc;
+  String? _businessLogoUrl;
+  String? _commerceRegistrationUrl;
+
+  XFile? _businessLogoFile;
+  XFile? _commerceRegistrationFile;
 
   // Photo de profil
-  File? _profileImage;
+  XFile? _profileImage;
 
   final List<String> cities = [
     'Tétouan',
@@ -77,16 +91,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
-    _addressController.dispose();
+    _mapController.dispose();
     _licenseNumberController.dispose();
-    _businessNameController.dispose();
     _businessDescriptionController.dispose();
     _registreCommerceController.dispose();
     super.dispose();
   }
 
+  Future<String?> _uploadToSupabase(XFile file, String folder) async {
+    try {
+      final bytes = await file.readAsBytes();
+      final ext = file.name.split('.').last;
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final path = '$folder/$fileName';
+
+      await Supabase.instance.client.storage
+          .from('alae')
+          .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
+
+      final url = Supabase.instance.client.storage
+          .from('alae')
+          .getPublicUrl(path);
+
+      return url;
+    } catch (e) {
+      print('UPLOAD ERROR: $e');
+      throw e;
+    }
+  }
+
+  Future<void> _pickAndUpload({
+    required Function(XFile file, String? url) onDone,
+    required String folder,
+  }) async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        _showSuccessSnackBar('Fichier sélectionné, upload en cours...');
+
+        final url = await _uploadToSupabase(pickedFile, folder);
+
+        if (url != null) {
+          onDone(pickedFile, url);
+          _showSuccessSnackBar('Fichier uploadé avec succès ✅');
+        }
+      }
+    } catch (e) {
+      _showErrorSnackBar('Erreur d\'upload : ${e.toString()}');
+    }
+  }
+
   Future<void> _pickImage({
-    required Function(File) onImagePicked,
+    required Function(XFile) onImagePicked,
     ImageSource source = ImageSource.gallery,
   }) async {
     try {
@@ -98,7 +160,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (pickedFile != null) {
-        onImagePicked(File(pickedFile.path));
+        onImagePicked(pickedFile);
         _showSuccessSnackBar('Fichier téléchargé avec succès');
       }
     } catch (e) {
@@ -147,7 +209,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    // Validation basique
     if (_selectedRole == null) return;
 
     if (_emailController.text.trim().isEmpty ||
@@ -157,9 +218,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (_selectedLocation == null) {
+      _showErrorSnackBar('Veuillez choisir votre position sur la carte');
+      return;
+    }
+
     if (_selectedRole == UserRole.livreur) {
       if (_vehicleType == null) {
         _showErrorSnackBar('Veuillez sélectionner un type de véhicule');
+        return;
+      }
+      if (_drivingLicenseUrl == null || _idCardFrontUrl == null || _idCardBackUrl == null) {
+        _showErrorSnackBar('Veuillez uploader tous les documents requis');
+        return;
+      }
+    }
+
+    if (_selectedRole == UserRole.business) {
+      if (_businessCategory == null) {
+        _showErrorSnackBar('Veuillez sélectionner une catégorie');
         return;
       }
     }
@@ -177,42 +254,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
         break;
     }
 
+    final docsUrl = [
+      if (_drivingLicenseUrl != null) _drivingLicenseUrl!,
+      if (_idCardFrontUrl != null) _idCardFrontUrl!,
+      if (_idCardBackUrl != null) _idCardBackUrl!,
+    ].join(',');
+
     final request = auth.RegisterRequest(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
       nom: _fullNameController.text.trim(),
       numTl: _phoneController.text.trim(),
       role: mappedRole,
+      sexe: _selectedSexe,
+      dateNaissance: _selectedDateNaissance,
       businessType: _businessCategory,
       businessDescription: _businessDescriptionController.text.trim(),
+      businessPdp: _businessLogoUrl,
       cni: _licenseNumberController.text.trim(),
+      documentsValidation: _selectedRole == UserRole.livreur
+          ? docsUrl
+          : _commerceRegistrationUrl,
+      latitude: _selectedLocation?.latitude,
+      longitude: _selectedLocation?.longitude,
     );
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.register(request);
 
-    if (success) {
-      if (mounted) {
-        final role = authProvider.user?.role.value;
-        switch (role) {
-          case 'client':
-            Navigator.of(context).pushReplacementNamed('/client/home');
-            break;
-          case 'livreur':
-            Navigator.of(context).pushReplacementNamed('/livreur/dashboard');
-            break;
-          case 'business':
-            Navigator.of(context).pushReplacementNamed('/business/dashboard');
-            break;
-          default:
-            Navigator.of(context).pushReplacementNamed('/client/home');
-        }
+    if (success && mounted) {
+      final role = authProvider.user?.role.value;
+      switch (role) {
+        case 'client':
+          Navigator.of(context).pushReplacementNamed('/client/home');
+          break;
+        case 'livreur':
+          Navigator.of(context).pushReplacementNamed('/livreur/dashboard');
+          break;
+        case 'business':
+          Navigator.of(context).pushReplacementNamed('/business/dashboard');
+          break;
+        default:
+          Navigator.of(context).pushReplacementNamed('/client/home');
       }
-    } else {
-      if (mounted) {
-        _showErrorSnackBar(
-            authProvider.errorMessage ?? 'Erreur lors de l\'inscription');
-      }
+    } else if (mounted) {
+      _showErrorSnackBar(authProvider.errorMessage ?? 'Erreur lors de l\'inscription');
     }
   }
 
@@ -509,7 +595,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(40),
                     image: _profileImage != null
                         ? DecorationImage(
-                            image: FileImage(_profileImage!),
+                            image: kIsWeb
+                                ? NetworkImage(_profileImage!.path)
+                                : FileImage(File(_profileImage!.path)) as ImageProvider,
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -553,10 +641,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
           // Full Name
           _buildTextField(
-            label: 'Nom complet',
-            icon: LucideIcons.user,
+            label: _selectedRole == UserRole.business
+                ? 'Nom du commerce'
+                : 'Nom complet',
+            hint: _selectedRole == UserRole.business
+                ? 'Ex: Pizza Roma, Pharmacie Centrale...'
+                : 'Votre nom complet',
+            icon: _selectedRole == UserRole.business
+                ? LucideIcons.store
+                : LucideIcons.user,
             controller: _fullNameController,
-            hint: 'Votre nom complet',
           ),
           SizedBox(height: 16),
 
@@ -584,17 +678,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _buildPasswordField(),
           SizedBox(height: 16),
 
-          // City
-          _buildCityDropdown(),
-          SizedBox(height: 16),
-
-          // Address
-          _buildTextField(
-            label: 'Adresse',
-            icon: LucideIcons.mapPin,
-            controller: _addressController,
-            hint: 'Votre adresse complète',
-          ),
+          // Location Picker
+          _buildLocationPicker(),
           SizedBox(height: 24),
 
           // Continue button
@@ -640,11 +725,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           // Role-specific content
           if (_selectedRole == UserRole.client) ...[
+            // Sexe
+            _buildSexeDropdown(),
+            SizedBox(height: 16),
+            // Date de naissance
+            _buildDatePicker(),
+            SizedBox(height: 16),
+            // Message informatif
             _buildInfoCard(
               icon: LucideIcons.user,
               title: 'Tout est prêt !',
-              description:
-                  'Votre profil client est complet. Vous pouvez commencer à explorer les restaurants et passer vos commandes.',
+              description: 'Votre profil est complet. Vous pouvez commencer à explorer.',
               iconColor: AppColors.accent,
             ),
           ] else if (_selectedRole == UserRole.livreur) ...[
@@ -665,20 +756,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildUploadZone(
               label: 'Permis de conduire',
               icon: LucideIcons.upload,
-              description: _drivingLicenseImage != null
-                  ? '✓ Permis téléchargé'
-                  : 'Télécharger une photo',
+              description: _drivingLicenseUrl != null ? '✓ Permis uploadé' : 'Télécharger une photo',
               subtext: 'JPG, PNG · Max 5MB',
-              file: _drivingLicenseImage,
-              onTap: () {
-                _pickImage(
-                  onImagePicked: (file) {
-                    setState(() {
-                      _drivingLicenseImage = file;
-                    });
-                  },
-                );
-              },
+              isUploaded: _drivingLicenseUrl != null,
+              onTap: () => _pickAndUpload(
+                folder: 'livreurs/permis',
+                onDone: (file, url) => setState(() {
+                  _drivingLicenseFile = file;
+                  _drivingLicenseUrl = url;
+                }),
+              ),
             ),
             SizedBox(height: 16),
 
@@ -686,20 +773,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildUploadZone(
               label: 'Carte d\'identité (Recto)',
               icon: LucideIcons.fileText,
-              description: _idCardFrontImage != null
-                  ? '✓ Recto téléchargé'
-                  : 'Télécharger le recto',
+              description: _idCardFrontUrl != null ? '✓ Recto uploadé' : 'Télécharger le recto',
               subtext: 'JPG, PNG · Max 5MB',
-              file: _idCardFrontImage,
-              onTap: () {
-                _pickImage(
-                  onImagePicked: (file) {
-                    setState(() {
-                      _idCardFrontImage = file;
-                    });
-                  },
-                );
-              },
+              isUploaded: _idCardFrontUrl != null,
+              onTap: () => _pickAndUpload(
+                folder: 'livreurs/cni',
+                onDone: (file, url) => setState(() {
+                  _idCardFrontFile = file;
+                  _idCardFrontUrl = url;
+                }),
+              ),
             ),
             SizedBox(height: 16),
 
@@ -707,49 +790,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildUploadZone(
               label: 'Carte d\'identité (Verso)',
               icon: LucideIcons.fileText,
-              description: _idCardBackImage != null
-                  ? '✓ Verso téléchargé'
-                  : 'Télécharger le verso',
+              description: _idCardBackUrl != null ? '✓ Verso uploadé' : 'Télécharger le verso',
               subtext: 'JPG, PNG · Max 5MB',
-              file: _idCardBackImage,
-              onTap: () {
-                _pickImage(
-                  onImagePicked: (file) {
-                    setState(() {
-                      _idCardBackImage = file;
-                    });
-                  },
-                );
-              },
+              isUploaded: _idCardBackUrl != null,
+              onTap: () => _pickAndUpload(
+                folder: 'livreurs/cni',
+                onDone: (file, url) => setState(() {
+                  _idCardBackFile = file;
+                  _idCardBackUrl = url;
+                }),
+              ),
             ),
           ] else if (_selectedRole == UserRole.business) ...[
             // Logo du commerce
             _buildUploadZone(
               label: 'Logo du commerce',
               icon: LucideIcons.camera,
-              description: _businessLogo != null
-                  ? '✓ Logo téléchargé'
-                  : 'Ajouter votre logo',
+              description: _businessLogoUrl != null ? '✓ Logo uploadé' : 'Ajouter votre logo',
               subtext: 'JPG, PNG · Max 5MB',
-              file: _businessLogo,
-              onTap: () {
-                _pickImage(
-                  onImagePicked: (file) {
-                    setState(() {
-                      _businessLogo = file;
-                    });
-                  },
-                );
-              },
-            ),
-            SizedBox(height: 16),
-
-            // Nom du commerce
-            _buildTextField(
-              label: 'Nom du commerce',
-              icon: LucideIcons.store,
-              controller: _businessNameController,
-              hint: 'Nom de votre restaurant/commerce',
+              isUploaded: _businessLogoUrl != null,
+              onTap: () => _pickAndUpload(
+                folder: 'businesses/logos',
+                onDone: (file, url) => setState(() {
+                  _businessLogoFile = file;
+                  _businessLogoUrl = url;
+                }),
+              ),
             ),
             SizedBox(height: 16),
 
@@ -778,20 +844,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildUploadZone(
               label: 'Justificatif RC',
               icon: LucideIcons.fileText,
-              description: _commerceRegistrationDoc != null
-                  ? '✓ Document téléchargé'
-                  : 'Télécharger le document',
+              description: _commerceRegistrationUrl != null ? '✓ Document uploadé' : 'Télécharger le document',
               subtext: 'PDF, JPG · Max 10MB',
-              file: _commerceRegistrationDoc,
-              onTap: () {
-                _pickImage(
-                  onImagePicked: (file) {
-                    setState(() {
-                      _commerceRegistrationDoc = file;
-                    });
-                  },
-                );
-              },
+              isUploaded: _commerceRegistrationUrl != null,
+              onTap: () => _pickAndUpload(
+                folder: 'businesses/documents',
+                onDone: (file, url) => setState(() {
+                  _commerceRegistrationFile = file;
+                  _commerceRegistrationUrl = url;
+                }),
+              ),
             ),
           ],
 
@@ -1054,18 +1116,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildCityDropdown() {
+  Widget _buildSexeDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Ville',
-          style: TextStyle(
-            color: AppColors.foreground,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
+        Text('Sexe', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         SizedBox(height: 8),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12),
@@ -1074,43 +1129,141 @@ class _RegisterScreenState extends State<RegisterScreen> {
             borderRadius: BorderRadius.circular(20),
             color: AppColors.card,
           ),
-          child: DropdownButton<String>(
-            isExpanded: true,
-            underline: SizedBox(),
-            value: _selectedCity,
-            hint: Row(
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: _selectedSexe,
+              hint: Text('Choisir', style: TextStyle(color: AppColors.mutedForeground)),
+              items: [
+                DropdownMenuItem(value: 'homme', child: Text('👨 Homme')),
+                DropdownMenuItem(value: 'femme', child: Text('👩 Femme')),
+              ],
+              onChanged: (value) => setState(() => _selectedSexe = value),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDatePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Date de naissance', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        SizedBox(height: 8),
+        GestureDetector(
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: DateTime(2000),
+              firstDate: DateTime(1900),
+              lastDate: DateTime.now().subtract(Duration(days: 365 * 16)),
+            );
+            if (date != null) setState(() => _selectedDateNaissance = date);
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(20),
+              color: AppColors.card,
+            ),
+            child: Row(
               children: [
-                Icon(LucideIcons.mapPin,
-                    size: 18, color: AppColors.mutedForeground),
-                SizedBox(width: 8),
+                Icon(LucideIcons.calendar, size: 18, color: AppColors.mutedForeground),
+                SizedBox(width: 12),
                 Text(
-                  'Choisir votre ville',
-                  style: TextStyle(color: AppColors.mutedForeground),
+                  _selectedDateNaissance != null
+                      ? '${_selectedDateNaissance!.day.toString().padLeft(2,'0')}/${_selectedDateNaissance!.month.toString().padLeft(2,'0')}/${_selectedDateNaissance!.year}'
+                      : 'JJ/MM/AAAA',
+                  style: TextStyle(
+                    color: _selectedDateNaissance != null
+                        ? AppColors.foreground
+                        : AppColors.mutedForeground,
+                  ),
                 ),
               ],
             ),
-            items: cities
-                .map(
-                  (city) => DropdownMenuItem(
-                    value: city,
-                    child: Row(
-                      children: [
-                        Icon(LucideIcons.mapPin,
-                            size: 16, color: AppColors.accent),
-                        SizedBox(width: 8),
-                        Text(city),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCity = value;
-              });
-            },
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildLocationPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Localisation (Position sur la carte)',
+          style: TextStyle(
+            color: AppColors.foreground,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          height: 250,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: _selectedLocation == null ? Colors.red.withOpacity(0.5) : AppColors.border,
+              width: _selectedLocation == null ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: LatLng(35.5785, -5.3684),
+              initialZoom: 13.0,
+              onTap: (tapPosition, point) {
+                setState(() {
+                  _selectedLocation = point;
+                });
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.app',
+              ),
+              if (_selectedLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _selectedLocation!,
+                      width: 40,
+                      height: 40,
+                      child: Icon(
+                        Icons.location_pin,
+                        color: Colors.red,
+                        size: 40,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        if (_selectedLocation == null)
+          Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.red, size: 16),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Veuillez cliquer sur la carte pour choisir votre position exacte.',
+                    style: TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1216,10 +1369,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildCategoryDropdown() {
     final categories = {
       'restaurant': '🍽️ Restaurant',
-      'cafe': '☕ Café & Pâtisserie',
-      'epicerie': '🛒 Épicerie',
+      'super-marche': '🛒 Supermarché',
       'pharmacie': '💊 Pharmacie',
-      'boulangerie': '🥖 Boulangerie',
     };
 
     return Column(
@@ -1321,7 +1472,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required IconData icon,
     required String description,
     required String subtext,
-    File? file,
+    required bool isUploaded,
     required VoidCallback onTap,
   }) {
     return Column(
@@ -1342,11 +1493,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
               border: Border.all(
-                color: file != null ? Colors.green : AppColors.border,
-                width: file != null ? 2 : 1,
+                color: isUploaded ? Colors.green : AppColors.border,
+                width: isUploaded ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(20),
-              color: file != null
+              color: isUploaded
                   ? Colors.green.withOpacity(0.05)
                   : AppColors.card,
             ),
@@ -1356,16 +1507,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: file != null
+                    color: isUploaded
                         ? Colors.green.withOpacity(0.1)
                         : AppColors.secondary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    file != null ? Icons.check_circle : icon,
+                    isUploaded ? Icons.check_circle : icon,
                     size: 20,
                     color:
-                        file != null ? Colors.green : AppColors.mutedForeground,
+                        isUploaded ? Colors.green : AppColors.mutedForeground,
                   ),
                 ),
                 SizedBox(width: 12),
@@ -1377,15 +1528,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         description,
                         style: TextStyle(
                           fontSize: 14,
-                          color: file != null
+                          color: isUploaded
                               ? Colors.green
                               : AppColors.foreground,
-                          fontWeight: file != null
+                          fontWeight: isUploaded
                               ? FontWeight.w600
                               : FontWeight.normal,
                         ),
                       ),
-                      if (file == null) ...[
+                      if (!isUploaded) ...[
                         SizedBox(height: 4),
                         Text(
                           subtext,

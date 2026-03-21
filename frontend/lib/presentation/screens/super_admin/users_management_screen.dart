@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../business/business_main_screen.dart';
 
 class UsersManagementScreen extends StatefulWidget {
@@ -127,7 +129,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
         final index = users.indexWhere((u) => u['id_user'] == userId);
         if (index != -1) {
           users[index] = Map<String, dynamic>.from(users[index]);
-          users[index]['documents_validation'] = 'validated'; // mock compatible
+          // ne pas écraser documents_validation
           users[index]['est_actif'] = true;
         }
       });
@@ -146,42 +148,133 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
     }
   }
 
-  void _showDocumentValidationModal(int userId, String userName) {
+  void _showDocumentValidationModal(Map<String, dynamic> user) {
+    String docsValidStr = '';
+    
+    if (user['role'] == 'livreur' && user['livreur'] != null) {
+      final livreurData = (user['livreur'] is List && user['livreur'].isNotEmpty) ? user['livreur'][0] : user['livreur'];
+      if (livreurData is Map) docsValidStr = livreurData['documents_validation']?.toString() ?? '';
+    } else if (user['role'] == 'business' && user['business'] != null) {
+      final businessData = (user['business'] is List && user['business'].isNotEmpty) ? user['business'][0] : user['business'];
+      if (businessData is Map) docsValidStr = businessData['documents_validation']?.toString() ?? '';
+    } else {
+      docsValidStr = user['documents_validation']?.toString() ?? '';
+    }
+
+    final urls = docsValidStr.isNotEmpty && docsValidStr != 'validated' && docsValidStr != 'false' 
+        ? docsValidStr.split(',') 
+        : <String>[];
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Documents de $userName'),
+        title: Text('Documents de ${user['nom']}'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'Veuillez vérifier le document fourni par l\'utilisateur avant de l\'approuver sur la plateforme.'),
-            const SizedBox(height: 16),
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-                image: const DecorationImage(
-                  // A placeholder image of a fake driver license / ID card from unsplash
-                  image: NetworkImage(
-                      'https://images.unsplash.com/photo-1621503820251-5121bdfaf3c9?auto=format&fit=crop&q=80&w=400'),
-                  fit: BoxFit.cover,
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Veuillez vérifier les documents fournis par l\'utilisateur avant de l\'approuver sur la plateforme.'),
+              const SizedBox(height: 16),
+              if (urls.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('Aucun document fourni.', style: TextStyle(color: Colors.red)),
+                )
+              else
+                SizedBox(
+                  height: 300,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: urls.length,
+                    itemBuilder: (context, index) {
+                      String currentUrl = urls[index].trim();
+                      if (!currentUrl.startsWith('http')) {
+                        try {
+                          currentUrl = Supabase.instance.client.storage.from('alae').getPublicUrl(currentUrl);
+                        } catch (e) {
+                          // Ignore if supabase is uninitialized
+                        }
+                      }
+                      
+                      return Container(
+                        width: 280,
+                        margin: const EdgeInsets.only(right: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  currentUrl,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    return const Center(child: CircularProgressIndicator());
+                                  },
+                                  errorBuilder: (context, error, stack) {
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.card,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: AppColors.border),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.description, size: 48, color: AppColors.accent),
+                                          const SizedBox(height: 8),
+                                          const Text('Document disponible', style: TextStyle(fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 4),
+                                          TextButton.icon(
+                                            icon: const Icon(Icons.open_in_new, size: 16),
+                                            label: const Text('Ouvrir le document'),
+                                            onPressed: () async {
+                                              final uri = Uri.parse(currentUrl);
+                                              if (await canLaunchUrl(uri)) {
+                                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: const Text('Voir en plein écran'),
+                              onPressed: () async {
+                                final uri = Uri.parse(currentUrl);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text('Permis de conduire / RC',
-                style:
-                    TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-          ],
+              const SizedBox(height: 8),
+              if (urls.isNotEmpty)
+                Text('${urls.length} document(s) trouvé(s)',
+                    style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
+      ),
+      actions: [
+        TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Fermer',
                 style: TextStyle(color: AppColors.mutedForeground)),
@@ -206,7 +299,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
                 backgroundColor: Colors.green, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
-              _validateDocuments(userId);
+              _validateDocuments(user['id_user']);
             },
           ),
         ],
@@ -479,7 +572,7 @@ class _UserDataTableSource extends DataTableSource {
   final String role;
   final void Function(int, bool, String) onStatusToggle;
   final void Function(Map<String, dynamic>) onViewDetails;
-  final void Function(int, String) onValidate;
+  final void Function(Map<String, dynamic>) onValidate;
   final void Function(Map<String, dynamic>) onManageBusiness;
 
   _UserDataTableSource({
@@ -496,13 +589,35 @@ class _UserDataTableSource extends DataTableSource {
     if (index >= data.length) return null;
     final user = data[index];
 
-    // In our Postgres schema, est_actif doesn't exist on Client,
-    // it's only on livreur / business.  Safely fallback.
-    final estActif = user['est_actif'] ?? true;
-    final docsValidStr = user['documents_validation']?.toString();
-    final hasDocs = docsValidStr != null &&
-        docsValidStr != 'false' &&
-        docsValidStr.isNotEmpty;
+    // Read nested livreur/business columns
+    bool estActif = true;
+    String? docsValidStr;
+    
+    if (role == 'livreur' && user['livreur'] != null) {
+      final livreurData = (user['livreur'] is List && user['livreur'].isNotEmpty) ? user['livreur'][0] : user['livreur'];
+      if (livreurData is Map) {
+        estActif = livreurData['est_actif'] ?? true;
+        docsValidStr = livreurData['documents_validation']?.toString();
+      }
+    } else if (role == 'business' && user['business'] != null) {
+      final businessData = (user['business'] is List && user['business'].isNotEmpty) ? user['business'][0] : user['business'];
+      if (businessData is Map) {
+        estActif = businessData['est_actif'] ?? true;
+        docsValidStr = businessData['documents_validation']?.toString();
+      }
+    } else {
+      estActif = user['est_actif'] ?? true;
+      docsValidStr = user['documents_validation']?.toString();
+    }
+
+    // Assuming docsValidStr contains URLs if the user uploaded documents
+    // It could be either startsWith('http') OR looks like a path e.g., 'livreurs/cni/...',
+    // which starts with 'livreurs' or 'businesses' or contains '/'
+    final hasDocs = docsValidStr != null && 
+        docsValidStr.isNotEmpty && 
+        (docsValidStr.startsWith('http') || docsValidStr.contains('/'));
+        
+    final isPending = !estActif && (role == 'livreur' || role == 'business');
 
     List<DataCell> cells = [
       DataCell(Text('#${user['id_user']}',
@@ -575,12 +690,12 @@ class _UserDataTableSource extends DataTableSource {
                 tooltip: 'Gérer Business',
                 onPressed: () => onManageBusiness(user),
               ),
-            if (!hasDocs && (role == 'livreur' || role == 'business'))
+            if (role == 'livreur' || role == 'business')
               IconButton(
                 icon: const Icon(Icons.fact_check,
                     color: AppColors.accent, size: 20),
-                tooltip: 'Vérifier Documents',
-                onPressed: () => onValidate(user['id_user'], user['nom']),
+                tooltip: 'Approuver Documents',
+                onPressed: () => onValidate(user),
               ),
             IconButton(
               icon: Icon(estActif ? LucideIcons.ban : LucideIcons.check,

@@ -184,9 +184,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         businessDescription: _selectedRole == UserRole.business
             ? _businessDescriptionController.text.trim()
             : null,
-        vehicleType:
-            _selectedRole == UserRole.livreur ? _selectedVehicleType : null,
-        documents: _documentPaths.isNotEmpty ? _documentPaths : null,
+        documentsValidation: _documentPaths.isNotEmpty ? _documentPaths.join(',') : null,
       );
 
       final success = await authProvider.register(request);
