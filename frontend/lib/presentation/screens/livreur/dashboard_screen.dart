@@ -20,8 +20,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _navIndex = 0;
-
   @override
   void initState() {
     super.initState();
@@ -86,35 +84,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         if (dashboardProvider.isOnline &&
                             dashboardProvider.availableCommandes.isEmpty)
                           _buildWaitingMessage(),
+                        if (!dashboardProvider.isOnline)
+                          _buildOfflineMessage(),
                       ],
                     ),
                   ),
           ),
           LivreurBottomNavBar(
-            currentIndex: _navIndex,
+            currentIndex: 0,
             onTap: (i) {
-              setState(() => _navIndex = i);
+              if (i == 0) return;
               if (i == 1 && dashboardProvider.activeCommande != null) {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LivraisonActiveScreen(
-                          commande: dashboardProvider.activeCommande),
-                    ));
-              }
-              if (i == 2) {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HistoriqueScreen(),
-                    ));
-              }
-              if (i == 3) {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LivreurProfileScreen(),
-                    ));
+                  context,
+                  MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: dashboardProvider.activeCommande)),
+                );
+              } else if (i == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const HistoriqueScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const LivreurProfileScreen(), transitionDuration: Duration.zero),
+                );
               }
             },
           ),
@@ -267,6 +261,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Text(
             'En attente de commandes...',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+          ),
+        ],
+      ),
+    );
+  }
+  Widget _buildOfflineMessage() {
+    return Container(
+      margin: const EdgeInsets.only(top: 64),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.navyMedium.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.two_wheeler_rounded,
+              size: 80,
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Vous êtes hors ligne',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Passez en ligne pour commencer\nà recevoir des commandes',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
