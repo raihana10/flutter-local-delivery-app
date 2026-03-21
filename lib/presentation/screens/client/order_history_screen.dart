@@ -40,6 +40,26 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (orderProvider.errorMessage != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Erreur: ${orderProvider.errorMessage}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final orders = orderProvider.orderHistory;
 
           if (orders.isEmpty) {
@@ -47,11 +67,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history, size: 64, color: AppColors.mutedForeground.withOpacity(0.5)),
+                  Icon(Icons.history, size: 80,
+                      color: AppColors.mutedForeground.withOpacity(0.4)),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Aucune commande trouvée',
-                    style: TextStyle(color: AppColors.mutedForeground, fontSize: 16),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Vos commandes passées apparaîtront ici.',
+                    style: TextStyle(color: AppColors.mutedForeground),
                   ),
                 ],
               ),
@@ -62,108 +88,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             padding: const EdgeInsets.all(16),
             itemCount: orders.length,
             itemBuilder: (context, index) {
-              final order = orders[index];
-              final date = DateTime.parse(order['created_at']);
-              final formattedDate = "${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute}";
-              
-              // Simple summary of items
-              final List items = order['ligne_commande'] ?? [];
-              final itemsText = items.map((i) => "${i['quantite']}x ${i['nom_snapshot']}").join(', ');
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(Icons.shopping_bag,
-                                  color: AppColors.primary, size: 20),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Commande #${order['id_commande']}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                                Text(
-                                  formattedDate,
-                                  style: TextStyle(
-                                      color: AppColors.mutedForeground,
-                                      fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        _buildStatusBadge(order['statut_commande']),
-                      ],
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Divider(),
-                    ),
-                    Text(
-                      itemsText.isNotEmpty ? itemsText : 'Détails non disponibles',
-                      style: TextStyle(color: AppColors.foreground, fontSize: 14),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${order['prix_total']} DH',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: AppColors.primary),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                             // Logic to reorder
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accent,
-                            foregroundColor: AppColors.primary,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Recommander',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
+              return _buildOrderCard(orders[index]);
             },
           );
         },
@@ -171,29 +96,183 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     );
   }
 
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    // Safe date parsing
+    DateTime? date;
+    try {
+      final raw = order['created_at'];
+      if (raw != null) date = DateTime.parse(raw.toString());
+    } catch (_) {}
+    final formattedDate = date != null
+        ? '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}  '
+          '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'
+        : '—';
+
+    // Safe items parsing
+    final rawItems = order['ligne_commande'];
+    final List<Map<String, dynamic>> items = rawItems is List
+        ? rawItems.map((i) => Map<String, dynamic>.from(i as Map)).toList()
+        : [];
+
+    final itemsText = items.isNotEmpty
+        ? items.map((i) => '${i['quantite'] ?? 1}x ${i['nom_snapshot'] ?? ''}').join(' • ')
+        : 'Aucun article';
+
+    final double prix = double.tryParse(order['prix_total']?.toString() ?? '0') ?? 0;
+    final type = order['type_commande']?.toString() ?? '';
+    final icon = type == 'food_delivery' ? Icons.restaurant_menu : Icons.shopping_bag;
+    final status = order['statut_commande']?.toString();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Commande #${order['id_commande'] ?? '—'}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        formattedDate,
+                        style: TextStyle(
+                            color: AppColors.mutedForeground, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildStatusBadge(status),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.receipt_long, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    itemsText,
+                    style: TextStyle(
+                        color: AppColors.foreground, fontSize: 13, height: 1.5),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Total payé',
+                        style: TextStyle(
+                            color: AppColors.mutedForeground, fontSize: 12)),
+                    Text(
+                      '${prix.toStringAsFixed(2)} DH',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: AppColors.primary),
+                    ),
+                  ],
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Recommander'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatusBadge(String? status) {
-    Color color = Colors.orange;
-    String label = status ?? 'Inconnu';
+    Color color;
+    String label;
 
     switch (status) {
-      case 'confirmee': color = Colors.blue; label = 'Confirmée'; break;
-      case 'preparee': color = Color(0xFFA555E1); label = 'Préparée'; break;
-      case 'en_livraison': color = Colors.orange; label = 'En livraison'; break;
-      case 'livree': color = Colors.green; label = 'Livrée'; break;
+      case 'confirmee':
+        color = Colors.blue;
+        label = 'Confirmée';
+        break;
+      case 'preparee':
+        color = const Color(0xFF9C27B0);
+        label = 'En préparation';
+        break;
+      case 'en_livraison':
+        color = Colors.orange;
+        label = 'En livraison 🚚';
+        break;
+      case 'livree':
+        color = Colors.green;
+        label = 'Livrée ✓';
+        break;
+      default:
+        color = Colors.grey;
+        label = status ?? 'Inconnu';
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
         label,
         style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 10),
+            color: color, fontWeight: FontWeight.bold, fontSize: 11),
       ),
     );
   }

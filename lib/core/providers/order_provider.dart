@@ -19,26 +19,17 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Query order history with business info and items
-      // Note: id_client from the client table is needed
       final response = await _supabase
           .from('commande')
-          .select('''
-            id_commande,
-            prix_total,
-            created_at,
-            statut_commande,
-            ligne_commande (
-              id_produit,
-              quantite,
-              nom_snapshot,
-              prix_snapshot
-            )
-          ''')
+          .select('id_commande, prix_total, created_at, statut_commande, type_commande, ligne_commande(id_produit, quantite, nom_snapshot, prix_snapshot)')
           .eq('id_client', clientId)
           .order('created_at', ascending: false);
 
-      _orderHistory = List<Map<String, dynamic>>.from(response);
+      _orderHistory = (response as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      debugPrint('OrderProvider: fetched ${_orderHistory.length} orders for client $clientId');
     } catch (e) {
       _errorMessage = e.toString();
       debugPrint('Error fetching order history: $e');

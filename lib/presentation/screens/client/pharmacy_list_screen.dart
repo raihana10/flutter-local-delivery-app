@@ -1726,9 +1726,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(Icons.home, 'Accueil', 0),
-          _buildNavItem(Icons.search, 'Rechercher', 1),
-          _buildNavItem(Icons.shopping_cart, 'Panier', 2),
-          _buildNavItem(Icons.person, 'Profil', 3),
+          _buildNavItem(Icons.shopping_cart, 'Panier', 1),
+          _buildNavItem(Icons.person, 'Profil', 2),
         ],
       ),
     );
@@ -1750,10 +1749,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
         Widget? targetScreen;
         switch (index) {
-          case 2:
+          case 1:
             targetScreen = const CartScreen();
             break;
-          case 3:
+          case 2:
             targetScreen = const ClientProfileScreen();
             break;
         }
@@ -1789,7 +1788,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                   color: isActive ? AppColors.accent : AppColors.secondary,
                   size: 24,
                 ),
-                if (index == 2) // Cart icon with badge
+                if (index == 1) // Cart icon with badge
                   Positioned(
                     top: -4,
                     right: -4,

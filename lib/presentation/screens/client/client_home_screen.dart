@@ -95,41 +95,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_selectedCategory == 'restaurants') {
-      return WillPopScope(
-        onWillPop: () async {
-          setState(() {
-            _selectedCategory = null;
-            _currentIndex = 0;
-          });
-          return false;
-        },
-        child: RestaurantListScreen(initialNavIndex: 1),
-      );
-    } else if (_selectedCategory == 'pharmacie') {
-      return WillPopScope(
-        onWillPop: () async {
-          setState(() {
-            _selectedCategory = null;
-            _currentIndex = 0;
-          });
-          return false;
-        },
-        child: PharmacyListScreen(initialNavIndex: 1),
-      );
-    } else if (_selectedCategory == 'supermarche') {
-      return WillPopScope(
-        onWillPop: () async {
-          setState(() {
-            _selectedCategory = null;
-            _currentIndex = 0;
-          });
-          return false;
-        },
-        child: MarketListScreen(initialNavIndex: 1),
-      );
-    }
-
     final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
@@ -225,28 +190,28 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                         '🍴',
                         _restaurantsScale,
                         AppColors.primary,
-                        () => setState(() {
-                          _selectedCategory = 'restaurants';
-                          _currentIndex = 1;
-                        })),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RestaurantListScreen(initialNavIndex: 0)), // 0 indicates Home action in that bar
+                        )),
                     _buildCategoryCircle(
                         'Pharmacie',
                         '💊',
                         _pharmacieScale,
                         const Color(0xFFE53935),
-                        () => setState(() {
-                          _selectedCategory = 'pharmacie';
-                          _currentIndex = 1;
-                        })),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PharmacyListScreen(initialNavIndex: 0)),
+                        )),
                     _buildCategoryCircle(
                         'Supermarché',
                         '🛒',
                         _supermarcheScale,
                         const Color(0xFF43A047),
-                        () => setState(() {
-                          _selectedCategory = 'supermarche';
-                          _currentIndex = 1;
-                        })),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MarketListScreen(initialNavIndex: 0)),
+                        )),
                   ],
                 ),
               ),
@@ -1074,9 +1039,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(Icons.home, 'Accueil', 0),
-          _buildNavItem(Icons.search, 'Rechercher', 1),
-          _buildNavItem(Icons.shopping_cart, 'Panier', 2),
-          _buildNavItem(Icons.person, 'Profil', 3),
+          _buildNavItem(Icons.shopping_cart, 'Panier', 1),
+          _buildNavItem(Icons.person, 'Profil', 2),
         ],
       ),
     );
@@ -1094,22 +1058,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           });
           return;
         }
-        if (index == 1) {
-          // Rechercher — go to restaurants by default if no category active
-          setState(() {
-            _currentIndex = 1;
-            _selectedCategory ??= 'restaurants';
-          });
-          return;
-        }
-
-        // Navigation logic for other tabs (Panier, Profil)
         Widget? targetScreen;
         switch (index) {
-          case 2:
+          case 1:
             targetScreen = const CartScreen();
             break;
-          case 3:
+          case 2:
             targetScreen = const ClientProfileScreen();
             break;
         }
@@ -1144,7 +1098,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   color: isActive ? AppColors.accent : AppColors.secondary,
                   size: 24,
                 ),
-                if (index == 2) // Cart icon with badge
+                if (index == 1) // Cart icon with badge
                   Positioned(
                     top: -4,
                     right: -4,
