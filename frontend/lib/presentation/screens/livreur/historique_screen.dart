@@ -5,6 +5,9 @@ import 'package:app/core/constants/app_strings.dart';
 import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/data/models/commande_supabase_model.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
+import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
+import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
 
 class HistoriqueScreen extends StatefulWidget {
   const HistoriqueScreen({super.key});
@@ -14,7 +17,6 @@ class HistoriqueScreen extends StatefulWidget {
 }
 
 class _HistoriqueScreenState extends State<HistoriqueScreen> {
-  int _navIndex = 2; // Historique is tab index 2
   bool _isLoading = true;
   List<CommandeSupabaseModel> _historique = [];
 
@@ -72,10 +74,25 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
 
           // ── Bottom Nav ──────────────────────────────────────
           LivreurBottomNavBar(
-            currentIndex: _navIndex,
+            currentIndex: 2,
             onTap: (i) {
-              if (i != _navIndex) {
-                Navigator.pop(context); // Return to Dashboard
+              if (i == 2) return;
+              final provider = context.read<LivreurDashboardProvider>();
+              if (i == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const DashboardScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 1 && provider.activeCommande != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: provider.activeCommande)),
+                );
+              } else if (i == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const LivreurProfileScreen(), transitionDuration: Duration.zero),
+                );
               }
             },
           ),
