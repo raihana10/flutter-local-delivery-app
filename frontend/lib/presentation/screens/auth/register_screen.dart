@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -42,9 +43,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _licenseNumberController = TextEditingController();
 
   // Documents Livreur
-  File? _drivingLicenseImage;
-  File? _idCardFrontImage;
-  File? _idCardBackImage;
+  XFile? _drivingLicenseImage;
+  XFile? _idCardFrontImage;
+  XFile? _idCardBackImage;
   final ImagePicker _imagePicker = ImagePicker();
 
   // Business fields
@@ -54,11 +55,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _registreCommerceController = TextEditingController();
 
   // Documents Business
-  File? _businessLogo;
-  File? _commerceRegistrationDoc;
+  XFile? _businessLogo;
+  XFile? _commerceRegistrationDoc;
 
   // Photo de profil
-  File? _profileImage;
+  XFile? _profileImage;
 
   final List<String> cities = [
     'Tétouan',
@@ -86,7 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickImage({
-    required Function(File) onImagePicked,
+    required Function(XFile) onImagePicked,
     ImageSource source = ImageSource.gallery,
   }) async {
     try {
@@ -98,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (pickedFile != null) {
-        onImagePicked(File(pickedFile.path));
+        onImagePicked(pickedFile);
         _showSuccessSnackBar('Fichier téléchargé avec succès');
       }
     } catch (e) {
@@ -186,6 +187,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       businessType: _businessCategory,
       businessDescription: _businessDescriptionController.text.trim(),
       cni: _licenseNumberController.text.trim(),
+      vehicleType: _vehicleType, // Adding vehicleType as it was missing
+      profileImage: _profileImage,
+      drivingLicenseImage: _drivingLicenseImage,
+      idCardFrontImage: _idCardFrontImage,
+      idCardBackImage: _idCardBackImage,
+      businessLogo: _businessLogo,
+      commerceRegistrationDoc: _commerceRegistrationDoc,
     );
 
     final authProvider = context.read<AuthProvider>();
@@ -509,7 +517,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(40),
                     image: _profileImage != null
                         ? DecorationImage(
-                            image: FileImage(_profileImage!),
+                            image: kIsWeb
+                                ? NetworkImage(_profileImage!.path) as ImageProvider
+                                : FileImage(File(_profileImage!.path)),
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -1321,7 +1331,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required IconData icon,
     required String description,
     required String subtext,
-    File? file,
+    XFile? file,
     required VoidCallback onTap,
   }) {
     return Column(
