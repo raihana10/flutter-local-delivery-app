@@ -11,6 +11,8 @@ import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
 import 'package:app/presentation/screens/livreur/historique_screen.dart';
 import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_stats_screen.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -102,9 +104,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               } else if (i == 2) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(pageBuilder: (_,__,___) => const HistoriqueScreen(), transitionDuration: Duration.zero),
+                  PageRouteBuilder(pageBuilder: (_,__,___) => LivreurStatsScreen(), transitionDuration: Duration.zero),
                 );
               } else if (i == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const HistoriqueScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 4) {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(pageBuilder: (_,__,___) => const LivreurProfileScreen(), transitionDuration: Duration.zero),
@@ -196,6 +203,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           MaterialPageRoute(
                               builder: (_) => const LivreurProfileScreen()),
                         );
+                      } else if (value == 'stats') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => LivreurStatsScreen()),
+                        );
                       } else if (value == 'logout') {
                         await context.read<AuthProvider>().logout();
                         if (mounted) {
@@ -204,6 +217,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       }
                     },
                     itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'stats',
+                        child: Row(
+                          children: [
+                            Icon(Icons.bar_chart_rounded,
+                                color: AppColors.navyDark, size: 20),
+                            SizedBox(width: 8),
+                            Text('Statistiques'),
+                          ],
+                        ),
+                      ),
                       const PopupMenuItem(
                         value: 'profile',
                         child: Row(
@@ -226,11 +250,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                     ],
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.navyMedium,
-                      child: Icon(Icons.person,
-                          color: AppColors.textSecondary, size: 28),
+                      backgroundImage: authProvider.user?.pdp != null
+                          ? NetworkImage(authProvider.user!.pdp!)
+                          : null,
+                      child: authProvider.user?.pdp == null
+                          ? const Icon(Icons.person,
+                              color: AppColors.textSecondary, size: 28)
+                          : null,
                     ),
                   ),
                 ],
