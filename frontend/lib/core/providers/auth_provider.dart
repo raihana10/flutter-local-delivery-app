@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../../data/models/auth_models.dart';
 
@@ -44,7 +45,15 @@ class AuthProvider extends ChangeNotifier {
           .maybeSingle();
 
       if (response != null) {
-        _user = User.fromJson(response);
+        var userData = Map<String, dynamic>.from(response);
+        if (userData['role'] == 'livreur') {
+           final livreurResp = await _supabase.from('livreur').select('pdp').eq('id_user', userData['id_user']).maybeSingle();
+           if (livreurResp != null && livreurResp['pdp'] != null) {
+             final signedUrl = await _supabase.storage.from('livreur_documents').createSignedUrl(livreurResp['pdp'], 60 * 60 * 24 * 7);
+             userData['pdp'] = signedUrl;
+           }
+        }
+        _user = User.fromJson(userData);
       } else {
         // Fallback if user is in auth but not in public schema yet
         _user = User(
@@ -78,6 +87,33 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _setError('Erreur lors de la mise à jour: \${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateProfilePicture(XFile image) async {
+    if (_user == null || _user!.role != UserRole.livreur) return false;
+    _setLoading(true);
+    _clearError();
+    try {
+      final fileBytes = await image.readAsBytes();
+      final ext = image.name.split('.').last;
+      final path = '\${_user!.id}_pdp_\${DateTime.now().millisecondsSinceEpoch}.$ext';
+      
+      await _supabase.storage.from('livreur_documents').uploadBinary(
+        path, 
+        fileBytes, 
+        fileOptions: const supa.FileOptions(upsert: true)
+      );
+      
+      await _supabase.from('livreur').update({'pdp': path}).eq('id_user', _user!.id);
+      
+      await _fetchUserDetails(_user!.email);
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la mise à jour de la photo: $e');
       return false;
     } finally {
       _setLoading(false);
@@ -241,6 +277,36 @@ class AuthProvider extends ChangeNotifier {
             'id_adresse': adresse['id_adresse'],
             'is_default': true,
           });
+        }
+
+        // 4. Upload documents if selected
+        try {
+          if (request.role == UserRole.livreur) {
+            final Map<String, dynamic> updates = {};
+            Future<void> uploadDoc(XFile? file, String col) async {
+              if (file == null) return;
+              final fileBytes = await file.readAsBytes();
+              final ext = file.name.split('.').last;
+              final path = '${userId}_${col}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+              await _supabase.storage.from('livreur_documents').uploadBinary(
+                path, 
+                fileBytes, 
+                fileOptions: const supa.FileOptions(upsert: true)
+              );
+              updates[col] = path;
+            }
+            
+            await uploadDoc(request.profileImage, 'pdp');
+            await uploadDoc(request.drivingLicenseImage, 'permis_conduire_image');
+            await uploadDoc(request.idCardFrontImage, 'cni_recto_image');
+            await uploadDoc(request.idCardBackImage, 'cni_verso_image');
+            
+            if (updates.isNotEmpty) {
+              await _supabase.from('livreur').update(updates).eq('id_user', userId);
+            }
+          }
+        } catch (e) {
+          debugPrint('Erreur lors du téléchargement des documents: $e');
         }
 
         // Fetch details synchronously before returning true so the UI has the role

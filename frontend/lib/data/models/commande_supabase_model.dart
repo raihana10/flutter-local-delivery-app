@@ -14,6 +14,7 @@ class CommandeSupabaseModel extends CommandeModel {
   final String numTlClient;
   final List<String> items;
   final List<Map<String, dynamic>> rawItems;
+  final DateTime? createdAt;
 
   CommandeSupabaseModel({
     required this.idCommande,
@@ -25,6 +26,7 @@ class CommandeSupabaseModel extends CommandeModel {
     required this.numTlClient,
     this.items = const [],
     this.rawItems = const [],
+    this.createdAt,
 
     // Parent fields
     required String id,
@@ -143,6 +145,7 @@ class CommandeSupabaseModel extends CommandeModel {
       numTlClient: phone,
       items: parsedItems,
       rawItems: rawItemsParsed,
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
 
       // Mapping to old UI fields for compatibility
       id: 'CMD-${json['id_commande']}',

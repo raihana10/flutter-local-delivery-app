@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 enum UserRole {
   client('client'),
   livreur('livreur'),
@@ -24,6 +26,7 @@ class User {
   final bool estActif;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? pdp;
 
   const User({
     required this.id,
@@ -34,6 +37,7 @@ class User {
     required this.estActif,
     required this.createdAt,
     required this.updatedAt,
+    this.pdp,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -48,6 +52,7 @@ class User {
           json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(
           json['updated_at'] ?? DateTime.now().toIso8601String()),
+      pdp: json['pdp'],
     );
   }
 
@@ -61,6 +66,7 @@ class User {
       'est_actif': estActif,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'pdp': pdp,
     };
   }
 
@@ -73,6 +79,7 @@ class User {
     bool? estActif,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? pdp,
   }) {
     return User(
       id: id ?? this.id,
@@ -83,6 +90,7 @@ class User {
       estActif: estActif ?? this.estActif,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      pdp: pdp ?? this.pdp,
     );
   }
 }
