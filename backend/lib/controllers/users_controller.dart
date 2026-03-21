@@ -50,6 +50,10 @@ class UsersController {
 
       final formatted = livreurs.map((item) {
         final user = item['app_user'] ?? item;
+        final livreurInfo = (item['livreur'] is List && (item['livreur'] as List).isNotEmpty)
+            ? item['livreur'][0]
+            : (item['livreur'] is Map ? item['livreur'] : {});
+            
         return {
           ...Map<String, dynamic>.from(item),
           'nom': user['nom'] ?? '',
@@ -57,6 +61,8 @@ class UsersController {
           'role': user['role'] ?? 'livreur',
           'created_at': user['created_at'] ?? item['created_at'],
           'id_user': user['id_user'] ?? item['id_user'],
+          'est_actif': livreurInfo['est_actif'] ?? true,
+          'documents_validation': livreurInfo['documents_validation'],
         };
       }).toList();
 
@@ -83,6 +89,10 @@ class UsersController {
 
       final formatted = businesses.map((item) {
         final user = item['app_user'] ?? item;
+        final businessInfo = (item['business'] is List && (item['business'] as List).isNotEmpty)
+            ? item['business'][0]
+            : (item['business'] is Map ? item['business'] : {});
+
         return {
           ...Map<String, dynamic>.from(item),
           'nom': user['nom'] ?? '',
@@ -90,6 +100,9 @@ class UsersController {
           'role': user['role'] ?? 'business',
           'created_at': user['created_at'] ?? item['created_at'],
           'id_user': user['id_user'] ?? item['id_user'],
+          'type_business': businessInfo['type_business'] ?? 'N/A',
+          'est_actif': businessInfo['est_actif'] ?? true,
+          'documents_validation': businessInfo['documents_validation'],
         };
       }).toList();
 

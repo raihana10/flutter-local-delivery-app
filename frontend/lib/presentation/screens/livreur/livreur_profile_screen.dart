@@ -8,8 +8,7 @@ import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/livreur/historique_screen.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
-import 'package:app/presentation/screens/livreur/livreur_documents_screen.dart';
-import 'package:app/presentation/screens/livreur/livreur_stats_screen.dart';
+import 'package:app/presentation/screens/livreur/gains_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -50,7 +49,7 @@ class LivreurProfileScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => LivreurStatsScreen()),
+                              builder: (_) => const GainsScreen()),
                         );
                       }),
                     ],
@@ -67,11 +66,11 @@ class LivreurProfileScreen extends StatelessWidget {
                       _buildListTile(
                           Icons.pedal_bike_outlined, 'Véhicule et documents',
                           onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const LivreurDocumentsScreen()),
-                        );
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //       builder: (_) => const LivreurDocumentsScreen()),
+                        // );
                       }),
                     ],
                   ),
@@ -156,7 +155,7 @@ class LivreurProfileScreen extends StatelessWidget {
               } else if (i == 2) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(pageBuilder: (_,__,___) => LivreurStatsScreen(), transitionDuration: Duration.zero),
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const GainsScreen(), transitionDuration: Duration.zero),
                 );
               } else if (i == 3) {
                 Navigator.pushReplacement(

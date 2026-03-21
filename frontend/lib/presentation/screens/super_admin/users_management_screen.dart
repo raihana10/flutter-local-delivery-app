@@ -5,7 +5,9 @@ import 'package:app/data/datasources/super_admin_api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../business/business_main_screen.dart';
-
+import 'package:provider/provider.dart';
+import 'package:app/core/providers/auth_provider.dart';
+import 'package:app/core/providers/business_data_provider.dart';
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
 
@@ -401,7 +403,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
             tabs: const [
               Tab(icon: Icon(LucideIcons.user), text: 'Clients'),
               Tab(icon: Icon(LucideIcons.bike), text: 'Livreurs'),
-              Tab(icon: Icon(LucideIcons.store), text: 'Restaurants'),
+              Tab(icon: Icon(LucideIcons.store), text: 'Commerce'),
             ],
           ),
         ),
@@ -548,16 +550,32 @@ var filteredUsers = users
           onViewDetails: _showUserModal,
           onValidate: _showDocumentValidationModal,
           onManageBusiness: (user) {
+            // Récupérer id_business depuis les données imbriquées
             final biz = user['business'];
             final idBusinessStr = biz is List
                 ? (biz.isNotEmpty ? biz[0]['id_business'] : null)
                 : (biz != null ? biz['id_business'] : null);
             final idBusiness = int.tryParse(idBusinessStr?.toString() ?? '');
+            
+            print('🏪 MANAGE BUSINESS id_business: $idBusiness');
+            
+            if (idBusiness == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('ID business introuvable')),
+              );
+              return;
+            }
+
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BusinessMainScreen(idBusiness: idBusiness),
+                builder: (context) => ChangeNotifierProvider(
+                  create: (ctx) => BusinessDataProvider(
+                    authProvider: ctx.read<AuthProvider>(),
+                    overrideBusinessId: idBusiness,
+                  ),
+                  child: BusinessMainScreen(idBusiness: idBusiness),
+                ),
               ),
             );
           },

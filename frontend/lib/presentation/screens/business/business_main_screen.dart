@@ -40,7 +40,9 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
   @override
   void initState() {
     super.initState();
+    print('BusinessMainScreen idBusiness: ${widget.idBusiness}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ✅ Le BusinessDataProvider injecté ci-dessus a déjà overrideBusinessId
       context.read<BusinessDataProvider>().fetchAll();
     });
   }
@@ -102,6 +104,19 @@ class _DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<BusinessDataProvider>();
+    final stats = provider.stats;
+    final profile = provider.profile;
+    final orders = stats['recent_orders'] as List<dynamic>? ?? [];
+    final nomBusiness = (profile['app_user'] != null && profile['app_user']['nom'] != null)
+        ? profile['app_user']['nom']
+        : 'Chargement...';
+    // Mettre la première lettre en majuscule
+    final typeBusiness = (profile['type_business'] ?? 'Business').toString();
+    final typeFormatted = typeBusiness.isNotEmpty 
+        ? '${typeBusiness[0].toUpperCase()}${typeBusiness.substring(1)}'
+        : typeBusiness;
+
     return Stack(
       children: [
         SingleChildScrollView(
@@ -137,15 +152,15 @@ class _DashboardView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Dar Zitoun',
-                            style: TextStyle(
+                          Text(
+                            nomBusiness,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18),
                           ),
                           Text(
-                            'Restaurant Marocain',
+                            typeFormatted,
                             style: TextStyle(
                                 color: Colors.white.withOpacity(0.6),
                                 fontSize: 12),
@@ -242,11 +257,11 @@ class _DashboardView extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Row(
                   children: [
-                    _buildKPI('Commandes', '24', LucideIcons.shoppingBag),
+                    _buildKPI('Commandes', '${stats['nb_commandes'] ?? 0}', LucideIcons.shoppingBag),
                     const SizedBox(width: 12),
-                    _buildKPI('CA (MAD)', '3,450', LucideIcons.trendingUp),
+                    _buildKPI('CA (MAD)', '${stats['revenus_totaux'] ?? 0}', LucideIcons.trendingUp),
                     const SizedBox(width: 12),
-                    _buildKPI('Note', '4.8 ⭐', LucideIcons.star),
+                    _buildKPI('Note', '${stats['note_moyenne'] ?? '-'} ⭐', LucideIcons.star),
                   ],
                 ),
               ),
@@ -273,78 +288,10 @@ class _DashboardView extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: 2,
+                itemCount: orders.length,
                 itemBuilder: (context, index) {
-                  final orders = [
-                    {
-                      'id': '#1042',
-                      'client': 'Alae B.',
-                      'items': 3,
-                      'time': '5 min'
-                    },
-                    {
-                      'id': '#1043',
-                      'client': 'Sara M.',
-                      'items': 2,
-                      'time': '2 min'
-                    },
-                  ];
                   final o = orders[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: AppColors.cardShadow,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Text('${o['id']}',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.forest)),
-                                const SizedBox(width: 8),
-                                Text('${o['client']}',
-                                    style: const TextStyle(
-                                        color: AppColors.mutedForeground,
-                                        fontSize: 12)),
-                              ],
-                            ),
-                            Text('${o['time']}',
-                                style: const TextStyle(
-                                    color: AppColors.gold,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12)),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text('${o['items']} articles',
-                            style: const TextStyle(
-                                color: AppColors.mutedForeground,
-                                fontSize: 12)),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _buildOrderButton(
-                                'Accepter', AppColors.forest, Colors.white),
-                            const SizedBox(width: 8),
-                            _buildOrderButton(
-                                'Préparer', AppColors.sage, Colors.white),
-                            const SizedBox(width: 8),
-                            _buildOrderButton(
-                                'Prêt', AppColors.amber, AppColors.forest),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildOrderCard(o);
                 },
               ),
             ],
@@ -440,6 +387,63 @@ class _DashboardView extends StatelessWidget {
                 fontWeight: FontWeight.bold, color: AppColors.forest),
           ),
         ),
+      ),
+    );
+  }
+Widget _buildOrderCard(dynamic o) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text('#${o['id'] ?? 'N/A'}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.forest)),
+                  const SizedBox(width: 8),
+                  Text('${o['client_name'] ?? 'Client'}',
+                      style: const TextStyle(
+                          color: AppColors.mutedForeground,
+                          fontSize: 12)),
+                ],
+              ),
+              Text('${o['created_at'] ?? 'Maintenant'}',
+                  style: const TextStyle(
+                      color: AppColors.gold,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('${o['items_count'] ?? 0} articles',
+              style: const TextStyle(
+                  color: AppColors.mutedForeground,
+                  fontSize: 12)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildOrderButton(
+                  'Accepter', AppColors.forest, Colors.white),
+              const SizedBox(width: 8),
+              _buildOrderButton(
+                  'Préparer', AppColors.sage, Colors.white),
+              const SizedBox(width: 8),
+              _buildOrderButton(
+                  'Prêt', AppColors.amber, AppColors.forest),
+            ],
+          ),
+        ],
       ),
     );
   }

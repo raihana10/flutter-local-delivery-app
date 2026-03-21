@@ -170,10 +170,14 @@ class RegisterRequest {
   final String? cni;
   final String? businessType;
   final String? businessDescription;
-  final String? businessPdp;        // ← URL logo uploadé
-  final String? documentsValidation; // ← URL(s) documents uploadés
+  final String? profileImageUrl;
+  final String? licenseImageUrl;
+  final String? idCardFrontUrl;
+  final String? idCardBackUrl;
+  final String? documentsValidation;
   final double? latitude;
   final double? longitude;
+  final String? ville; // ← AJOUTER
 
   const RegisterRequest({
     required this.email,
@@ -186,10 +190,14 @@ class RegisterRequest {
     this.cni,
     this.businessType,
     this.businessDescription,
-    this.businessPdp,
+    this.profileImageUrl,
+    this.licenseImageUrl,
+    this.idCardFrontUrl,
+    this.idCardBackUrl,
     this.documentsValidation,
     this.latitude,
     this.longitude,
+    this.ville, // ← AJOUTER
   });
 
   Map<String, dynamic> toJson() => {
@@ -203,10 +211,15 @@ class RegisterRequest {
     'cni': cni,
     'business_type': businessType,
     'business_description': businessDescription,
-    'business_pdp': businessPdp,
+    'business_pdp': profileImageUrl,
+    'profile_image_url': profileImageUrl,
+    'license_image': licenseImageUrl,
+    'id_card_front': idCardFrontUrl,
+    'id_card_back': idCardBackUrl,
     'documents_validation': documentsValidation,
     'latitude': latitude,
     'longitude': longitude,
+    'ville': ville, // ← AJOUTER
   };
 }
 

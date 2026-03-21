@@ -11,7 +11,7 @@ import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
 import 'package:app/presentation/screens/livreur/historique_screen.dart';
 import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
-import 'package:app/presentation/screens/livreur/livreur_stats_screen.dart';
+import 'package:app/presentation/screens/livreur/gains_screen.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -104,7 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               } else if (i == 2) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(pageBuilder: (_,__,___) => LivreurStatsScreen(), transitionDuration: Duration.zero),
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const GainsScreen(), transitionDuration: Duration.zero),
                 );
               } else if (i == 3) {
                 Navigator.pushReplacement(
@@ -207,7 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => LivreurStatsScreen()),
+                              builder: (_) => const GainsScreen()),
                         );
                       } else if (value == 'logout') {
                         await context.read<AuthProvider>().logout();

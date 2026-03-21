@@ -8,7 +8,7 @@ import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
-import 'package:app/presentation/screens/livreur/livreur_stats_screen.dart';
+import 'package:app/presentation/screens/livreur/gains_screen.dart';
 
 class HistoriqueScreen extends StatefulWidget {
   const HistoriqueScreen({super.key});
@@ -92,7 +92,7 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
               } else if (i == 2) {
                 Navigator.pushReplacement(
                   context,
-                  PageRouteBuilder(pageBuilder: (_,__,___) => LivreurStatsScreen(), transitionDuration: Duration.zero),
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const GainsScreen(), transitionDuration: Duration.zero),
                 );
               } else if (i == 4) {
                 Navigator.pushReplacement(

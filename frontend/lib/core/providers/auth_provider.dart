@@ -37,38 +37,25 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _fetchUserDetails(String email) async {
     try {
-      // First try to fetch from the public user table
       final response = await _supabase
           .from('app_user')
           .select()
           .eq('email', email)
+          .isFilter('deleted_at', null)
           .maybeSingle();
 
       if (response != null) {
         var userData = Map<String, dynamic>.from(response);
-        if (userData['role'] == 'livreur') {
-           final livreurResp = await _supabase.from('livreur').select('pdp').eq('id_user', userData['id_user']).maybeSingle();
-           if (livreurResp != null && livreurResp['pdp'] != null) {
-             final signedUrl = await _supabase.storage.from('livreur_documents').createSignedUrl(livreurResp['pdp'], 60 * 60 * 24 * 7);
-             userData['pdp'] = signedUrl;
-           }
-        }
+        // Ne pas chercher pdp dans livreur (champ inexistant)
         _user = User.fromJson(userData);
+        print('✅ user fetched: ${_user!.email} role: ${_user!.role.value}');
       } else {
-        // Fallback if user is in auth but not in public schema yet
-        _user = User(
-          id: 0,
-          email: email,
-          nom: 'Utilisateur',
-          role: UserRole.client,
-          estActif: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+        print('❌ user not found for email: $email');
+        _user = null;
       }
       notifyListeners();
     } catch (e) {
-      debugPrint("Error fetching user details: \$e");
+      print('❌ _fetchUserDetails ERROR: $e');
     }
   }
 
@@ -172,7 +159,6 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> register(RegisterRequest request) async {
     _setLoading(true);
     _errorMessage = null;
-
     try {
       if (request.email.isEmpty ||
           request.password.isEmpty ||
@@ -186,138 +172,94 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // 1. Sign up the user in Supabase Auth
-      final response = await _supabase.auth.signUp(
-        email: request.email,
-        password: request.password,
-      );
-
-      // 2. Insert into the public custom 'user' table
-      if (response.user != null) {
-        // Hash the password for the custom `user` table using crypto SHA256
-        final bytes = utf8.encode(request.password);
-        final digest = sha256.convert(bytes);
-        final hashedPassword = digest.toString();
-
-        final userData = {
-          'email': request.email,
-          'password': hashedPassword,
-          'nom': request.nom,
-          'num_tl': request.numTl,
-          'role': request.role.value,
-        };
-
-        final responseUser =
-            await _supabase.from('app_user').insert(userData).select().single();
-        final int userId = responseUser['id_user'];
-        
-        // Prepare constraints for Postgres
-        String? dateNaissanceStr;
-        if (request.dateNaissance != null) {
-          dateNaissanceStr = "\${request.dateNaissance!.year}-\${request.dateNaissance!.month.toString().padLeft(2, '0')}-\${request.dateNaissance!.day.toString().padLeft(2, '0')}";
-        }
-
-        String? cleanDocsUrl = request.documentsValidation;
-        if (cleanDocsUrl != null && cleanDocsUrl.isNotEmpty) {
-          cleanDocsUrl = cleanDocsUrl.replaceAll(RegExp(r'https:\/\/[^\/]+\/storage\/v1\/object\/public\/alae\/'), '');
-        }
-
-        String? cleanPdpUrl = request.businessPdp;
-        if (cleanPdpUrl != null && cleanPdpUrl.isNotEmpty) {
-          cleanPdpUrl = cleanPdpUrl.replaceAll(RegExp(r'https:\/\/[^\/]+\/storage\/v1\/object\/public\/alae\/'), '');
-        }
-
-        // 3. Insert into the role-specific table based on UserRole
-        if (request.role == UserRole.client) {
-          await _supabase.from('client').insert({
-            'id_user': userId,
-            'sexe': request.sexe,
-            'date_naissance': dateNaissanceStr,
-          });
-        } else if (request.role == UserRole.livreur) {
-          await _supabase.from('livreur').insert({
-            'id_user': userId,
-            'sexe': request.sexe,
-            'date_naissance': dateNaissanceStr,
-            'cni': request.cni,
-            'documents_validation': cleanDocsUrl,
-            'est_actif': false,
-          });
-        } else if (request.role == UserRole.business) {
-          String bt = 'restaurant';
-          if (request.businessType != null) {
-            final lowerBt = request.businessType!.toLowerCase();
-            if (lowerBt.contains('super')) {
-              bt = 'super-marche';
-            } else if (lowerBt.contains('pharmacie')) {
-              bt = 'pharmacie';
-            }
-          }
-          await _supabase.from('business').insert({
-            'id_user': userId,
-            'type_business': bt,
-            'description': request.businessDescription,
-            'documents_validation': cleanDocsUrl,
-            'pdp': cleanPdpUrl,
-            'est_actif': false,
-            'is_open': false,
-          });
-        }
-
-        // 4. Insert address if geolocation provided
-        if (request.latitude != null && request.longitude != null) {
-          final adresse = await _supabase.from('adresse').insert({
-            'ville': 'Localisation GPS',
-            'latitude': request.latitude,
-            'longitude': request.longitude,
-          }).select().single();
-
-          await _supabase.from('user_adresse').insert({
-            'id_user': userId,
-            'id_adresse': adresse['id_adresse'],
-            'is_default': true,
-          });
-        }
-
-        // 4. Upload documents if selected
-        try {
-          if (request.role == UserRole.livreur) {
-            final Map<String, dynamic> updates = {};
-            Future<void> uploadDoc(XFile? file, String col) async {
-              if (file == null) return;
-              final fileBytes = await file.readAsBytes();
-              final ext = file.name.split('.').last;
-              final path = '${userId}_${col}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-              await _supabase.storage.from('livreur_documents').uploadBinary(
-                path, 
-                fileBytes, 
-                fileOptions: const supa.FileOptions(upsert: true)
-              );
-              updates[col] = path;
-            }
-            
-            await uploadDoc(request.profileImage, 'pdp');
-            await uploadDoc(request.drivingLicenseImage, 'permis_conduire_image');
-            await uploadDoc(request.idCardFrontImage, 'cni_recto_image');
-            await uploadDoc(request.idCardBackImage, 'cni_verso_image');
-            
-            if (updates.isNotEmpty) {
-              await _supabase.from('livreur').update(updates).eq('id_user', userId);
-            }
-          }
-        } catch (e) {
-          debugPrint('Erreur lors du téléchargement des documents: $e');
-        }
-
-        // Fetch details synchronously before returning true so the UI has the role
-        await _fetchUserDetails(request.email);
-        return true;
+      // Vérifier si email déjà utilisé
+      final existing = await _supabase
+          .from('app_user')
+          .select('id_user')
+          .eq('email', request.email)
+          .maybeSingle();
+      
+      if (existing != null) {
+        _setError('Cet email est déjà utilisé');
+        return false;
       }
-      return false;
-    } on supa.AuthException catch (e) {
-      _setError('Erreur d\'inscription: ${e.message}');
-      return false;
+
+      // Hash password SHA256
+      final bytes = utf8.encode(request.password);
+      final digest = sha256.convert(bytes);
+      final hashedPassword = digest.toString();
+
+      // 1. INSERT app_user
+      final responseUser = await _supabase.from('app_user').insert({
+        'email': request.email,
+        'password': hashedPassword,
+        'nom': request.nom,
+        'num_tl': request.numTl,
+        'role': request.role.value,
+      }).select().single();
+
+      final int userId = responseUser['id_user'];
+      print('USER CREATED id_user: $userId role: ${request.role.value}');
+
+      // Format date
+      String? dateNaissanceStr;
+      if (request.dateNaissance != null) {
+        final d = request.dateNaissance!;
+        dateNaissanceStr = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      }
+
+      // 2. INSERT selon rôle
+      if (request.role == UserRole.client) {
+        await _supabase.from('client').insert({
+          'id_user': userId,
+          'sexe': request.sexe,
+          'date_naissance': dateNaissanceStr,
+        });
+        print('CLIENT INSERT SUCCESS');
+      } else if (request.role == UserRole.livreur) {
+        await _supabase.from('livreur').insert({
+          'id_user': userId,
+          'sexe': request.sexe,
+          'date_naissance': dateNaissanceStr,
+          'cni': request.cni,
+          'documents_validation': request.documentsValidation,
+          'est_actif': false,
+        });
+        print('LIVREUR INSERT SUCCESS');
+      } else if (request.role == UserRole.business) {
+        await _supabase.from('business').insert({
+          'id_user': userId,
+          'type_business': request.businessType,
+          'description': request.businessDescription,
+          'pdp': request.profileImageUrl,
+          'documents_validation': request.documentsValidation,
+          'est_actif': false,
+          'is_open': false,
+        });
+        print('BUSINESS INSERT SUCCESS');
+      }
+
+      // 3. INSERT adresse
+      if (request.latitude != null && request.longitude != null) {
+        final adresse = await _supabase.from('adresse').insert({
+          'ville': 'Localisation GPS',
+          'latitude': request.latitude,
+          'longitude': request.longitude,
+        }).select().single();
+
+        await _supabase.from('user_adresse').insert({
+          'id_user': userId,
+          'id_adresse': adresse['id_adresse'],
+          'is_default': true,
+        });
+      }
+
+      // 4. Charger l'utilisateur
+      await _fetchUserDetails(request.email);
+      return true;
+
     } catch (e) {
+      print('REGISTER ERROR: $e'); // ← affiche l'erreur exacte
       _setError('Erreur d\'inscription: ${e.toString()}');
       return false;
     } finally {

@@ -32,6 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   LatLng? _selectedLocation;
+  String? _selectedCity = 'Tétouan'; // ← AJOUTER avec valeur par défaut
   final MapController _mapController = MapController();
 
   // Client fields
@@ -74,6 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Photo de profil
   XFile? _profileImage;
+  String? _profileImageUrl;
 
   final List<String> cities = [
     'Tétouan',
@@ -189,6 +191,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  bool _needsDrivingLicense() {
+    // Vélo et Piéton n'ont pas besoin de permis de conduire
+    if (_vehicleType == null) return true; // Par défaut, on demande le permis
+    return !['Vélo', 'Piéton'].contains(_vehicleType);
+  }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -229,8 +237,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _showErrorSnackBar('Veuillez sélectionner un type de véhicule');
         return;
       }
-      if (_drivingLicenseUrl == null || _idCardFrontUrl == null || _idCardBackUrl == null) {
+      // Ne demander le permis que si nécessaire
+      if (_needsDrivingLicense() && (_drivingLicenseUrl == null || _idCardFrontUrl == null || _idCardBackUrl == null)) {
         _showErrorSnackBar('Veuillez uploader tous les documents requis');
+        return;
+      }
+      // Pour vélo/piéton, seulement la CNI est requise
+      if (!_needsDrivingLicense() && (_idCardFrontUrl == null || _idCardBackUrl == null)) {
+        _showErrorSnackBar('Veuillez uploader votre carte d\'identité');
         return;
       }
     }
@@ -265,41 +279,65 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
       nom: _fullNameController.text.trim(),
-      numTl: _phoneController.text.trim(),
+      numTl: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       role: mappedRole,
+      
+      // Client & Livreur
       sexe: _selectedSexe,
       dateNaissance: _selectedDateNaissance,
-      businessType: _businessCategory,
-      businessDescription: _businessDescriptionController.text.trim(),
-      businessPdp: _businessLogoUrl,
-      cni: _licenseNumberController.text.trim(),
+      
+      // Livreur
+      cni: _licenseNumberController.text.trim().isEmpty ? null : _licenseNumberController.text.trim(),
       documentsValidation: _selectedRole == UserRole.livreur
-          ? docsUrl
+          ? [
+              if (_idCardFrontUrl != null) _idCardFrontUrl!,
+              if (_idCardBackUrl != null) _idCardBackUrl!,
+              if (_needsDrivingLicense() && _drivingLicenseUrl != null) _drivingLicenseUrl!,
+            ].join(',')
           : _commerceRegistrationUrl,
+      
+      // Business
+      businessType: _businessCategory,
+      businessDescription: _businessDescriptionController.text.trim().isEmpty
+          ? null
+          : _businessDescriptionController.text.trim(),
+      profileImageUrl: _businessLogoUrl,
+      
+      // Adresse
+      ville: _selectedCity,
       latitude: _selectedLocation?.latitude,
       longitude: _selectedLocation?.longitude,
     );
+
+    print('📤 REGISTER REQUEST: ${request.toJson()}'); // ← debug crucial
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.register(request);
 
     if (success && mounted) {
-      final role = authProvider.user?.role.value;
-      switch (role) {
-        case 'client':
+      print('REGISTERED ROLE: ${authProvider.user?.role.value}');
+      
+      // Seuls les clients sont redirigés automatiquement
+      // Livreur et Business doivent attendre validation admin
+      switch (authProvider.user?.role) {
+        case UserRole.client:
           Navigator.of(context).pushReplacementNamed('/client/home');
           break;
-        case 'livreur':
-          Navigator.of(context).pushReplacementNamed('/livreur/dashboard');
+        case UserRole.livreur:
+          _showSuccessSnackBar('Inscription livreur réussie ! En attente de validation de vos documents par l\'administrateur.');
+          Navigator.of(context).pushReplacementNamed('/');
           break;
-        case 'business':
-          Navigator.of(context).pushReplacementNamed('/business/dashboard');
+        case UserRole.business:
+          _showSuccessSnackBar('Inscription business réussie ! En attente de validation de vos documents par l\'administrateur.');
+          Navigator.of(context).pushReplacementNamed('/');
           break;
         default:
-          Navigator.of(context).pushReplacementNamed('/client/home');
+          Navigator.of(context).pushReplacementNamed('/');
       }
     } else if (mounted) {
-      _showErrorSnackBar(authProvider.errorMessage ?? 'Erreur lors de l\'inscription');
+      _showErrorSnackBar(
+        authProvider.errorMessage ?? 'Erreur lors de l\'inscription'
+      );
     }
   }
 
@@ -613,10 +651,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    _pickImage(
-                      onImagePicked: (file) {
+                    _pickAndUpload(
+                      folder: 'users/avatars',
+                      onDone: (file, url) {
                         setState(() {
                           _profileImage = file;
+                          _profileImageUrl = url;
                         });
                       },
                     );
@@ -740,35 +780,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
               iconColor: AppColors.accent,
             ),
           ] else if (_selectedRole == UserRole.livreur) ...[
+            // Sexe
+            _buildSexeDropdown(),
+            SizedBox(height: 16),
+
+            // Date de naissance
+            _buildDatePicker(),
+            SizedBox(height: 16),
+
             // Type de véhicule - Maintenant une vraie liste déroulante
             _buildVehicleDropdown(),
             SizedBox(height: 16),
 
-            // Numéro de permis
-            _buildTextField(
-              label: 'Numéro de permis',
-              icon: LucideIcons.fileText,
-              controller: _licenseNumberController,
-              hint: 'Numéro de permis de conduire',
-            ),
-            SizedBox(height: 16),
-
-            // Permis de conduire
-            _buildUploadZone(
-              label: 'Permis de conduire',
-              icon: LucideIcons.upload,
-              description: _drivingLicenseUrl != null ? '✓ Permis uploadé' : 'Télécharger une photo',
-              subtext: 'JPG, PNG · Max 5MB',
-              isUploaded: _drivingLicenseUrl != null,
-              onTap: () => _pickAndUpload(
-                folder: 'livreurs/permis',
-                onDone: (file, url) => setState(() {
-                  _drivingLicenseFile = file;
-                  _drivingLicenseUrl = url;
-                }),
+            // Numéro de permis (conditionnel)
+            if (_needsDrivingLicense()) ...[
+              _buildTextField(
+                label: 'Numéro de permis',
+                icon: LucideIcons.fileText,
+                controller: _licenseNumberController,
+                hint: 'Numéro de permis de conduire',
               ),
-            ),
-            SizedBox(height: 16),
+              SizedBox(height: 16),
+
+              // Permis de conduire
+              _buildUploadZone(
+                label: 'Permis de conduire',
+                icon: LucideIcons.upload,
+                description: _drivingLicenseUrl != null ? '✓ Permis uploadé' : 'Télécharger une photo',
+                subtext: 'JPG, PNG · Max 5MB',
+                isUploaded: _drivingLicenseUrl != null,
+                onTap: () => _pickAndUpload(
+                  folder: 'livreurs/permis',
+                  onDone: (file, url) => setState(() {
+                    _drivingLicenseFile = file;
+                    _drivingLicenseUrl = url;
+                  }),
+                ),
+              ),
+              SizedBox(height: 16),
+            ],
 
             // Carte d'identité recto
             _buildUploadZone(

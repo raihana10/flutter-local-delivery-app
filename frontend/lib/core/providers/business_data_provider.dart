@@ -4,6 +4,7 @@ import 'auth_provider.dart';
 
 class BusinessDataProvider extends ChangeNotifier {
   final AuthProvider authProvider;
+  final int? overrideBusinessId;
   late final BusinessApiService apiService;
 
   bool isLoading = false;
@@ -11,8 +12,9 @@ class BusinessDataProvider extends ChangeNotifier {
   Map<String, dynamic> profile = {};
   List<dynamic> notifications = [];
 
-  BusinessDataProvider({required this.authProvider}) {
-    apiService = BusinessApiService(authProvider);
+  BusinessDataProvider({required this.authProvider, this.overrideBusinessId}) {
+    apiService = BusinessApiService(authProvider, overrideBusinessId: overrideBusinessId);
+    print('🔧 BusinessDataProvider created with overrideBusinessId: $overrideBusinessId');
   }
 
   void _setLoading(bool value) {
