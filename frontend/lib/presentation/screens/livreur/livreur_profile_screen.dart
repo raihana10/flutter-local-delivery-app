@@ -9,6 +9,9 @@ import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/livreur/historique_screen.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
 import 'package:app/presentation/screens/livreur/livreur_documents_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_stats_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class LivreurProfileScreen extends StatelessWidget {
   const LivreurProfileScreen({super.key});
@@ -39,6 +42,20 @@ class LivreurProfileScreen extends StatelessWidget {
                   const SizedBox(height: 32),
 
                   // Profile Sections
+                  _buildSection(
+                    title: 'Mon activité',
+                    items: [
+                      _buildListTile(Icons.bar_chart_rounded, 'Statistiques de livraison',
+                          onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => LivreurStatsScreen()),
+                        );
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
                   _buildSection(
                     title: 'Paramètres du compte',
                     items: [
@@ -122,9 +139,9 @@ class LivreurProfileScreen extends StatelessWidget {
             ),
           ),
           LivreurBottomNavBar(
-            currentIndex: 3,
+            currentIndex: 4,
             onTap: (i) {
-              if (i == 3) return;
+              if (i == 4) return;
               final provider = context.read<LivreurDashboardProvider>();
               if (i == 0) {
                 Navigator.pushReplacement(
@@ -137,6 +154,11 @@ class LivreurProfileScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: provider.activeCommande)),
                 );
               } else if (i == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => LivreurStatsScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 3) {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(pageBuilder: (_,__,___) => const HistoriqueScreen(), transitionDuration: Duration.zero),
@@ -152,26 +174,46 @@ class LivreurProfileScreen extends StatelessWidget {
   Widget _buildProfileHeader(BuildContext context, dynamic user) {
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 2),
+        GestureDetector(
+          onTap: () async {
+            final picker = ImagePicker();
+            try {
+              final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+              if (pickedFile != null) {
+                final authProvider = context.read<AuthProvider>();
+                final success = await authProvider.updateProfilePicture(pickedFile);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(success ? 'Photo de profil mise à jour' : 'Erreur lors de la mise à jour de la photo')),
+                  );
+                }
+              }
+            } catch (e) {
+               debugPrint('Error picking image: $e');
+            }
+          },
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary, width: 2),
+                  image: user?.pdp != null ? DecorationImage(
+                    image: NetworkImage(user!.pdp!),
+                    fit: BoxFit.cover,
+                  ) : null,
+                ),
+                child: user?.pdp == null ? const Icon(
+                  Icons.person,
+                  size: 50,
+                  color: AppColors.primary,
+                ) : null,
               ),
-              child: const Icon(
-                Icons.person,
-                size: 50,
-                color: AppColors.primary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () {},
-              child: Container(
+              Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(
                   color: AppColors.accent,
@@ -180,8 +222,8 @@ class LivreurProfileScreen extends StatelessWidget {
                 child: const Icon(Icons.camera_alt,
                     size: 16, color: AppColors.primary),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         Text(
