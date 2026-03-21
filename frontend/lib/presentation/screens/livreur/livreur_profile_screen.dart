@@ -3,7 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/theme_provider.dart';
+import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
+import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
+import 'package:app/presentation/screens/livreur/historique_screen.dart';
+import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_documents_screen.dart';
 
 class LivreurProfileScreen extends StatelessWidget {
   const LivreurProfileScreen({super.key});
@@ -44,7 +49,13 @@ class LivreurProfileScreen extends StatelessWidget {
                       }),
                       _buildListTile(
                           Icons.pedal_bike_outlined, 'Véhicule et documents',
-                          onTap: () {}),
+                          onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LivreurDocumentsScreen()),
+                        );
+                      }),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -113,8 +124,23 @@ class LivreurProfileScreen extends StatelessWidget {
           LivreurBottomNavBar(
             currentIndex: 3,
             onTap: (i) {
-              if (i != 3) {
-                Navigator.pop(context);
+              if (i == 3) return;
+              final provider = context.read<LivreurDashboardProvider>();
+              if (i == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const DashboardScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 1 && provider.activeCommande != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: provider.activeCommande)),
+                );
+              } else if (i == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const HistoriqueScreen(), transitionDuration: Duration.zero),
+                );
               }
             },
           ),
