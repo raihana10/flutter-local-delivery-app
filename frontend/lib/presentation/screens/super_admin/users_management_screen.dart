@@ -550,18 +550,14 @@ var filteredUsers = users
           onViewDetails: _showUserModal,
           onValidate: _showDocumentValidationModal,
           onManageBusiness: (user) {
-            // Récupérer id_business depuis les données imbriquées
-            final biz = user['business'];
-            final idBusinessStr = biz is List
-                ? (biz.isNotEmpty ? biz[0]['id_business'] : null)
-                : (biz != null ? biz['id_business'] : null);
-            final idBusiness = int.tryParse(idBusinessStr?.toString() ?? '');
+            // L'admin doit usurper l'identité du business, qui est gérée par son id_user
+            final idUser = user['id_user'] as int?;
             
-            print('🏪 MANAGE BUSINESS id_business: $idBusiness');
+            print('🏪 MANAGE BUSINESS id_user: $idUser');
             
-            if (idBusiness == null) {
+            if (idUser == null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ID business introuvable')),
+                const SnackBar(content: Text('ID user introuvable')),
               );
               return;
             }
@@ -572,9 +568,9 @@ var filteredUsers = users
                 builder: (context) => ChangeNotifierProvider(
                   create: (ctx) => BusinessDataProvider(
                     authProvider: ctx.read<AuthProvider>(),
-                    overrideBusinessId: idBusiness,
+                    overrideBusinessId: idUser,
                   ),
-                  child: BusinessMainScreen(idBusiness: idBusiness),
+                  child: BusinessMainScreen(idBusiness: idUser),
                 ),
               ),
             );

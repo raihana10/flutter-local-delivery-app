@@ -122,7 +122,7 @@ class StatsController {
     try {
       final businesses = await SupabaseConfig.client
           .from('business')
-          .select('id_business, id_user, app_user:id_user(nom, email)')
+          .select('id_business, id_user, type_business, app_user:id_user(nom, email)')
           .isFilter('deleted_at', null);
 
       final List<Map<String, dynamic>> result = [];
@@ -185,6 +185,7 @@ class StatsController {
         final user = business['app_user'];
         result.add({
           'id_business': idBusiness,
+          'type_business': business['type_business'] ?? 'Autre',
           'nom': user?['nom'] ?? 'Business #$idBusiness',
           'email': user?['email'] ?? '',
           'nb_commandes': nbCommandes,

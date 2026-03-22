@@ -60,7 +60,8 @@ class BusinessDataProvider extends ChangeNotifier {
   }
 
   Future<void> fetchAll() async {
-    if (!authProvider.isAuthenticated) return;
+    // ✅ Bypasser si admin mode
+    if (overrideBusinessId == null && !authProvider.isAuthenticated) return;
     _setLoading(true);
     await Future.wait([
       fetchDashboardStats(),

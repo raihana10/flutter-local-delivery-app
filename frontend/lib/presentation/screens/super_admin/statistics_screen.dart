@@ -21,6 +21,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   bool _isLoading = true;
   List<dynamic> _topDrivers = [];
   List<dynamic> _topBusinesses = [];
+  List<dynamic> _allBusinesses = [];
   List<dynamic> _weeklyRevenue = [];
 
   @override
@@ -50,6 +51,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
           // Businesses
           final businesses = List<dynamic>.from(businessStats['data'] ?? []);
+          _allBusinesses = List<dynamic>.from(businesses); // Garder la liste complète pour le pie chart
           businesses.sort((a, b) => ((b['revenus_totaux'] ?? 0) as num)
               .compareTo((a['revenus_totaux'] ?? 0) as num));
           _topBusinesses = businesses.take(3).toList();
@@ -297,8 +299,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Map<String, int> typeCounts = {};
     Map<String, double> typeRevenues = {};
     
-    for (var commerce in _topBusinesses) {
-      String type = commerce['email'] as String? ?? 'Business';
+    for (var commerce in _allBusinesses) {
+      String type = commerce['type_business'] as String? ?? 'Autre';
       typeCounts[type] = (typeCounts[type] ?? 0) + 1;
       typeRevenues[type] = (typeRevenues[type] ?? 0) + (commerce['revenus_totaux'] as num? ?? 0).toDouble();
     }
@@ -333,8 +335,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Map<String, double> typeRevenues = {};
     double totalRevenue = 0;
     
-    for (var commerce in _topBusinesses) {
-      String type = commerce['email'] as String? ?? 'Business';
+    for (var commerce in _allBusinesses) {
+      String type = commerce['type_business'] as String? ?? 'Autre';
       double revenue = (commerce['revenus_totaux'] as num? ?? 0).toDouble();
       typeRevenues[type] = (typeRevenues[type] ?? 0) + revenue;
       totalRevenue += revenue;
