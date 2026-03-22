@@ -6,15 +6,12 @@
 
 #import "GeneratedPluginRegistrant.h"
 
-<<<<<<< HEAD
-=======
 #if __has_include(<app_links/AppLinksIosPlugin.h>)
 #import <app_links/AppLinksIosPlugin.h>
 #else
 @import app_links;
 #endif
 
->>>>>>> fa12a4bb75b4fd9cbb57ba0de076fed462eb8ce2
 #if __has_include(<file_picker/FilePickerPlugin.h>)
 #import <file_picker/FilePickerPlugin.h>
 #else
@@ -51,11 +48,6 @@
 @import sqflite_darwin;
 #endif
 
-<<<<<<< HEAD
-@implementation GeneratedPluginRegistrant
-
-+ (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
-=======
 #if __has_include(<url_launcher_ios/URLLauncherPlugin.h>)
 #import <url_launcher_ios/URLLauncherPlugin.h>
 #else
@@ -66,17 +58,13 @@
 
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
   [AppLinksIosPlugin registerWithRegistrar:[registry registrarForPlugin:@"AppLinksIosPlugin"]];
->>>>>>> fa12a4bb75b4fd9cbb57ba0de076fed462eb8ce2
   [FilePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FilePickerPlugin"]];
   [GeolocatorPlugin registerWithRegistrar:[registry registrarForPlugin:@"GeolocatorPlugin"]];
   [FLTGoogleSignInPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTGoogleSignInPlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];
   [SqflitePlugin registerWithRegistrar:[registry registrarForPlugin:@"SqflitePlugin"]];
-<<<<<<< HEAD
-=======
   [URLLauncherPlugin registerWithRegistrar:[registry registrarForPlugin:@"URLLauncherPlugin"]];
->>>>>>> fa12a4bb75b4fd9cbb57ba0de076fed462eb8ce2
 }
 
 @end

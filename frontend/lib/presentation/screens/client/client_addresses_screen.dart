@@ -394,7 +394,7 @@ class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
                     width: MediaQuery.of(context).size.width - 48,
                     color: AppColors.card,
                     child: ListView.separated(
-                      padding: const EdgeInsets.zero,
+                      padding: EdgeInsets.zero,
                       shrinkWrap: true,
                       itemCount: options.length,
                       separatorBuilder: (context, index) => const Divider(height: 1),
