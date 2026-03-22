@@ -46,6 +46,16 @@ class BusinessApiService {
     }
   }
 
+  Future<bool> addAddress(Map<String, dynamic> data) async {
+    try {
+      await _dio.post('$baseUrl/business/profile/addresses', data: data, options: _getAuthOptions());
+      return true;
+    } catch (e) {
+      print('addAddress Error: $e');
+      return false;
+    }
+  }
+
   Future<List<dynamic>> getNotifications() async {
     try {
       final res = await _dio.get('$baseUrl/business/notifications', options: _getAuthOptions());

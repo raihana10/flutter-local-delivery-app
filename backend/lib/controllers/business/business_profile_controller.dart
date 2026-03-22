@@ -44,4 +44,73 @@ class BusinessProfileController {
       return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
     }
   }
+
+  Future<Response> addAddress(Request request) async {
+    final businessIdStr = request.headers['x-business-id'];
+    if (businessIdStr == null) return Response.forbidden('Missing business id');
+
+    try {
+      final payload = await request.readAsString();
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+
+      if (!data.containsKey('latitude') || !data.containsKey('longitude')) {
+        return Response(400, body: jsonEncode({'error': 'Latitude and longitude are required'}));
+      }
+
+      var existingAddress = await SupabaseConfig.client
+          .from('adresse')
+          .select()
+          .eq('latitude', data['latitude'])
+          .eq('longitude', data['longitude'])
+          .maybeSingle();
+
+      Map<String, dynamic> finalAddress;
+
+      if (existingAddress != null) {
+        finalAddress = existingAddress;
+      } else {
+        finalAddress = await SupabaseConfig.client
+            .from('adresse')
+            .insert({
+              'ville': data['ville'] ?? '',
+              'details': data['details'] ?? '',
+              'latitude': data['latitude'],
+              'longitude': data['longitude'],
+            })
+            .select()
+            .single();
+      }
+
+      var existingUserAddress = await SupabaseConfig.client
+          .from('user_adresse')
+          .select()
+          .eq('id_user', int.parse(businessIdStr))
+          .eq('id_adresse', finalAddress['id_adresse'])
+          .maybeSingle();
+
+      if (existingUserAddress != null) {
+        await SupabaseConfig.client
+            .from('user_adresse')
+            .update({
+              'is_default': data['is_default'] ?? false,
+              'titre': data['titre'] ?? 'Adresse',
+            })
+            .eq('id_user', int.parse(businessIdStr))
+            .eq('id_adresse', finalAddress['id_adresse']);
+      } else {
+        await SupabaseConfig.client
+            .from('user_adresse')
+            .insert({
+              'id_user': int.parse(businessIdStr),
+              'id_adresse': finalAddress['id_adresse'],
+              'is_default': data['is_default'] ?? false,
+              'titre': data['titre'] ?? 'Adresse',
+            });
+      }
+
+      return Response.ok(jsonEncode({'success': true}), headers: {'content-type': 'application/json'});
+    } catch (e) {
+      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
+    }
+  }
 }

@@ -86,7 +86,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         addressRelation['id_adresse'].toString(); // the linked address
 
     // We don't have titles in the DB model currently, but we could infer by default status
-    final title = isDefault ? 'Adresse Principale' : 'Adresse';
+    final title = addressRelation['titre'] ?? (isDefault ? 'Adresse Principale' : 'Adresse');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -147,7 +147,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            ville,
+            addressModel['details'] ?? ville,
             style:
                 const TextStyle(color: AppColors.mutedForeground, height: 1.4),
           ),
@@ -194,20 +194,22 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return const _AddAddressBottomSheet();
+        return const AddAddressBottomSheet();
       },
     );
   }
 }
 
-class _AddAddressBottomSheet extends StatefulWidget {
-  const _AddAddressBottomSheet();
+class AddAddressBottomSheet extends StatefulWidget {
+  final Future<bool> Function(Map<String, dynamic> data)? onSave;
+
+  const AddAddressBottomSheet({super.key, this.onSave});
 
   @override
-  State<_AddAddressBottomSheet> createState() => _AddAddressBottomSheetState();
+  State<AddAddressBottomSheet> createState() => AddAddressBottomSheetState();
 }
 
-class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
+class AddAddressBottomSheetState extends State<AddAddressBottomSheet> {
   final _titleController = TextEditingController();
   final _villeController = TextEditingController();
   final _addressController = TextEditingController();
@@ -237,14 +239,13 @@ class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
 
         final addressData = await _locationService.getAddressFromCoordinates(_latitude!, _longitude!);
         if (addressData != null && addressData['address'] != null) {
-          final address = addressData['address'];
+          final address = addressData['address'] ?? {};
           final city = address['city'] ?? address['town'] ?? address['village'] ?? address['state'] ?? 'Inconnue';
-          final road = address['road'] ?? '';
-          final num = address['house_number'] ?? '';
+          final displayName = addressData['display_name'] ?? '';
           
           setState(() {
             _villeController.text = city;
-            _addressController.text = '$num $road'.trim();
+            _addressController.text = displayName;
             if (_titleController.text.isEmpty) {
               _titleController.text = 'Position actuelle';
             }
@@ -268,13 +269,23 @@ class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
     }
 
     setState(() => _isSaving = true);
-    final success = await context.read<ClientDataProvider>().addAddress({
+    
+    final payload = {
       'titre': _titleController.text.isEmpty ? 'Adresse' : _titleController.text,
+      'details': _addressController.text.trim(),
       'ville': _villeController.text,
       'latitude': _latitude,
       'longitude': _longitude,
       'is_default': false,
-    });
+    };
+
+    bool success;
+    if (widget.onSave != null) {
+      success = await widget.onSave!(payload);
+    } else {
+      success = await context.read<ClientDataProvider>().addAddress(payload);
+    }
+
     setState(() => _isSaving = false);
 
     if (mounted) {

@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 
 import 'package:provider/provider.dart';
 import '../../../core/providers/client_data_provider.dart';
+import 'client_addresses_screen.dart';
 
 class OrderConfirmationScreen extends StatefulWidget {
   const OrderConfirmationScreen({super.key});
@@ -124,7 +125,10 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final isDefault = addressRelation['is_default'] == true;
     final addressModel = addressRelation['adresse'] ?? {};
     final ville = addressModel['ville'] ?? 'Adresse';
-    final title = isDefault ? 'Adresse Principale' : 'Nouvelle Adresse';
+    final details = addressModel['details'] ?? ville;
+    
+    // Fallback to title if available, otherwise default logic
+    final title = addressRelation['titre'] ?? (isDefault ? 'Adresse Principale' : 'Nouvelle Adresse');
 
     return GestureDetector(
       onTap: () {
@@ -175,7 +179,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    ville,
+                    details,
                     style: const TextStyle(
                       color: AppColors.mutedForeground,
                       fontSize: 14,
@@ -468,152 +472,9 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Ajouter une adresse',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-
-              // Geolocation Button
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  foregroundColor: AppColors.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.primary),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Recherche de votre position GPS en cours...')),
-                  );
-                  // Simulate fetching geolocation and adding
-                  Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) {
-                      context.read<ClientDataProvider>().addAddress({
-                        'ville': 'Tétouan',
-                        'latitude': 35.5800,
-                        'longitude': -5.3700,
-                        'is_default': false,
-                        'titre': 'Position actuelle',
-                      }).then((success) {
-                        if (mounted && success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Adresse GPS ajoutée')));
-                        }
-                      });
-                    }
-                  });
-                },
-                icon: const Icon(Icons.my_location),
-                label: const Text('Utiliser ma position actuelle',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-
-              const SizedBox(height: 24),
-              const Center(
-                  child: Text('OU',
-                      style: TextStyle(
-                          color: AppColors.mutedForeground,
-                          fontWeight: FontWeight.bold))),
-              const SizedBox(height: 24),
-
-              // Manual Entry Form
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Titre (ex: Maison, Bureau)',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Ville',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                onChanged: (val) {
-                  // We would bind a controller here for city
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Adresse complète',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () async {
-                  // Fake manual address data
-                  final success =
-                      await context.read<ClientDataProvider>().addAddress({
-                    'ville': 'Tétouan', // In real life, value from controller
-                    'latitude': 35.5800,
-                    'longitude': -5.3700,
-                  });
-                  if (mounted) {
-                    Navigator.pop(context);
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Adresse ajoutée manuellement')));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Erreur ajout d\'adresse')));
-                    }
-                  }
-                },
-                child: const Text('Enregistrer l\'adresse',
-                    style: TextStyle(
-                        color: AppColors.card, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
+        return const AddAddressBottomSheet();
       },
     );
   }

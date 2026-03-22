@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/business_data_provider.dart';
+import '../../client/client_addresses_screen.dart';
 import '../business_main_screen.dart';
 
 class BusinessProfileView extends StatefulWidget {
@@ -183,6 +184,20 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                     _buildActionTile(LucideIcons.store, 'Type de Business', typeBusiness, onTap: () {}),
                     _buildActionTile(LucideIcons.clock, 'Horaires d\'ouverture', horaires, onTap: () {}),
                     _buildActionTile(LucideIcons.timer, 'Temps de préparation moyen', '$timePrep mins', onTap: () {}),
+                    _buildActionTile(LucideIcons.mapPin, 'Adresse', 'Définir la localisation exacte', onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) {
+                          return AddAddressBottomSheet(
+                            onSave: (data) async {
+                              return await provider.apiService.addAddress(data);
+                            },
+                          );
+                        },
+                      );
+                    }),
                   ],
                 ),
               ),
