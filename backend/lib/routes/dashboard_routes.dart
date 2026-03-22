@@ -12,6 +12,11 @@ class DashboardRoutes {
     router.get('/chart', dashboardController.getChartData);
     router.get('/alerts', dashboardController.getAlerts);
     router.get('/livreurs/positions', dashboardController.getLiveDrivers);
+    
+    // Routes pour les statistiques détaillées
+    router.get('/stats/weekly-revenue', dashboardController.getWeeklyRevenueStats);
+    router.get('/stats/top-livreurs', dashboardController.getTopLivreursStats);
+    router.get('/stats/top-commerce', dashboardController.getTopCommerceStats);
 
     return router;
   }

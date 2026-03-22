@@ -28,6 +28,22 @@ class SuperAdminApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getChartData() async {
+    try {
+      final options = await _getAuthOptions();
+      final response =
+          await _dio.get('$baseUrl/admin/dashboard/chart', options: options);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ getChartData ERROR: $e');
+      return {
+        'weeklyRevenue': [],
+        'ordersByStatus': [],
+        'stats': {'weeklyRevenue': [], 'ordersByStatus': []}
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> getAlerts() async {
     try {
       final options = await _getAuthOptions();
@@ -44,17 +60,6 @@ class SuperAdminApiService {
       final options = await _getAuthOptions();
       final response = await _dio.get('$baseUrl/admin/dashboard/livreurs/positions',
           options: options);
-      return response.data['data'] as List<dynamic>;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  Future<List<dynamic>> getChartData() async {
-    try {
-      final options = await _getAuthOptions();
-      final response =
-          await _dio.get('$baseUrl/admin/dashboard/chart', options: options);
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       return [];
@@ -177,11 +182,27 @@ class SuperAdminApiService {
   Future<Map<String, dynamic>> getRevenus() async {
     try {
       final options = await _getAuthOptions();
-      final response =
-          await _dio.get('$baseUrl/admin/stats/revenus', options: options);
-      return response.data;
+      
+      // Récupérer les revenus hebdomadaires
+      final weeklyRevenueResponse = await _dio.get('$baseUrl/admin/dashboard/stats/weekly-revenue', options: options);
+      
+      // Récupérer les top livreurs
+      final topLivreursResponse = await _dio.get('$baseUrl/admin/dashboard/stats/top-livreurs', options: options);
+      
+      // Récupérer les top commerce
+      final topCommerceResponse = await _dio.get('$baseUrl/admin/dashboard/stats/top-commerce', options: options);
+      
+      return {
+        'success': true,
+        'data': {
+          'weeklyRevenue': weeklyRevenueResponse.data,
+          'livreurStats': topLivreursResponse.data['data'] ?? [],
+          'businessStats': topCommerceResponse.data['data'] ?? [],
+        }
+      };
     } catch (e) {
-      return {};
+      print('❌ getRevenus ERROR: $e');
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -194,6 +215,21 @@ class SuperAdminApiService {
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<bool> sendNotification(Map<String, dynamic> notificationData) async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.post(
+        '$baseUrl/admin/notifications/send',
+        data: notificationData,
+        options: options,
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ sendNotification ERROR: $e');
+      return false;
     }
   }
 

@@ -325,11 +325,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           break;
         case UserRole.livreur:
           _showSuccessSnackBar('Inscription livreur réussie ! En attente de validation de vos documents par l\'administrateur.');
-          Navigator.of(context).pushReplacementNamed('/');
+          // Attendre 3 secondes avant la redirection pour que le message soit visible
+          await Future.delayed(const Duration(seconds: 3));
+          if (mounted) Navigator.of(context).pushReplacementNamed('/');
           break;
         case UserRole.business:
-          _showSuccessSnackBar('Inscription business réussie ! En attente de validation de vos documents par l\'administrateur.');
-          Navigator.of(context).pushReplacementNamed('/');
+          _showSuccessSnackBar('Inscription commerce réussie ! En attente de validation de vos documents par l\'administrateur.');
+          // Attendre 3 secondes avant la redirection pour que le message soit visible
+          await Future.delayed(const Duration(seconds: 3));
+          if (mounted) Navigator.of(context).pushReplacementNamed('/');
           break;
         default:
           Navigator.of(context).pushReplacementNamed('/');
@@ -439,7 +443,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       SizedBox(height: 12),
                       _buildRoleButton(
                         role: UserRole.business,
-                        label: 'Business',
+                        label: 'Commerce',
                         icon: LucideIcons.store,
                         description: 'Gérer mon restaurant / commerce',
                       ),
@@ -1677,7 +1681,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case UserRole.livreur:
         return 'Livreur';
       case UserRole.business:
-        return 'Business';
+        return 'Commerce';
       default:
         return '';
     }
