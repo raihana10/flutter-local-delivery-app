@@ -27,7 +27,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Future<void> _loadData() async {
     final res = await _api.getCommissions();
-    final liv = await _api.getLivreurs();
+    
+    // ✅ Récupérer uniquement les livreurs
+    final livreursRes = await _api.getLivreurs();
 
     if (mounted) {
       setState(() {
@@ -35,7 +37,16 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         _totalLivreurs = (res['revenus_livreurs_total'] ?? 0).toDouble();
         _totalBusinesses = (res['revenus_businesses_total'] ?? 0).toDouble();
         _details = res['detail'] ?? [];
-        _livreurs = liv;
+        
+        // ✅ Dédupliquer par id_user
+        final seen = <int>{};
+        _livreurs = livreursRes.where((l) {
+          final id = l['id_user'] as int?;
+          if (id == null || seen.contains(id)) return false;
+          seen.add(id);
+          return true;
+        }).toList();
+        
         _isLoading = false;
       });
     }
@@ -173,6 +184,7 @@ class _LivreurListItem extends StatefulWidget {
 
 class _LivreurListItemState extends State<_LivreurListItem> {
   double _gains = 0;
+  int _nbCourses = 0;
   bool _loading = true;
 
   @override
@@ -182,10 +194,26 @@ class _LivreurListItemState extends State<_LivreurListItem> {
   }
 
   Future<void> _loadGains() async {
-    final res = await widget.api.getLivreurGains(widget.livreur['id_user']);
+    final livreurData = widget.livreur['livreur'];
+    final idLivreur = livreurData is List && livreurData.isNotEmpty
+        ? livreurData[0]['id_livreur']
+        : (livreurData is Map ? livreurData['id_livreur'] : null);
+
+    if (idLivreur == null) {
+      if (mounted) {
+        setState(() { _gains = 0; _nbCourses = 0; _loading = false; });
+      }
+      return;
+    }
+
+    // idLivreur should be an int or parsed to int
+    final parsedId = idLivreur is int ? idLivreur : int.tryParse(idLivreur.toString()) ?? 0;
+
+    final res = await widget.api.getLivreurGains(parsedId);
     if (mounted) {
       setState(() {
-        _gains = (res['recompenses_totales'] ?? 0).toDouble();
+        _gains = (res['total_gains'] ?? 0).toDouble();
+        _nbCourses = (res['nb_courses'] ?? 0) as int;
         _loading = false;
       });
     }
@@ -198,7 +226,9 @@ class _LivreurListItemState extends State<_LivreurListItem> {
       child: ListTile(
         leading: CircleAvatar(child: Icon(LucideIcons.truck)),
         title: Text(widget.livreur['nom'] ?? 'Inconnu'),
-        subtitle: const Text('... courses'),
+        subtitle: _loading 
+            ? const Text('Chargement...')
+            : Text('$_nbCourses courses'),
         trailing: _loading
             ? const SizedBox(
                 width: 20,

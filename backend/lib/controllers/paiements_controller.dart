@@ -101,40 +101,40 @@ class PaiementsController {
 
   Future<Response> getLivreurEarnings(Request request, String id) async {
     try {
-      final timelineEntries = await SupabaseConfig.client
+      // ✅ Chercher dans timeline les commandes assignées à ce livreur
+      final timelines = await SupabaseConfig.client
           .from('timeline')
-          .select('commande(frais_livraison, statut_commande)')
-          .eq('id_livreur', id)
+          .select('id_commande, commande(prix_total, frais_livraison, statut_commande, prix_donne)')
+          .eq('id_livreur', int.parse(id))
           .isFilter('deleted_at', null);
 
-      double totalCommission = 0.0;
-      for (var entry in timelineEntries) {
-        final commande = entry['commande'];
-        // Checking if statuts is 'livree' or similar
-        // The prompt says "statut_commande" for timeline query, let's use it
-        final String? statut =
-            commande['statut_commande'];
-        if (commande != null && statut == 'livree') {
-          final fraisLivraison = (commande['frais_livraison'] as num)
-              .toDouble();
-          totalCommission += fraisLivraison * CommissionConfig.livreurRate;
+      int nbCourses = 0;
+      double totalGains = 0.0;
+
+      for (var t in timelines) {
+        final cmd = t['commande'];
+        if (cmd == null) continue;
+        if (cmd['statut_commande'] == 'livree') {
+          nbCourses++;
+          final frais = (cmd['frais_livraison'] as num?)?.toDouble() ?? 0.0;
+          totalGains += frais * 0.70; // livreur reçoit 70%
         }
       }
 
       return Response.ok(
         jsonEncode({
           'id_livreur': int.parse(id),
-          'recompenses_totales': totalCommission,
+          'nb_courses': nbCourses,
+          'total_gains': totalGains,
+          'detail': timelines,
         }),
         headers: {'content-type': 'application/json'},
       );
     } catch (e) {
       print('LIVREUR GAINS ERROR: $e');
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response(500,
+          body: jsonEncode({'error': e.toString()}),
+          headers: {'content-type': 'application/json'});
     }
   }
 }

@@ -182,27 +182,33 @@ class SuperAdminApiService {
   Future<Map<String, dynamic>> getRevenus() async {
     try {
       final options = await _getAuthOptions();
-      
-      // Récupérer les revenus hebdomadaires
-      final weeklyRevenueResponse = await _dio.get('$baseUrl/admin/dashboard/stats/weekly-revenue', options: options);
-      
-      // Récupérer les top livreurs
-      final topLivreursResponse = await _dio.get('$baseUrl/admin/dashboard/stats/top-livreurs', options: options);
-      
-      // Récupérer les top commerce
-      final topCommerceResponse = await _dio.get('$baseUrl/admin/dashboard/stats/top-commerce', options: options);
-      
-      return {
-        'success': true,
-        'data': {
-          'weeklyRevenue': weeklyRevenueResponse.data,
-          'livreurStats': topLivreursResponse.data['data'] ?? [],
-          'businessStats': topCommerceResponse.data['data'] ?? [],
-        }
-      };
+      final response = await _dio.get('$baseUrl/admin/stats/revenus', options: options);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       print('❌ getRevenus ERROR: $e');
-      return {'success': false, 'error': e.toString()};
+      return {};
+    }
+  }
+
+  Future<Map<String, dynamic>> getLivreurStats() async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get('$baseUrl/admin/stats/livreurs', options: options);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ getLivreurStats ERROR: $e');
+      return {};
+    }
+  }
+
+  Future<Map<String, dynamic>> getAllBusinessStats() async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get('$baseUrl/admin/stats/businesses', options: options);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ getAllBusinessStats ERROR: $e');
+      return {};
     }
   }
 

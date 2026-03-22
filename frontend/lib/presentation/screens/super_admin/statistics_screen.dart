@@ -3,6 +3,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
+import 'dart:convert';
+import 'dart:html' as html;
+import 'package:csv/csv.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -30,56 +33,35 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     setState(() => _isLoading = true);
     try {
       print('🔍 Loading statistics...');
-      final res = await _apiService.getRevenus();
-      print('📊 Stats Response: $res');
       
-      if (res['success'] == true) {
-        final data = res['data'];
-        print('📈 Stats Data: $data');
+      // ✅ Appeler les endpoints séparément
+      // le endpoint revenus n'est pas très bien utilisé ici, on va s'appuyer sur getChartData pour les revenus globaux aussi
+      final livreurStats = await _apiService.getLivreurStats();
+      final businessStats = await _apiService.getAllBusinessStats();
+      final chartData = await _apiService.getChartData();
 
-        final drivers = List<dynamic>.from(data['livreurStats'] ?? []);
-        drivers.sort((a, b) => ((b['courses_count'] ?? 0) as num)
-            .compareTo((a['courses_count'] ?? 0) as num));
+      if (mounted) {
+        setState(() {
+          // Livreurs
+          final drivers = List<dynamic>.from(livreurStats['data'] ?? []);
+          drivers.sort((a, b) => ((b['nb_courses'] ?? 0) as num)
+              .compareTo((a['nb_courses'] ?? 0) as num));
+          _topDrivers = drivers.take(3).toList();
 
-        final businesses = List<dynamic>.from(data['businessStats'] ?? []);
-        businesses.sort((a, b) =>
-            ((b['revenue'] ?? 0) as num).compareTo((a['revenue'] ?? 0) as num));
+          // Businesses
+          final businesses = List<dynamic>.from(businessStats['data'] ?? []);
+          businesses.sort((a, b) => ((b['revenus_totaux'] ?? 0) as num)
+              .compareTo((a['revenus_totaux'] ?? 0) as num));
+          _topBusinesses = businesses.take(3).toList();
 
-        if (mounted) {
-          setState(() {
-            _topDrivers = drivers.take(3).toList();
-            _topBusinesses = businesses.take(3).toList();
-            
-            // weeklyRevenue est un objet, pas une liste
-            final weeklyRevenueData = data['weeklyRevenue'] is List 
-                ? (data['weeklyRevenue'] as List<dynamic>)
-                : [data['weeklyRevenue'] ?? {}];
-            
-            // Créer des données quotidiennes pour le graphique
-            final dailyRevenues = [
-              {'day': 'Lun', 'revenue': 83571.53},
-              {'day': 'Mar', 'revenue': 83571.53},
-              {'day': 'Mer', 'revenue': 83571.53},
-              {'day': 'Jeu', 'revenue': 83571.53},
-              {'day': 'Ven', 'revenue': 125000.0}, // meilleur jour
-              {'day': 'Sam', 'revenue': 83571.53},
-              {'day': 'Dim', 'revenue': 83571.53},
-            ];
-            
-            _weeklyRevenue = dailyRevenues;
-            
-            _isLoading = false;
-            print('✅ Top Drivers: ${_topDrivers.length}');
-            print('✅ Top Businesses: ${_topBusinesses.length}');
-            print('✅ Weekly Revenue: ${_weeklyRevenue.length}');
-          });
-        }
-      } else {
-        print('❌ Stats API Error: ${res['error']}');
-        if (mounted) setState(() => _isLoading = false);
+          // Graphique revenus
+          _weeklyRevenue = List<dynamic>.from(chartData['weeklyRevenue'] ?? []);
+
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('❌ Stats Loading ERROR: $e');
+      print('STATS ERROR: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -141,13 +123,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ElevatedButton.icon(
                       icon: const Icon(LucideIcons.download),
                       label: const Text('Exporter CSV'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Export CSV simulé ($_selectedPeriod) enregistré en local.')),
-                        );
-                      },
+                      onPressed: () => _exportToCSV(),
                     )
                   ],
                 )
@@ -322,9 +298,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Map<String, double> typeRevenues = {};
     
     for (var commerce in _topBusinesses) {
-      String type = commerce['type'] as String? ?? 'Autre';
+      String type = commerce['email'] as String? ?? 'Business';
       typeCounts[type] = (typeCounts[type] ?? 0) + 1;
-      typeRevenues[type] = (typeRevenues[type] ?? 0) + (commerce['revenue'] as num? ?? 0).toDouble();
+      typeRevenues[type] = (typeRevenues[type] ?? 0) + (commerce['revenus_totaux'] as num? ?? 0).toDouble();
     }
     
     final colors = [
@@ -358,8 +334,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     double totalRevenue = 0;
     
     for (var commerce in _topBusinesses) {
-      String type = commerce['type'] as String? ?? 'Autre';
-      double revenue = (commerce['revenue'] as num? ?? 0).toDouble();
+      String type = commerce['email'] as String? ?? 'Business';
+      double revenue = (commerce['revenus_totaux'] as num? ?? 0).toDouble();
       typeRevenues[type] = (typeRevenues[type] ?? 0) + revenue;
       totalRevenue += revenue;
     }
@@ -431,8 +407,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       _buildRankingRow(
                           '${i + 1}',
                           topDrivers[i]['nom'] ?? 'Inconnu',
-                          '${topDrivers[i]['courses_count'] ?? 0} courses',
-                          '${topDrivers[i]['rating'] ?? 0} ★'),
+                          '${topDrivers[i]['nb_courses'] ?? 0} courses',
+                          '${(topDrivers[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                     ],
                   ],
                 ),
@@ -463,8 +439,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         _buildRankingRow(
                             '${i + 1}',
                             topBusinesses[i]['nom'] ?? 'Inconnu',
-                            '${topBusinesses[i]['revenue'] ?? 0} MAD',
-                            '${topBusinesses[i]['rating'] ?? 0} ★'),
+                            '${(topBusinesses[i]['revenus_totaux'] as num?)?.toStringAsFixed(0) ?? 0} MAD',
+                            '${(topBusinesses[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                       ],
                     ],
                   ),
@@ -496,8 +472,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     _buildRankingRow(
                         '${i + 1}',
                         topDrivers[i]['nom'] ?? 'Inconnu',
-                        '${topDrivers[i]['courses_count'] ?? 0} courses',
-                        '${topDrivers[i]['rating'] ?? 0} ★'),
+                        '${topDrivers[i]['nb_courses'] ?? 0} courses',
+                        '${(topDrivers[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                   ],
                 ],
               ),
@@ -524,8 +500,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     _buildRankingRow(
                         '${i + 1}',
                         topBusinesses[i]['nom'] ?? 'Inconnu',
-                        '${topBusinesses[i]['revenue'] ?? 0} MAD',
-                        '${topBusinesses[i]['rating'] ?? 0} ★'),
+                        '${(topBusinesses[i]['revenus_totaux'] as num?)?.toStringAsFixed(0) ?? 0} MAD',
+                        '${(topBusinesses[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                   ],
                 ],
               ),
@@ -573,6 +549,78 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ],
       ),
     );
+  }
+
+  void _exportToCSV() async {
+    try {
+      List<List<dynamic>> csvData = [];
+      
+      // En-têtes
+      csvData.add([
+        'Type',
+        'Nom', 
+        'Revenus (MAD)',
+        'Commandes/Livraisons',
+        'Taux/Rating',
+        'Période'
+      ]);
+      
+      // Ajouter les top livreurs
+      for (var driver in _topDrivers) {
+        csvData.add([
+          'Livreur',
+          driver['nom'] ?? 'N/A',
+          (driver['total_gains'] ?? 0).toString(),
+          (driver['nb_courses'] ?? 0).toString(),
+          (driver['note_moyenne'] ?? 0).toString(),
+          _selectedPeriod
+        ]);
+      }
+      
+      // Ajouter les top commerces
+      for (var business in _topBusinesses) {
+        csvData.add([
+          'Commerce',
+          business['nom'] ?? 'N/A',
+          (business['revenus_totaux'] ?? 0).toString(),
+          (business['nb_commandes'] ?? 0).toString(),
+          (business['note_moyenne'] ?? 0).toString(),
+          _selectedPeriod
+        ]);
+      }
+      
+      // Convertir en CSV
+      String csv = const ListToCsvConverter().convert(csvData);
+      
+      // Créer le blob et télécharger
+      final bytes = latin1.encode(csv);
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'statistiques_$_selectedPeriod.csv')
+        ..click();
+      
+      html.Url.revokeObjectUrl(url);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Export CSV ($_selectedPeriod) téléchargé avec succès !'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erreur lors de l\'export CSV: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

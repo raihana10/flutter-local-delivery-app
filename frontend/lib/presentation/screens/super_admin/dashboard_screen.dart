@@ -16,7 +16,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool _isLoading = true;
   Map<String, dynamic> _stats = {};
-  Map<String, dynamic> _alerts = {};
   List<dynamic> _liveDrivers = [];
   List<dynamic> _chartData = [];
   List<dynamic> _ordersStatus = [];
@@ -53,7 +52,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           print('✅ Chart Data Length: ${_chartData.length}');
           print('✅ Orders Status Length: ${_ordersStatus.length}');
           
-          _alerts = alerts;
           _liveDrivers = driversResponse is List
               ? driversResponse
               : ((driversResponse as Map<String, dynamic>)['data'] as List<dynamic>? ?? []);
@@ -87,8 +85,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _buildKPIGrid(context),
           const SizedBox(height: 32),
           _buildChartsSection(context),
-          const SizedBox(height: 32),
-          _buildLiveAlerts(),
         ],
       ),
     );
@@ -321,87 +317,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 );
               }).toList(),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiveAlerts() {
-    final blockedOrders = _alerts['blocked_orders'] as List<dynamic>? ?? [];
-    final pendingUsers = _alerts['pending_validations'] as List<dynamic>? ?? [];
-
-    final List<Map<String, dynamic>> dynamicAlerts = [];
-    for (var order in blockedOrders) {
-      dynamicAlerts.add({
-        'titre': 'Commande bloquée',
-        'message':
-            'La commande #${order['id_commande']} est bloquée depuis ${order['blocked_since']}.',
-        'type': 'warning',
-        'date': 'A l\'instant',
-      });
-    }
-    for (var user in pendingUsers) {
-      dynamicAlerts.add({
-        'titre': 'Validation en attente',
-        'message':
-            'L\'utilisateur #${user['id_user']} attend la validation de ses documents.',
-        'type': 'alert',
-        'date': 'A l\'instant',
-      });
-    }
-
-    return Card(
-      elevation: 4,
-      shadowColor: AppColors.primary.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(LucideIcons.bellRing, color: AppColors.destructive),
-                SizedBox(width: 8),
-                Text('Alertes système',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.destructive)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: dynamicAlerts.length,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, index) {
-                final notif = dynamicAlerts[index];
-                final isAlert = notif['type'] == 'alert';
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: isAlert
-                        ? AppColors.destructive.withOpacity(0.1)
-                        : AppColors.accent.withOpacity(0.1),
-                    child: Icon(
-                      isAlert
-                          ? Icons.warning_amber_rounded
-                          : Icons.info_outline,
-                      color: isAlert ? AppColors.destructive : AppColors.accent,
-                    ),
-                  ),
-                  title: Text(notif['titre'],
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(notif['message']),
-                  trailing: Text(notif['date'],
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.mutedForeground)),
-                );
-              },
             )
           ],
         ),
