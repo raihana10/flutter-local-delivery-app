@@ -217,7 +217,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    final basePharmacies = clientData.filteredPharmacies;
+    final basePharmacies = _showAll ? clientData.allPharmacies : clientData.filteredPharmacies;
     
     _filteredRestaurants = basePharmacies.where((pharmacy) {
       final businessUser = pharmacy['app_user'] ?? {};
@@ -1235,6 +1235,16 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     );
   }
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> pharmacyInfo, int index) {
     final businessUser = pharmacyInfo['app_user'] ?? {};
     final idBusiness = pharmacyInfo['id_business'] ?? '0';
@@ -1377,7 +1387,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.8',
+                                    _calculateRating(pharmacyInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1386,6 +1396,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                 ],
                               ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 10),

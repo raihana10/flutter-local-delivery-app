@@ -217,7 +217,7 @@ class _MarketListScreenState extends State<MarketListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    final baseMarkets = clientData.filteredSuperMarkets;
+    final baseMarkets = _showAll ? clientData.allSuperMarkets : clientData.filteredSuperMarkets;
     
     _filteredRestaurants = baseMarkets.where((market) {
       final businessUser = market['app_user'] ?? {};
@@ -1234,6 +1234,16 @@ class _MarketListScreenState extends State<MarketListScreen>
     );
   }
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> marketInfo, int index) {
     final businessUser = marketInfo['app_user'] ?? {};
     final idBusiness = marketInfo['id_business'] ?? '0';
@@ -1376,7 +1386,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.4',
+                                    _calculateRating(marketInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1386,60 +1396,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${marketInfo['temps_preparation'] ?? 30} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '2.0 km',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+
                           ],
                         ),
                         const SizedBox(height: 10),

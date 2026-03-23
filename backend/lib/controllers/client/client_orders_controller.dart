@@ -88,6 +88,35 @@ class ClientOrdersController {
             'statut_tmlne': 'confirmee',
           });
 
+      // 5. Notifications
+      // Notify Client
+      await _createNotification(userId, 'Commande Confirmée', 'Votre commande N°$idCommande a été confirmée avec succès.', 'commande');
+
+      // Notify Businesses
+      try {
+        final productIds = lignesAInserer.map((e) => e['id_produit']).toList();
+        if (productIds.isNotEmpty) {
+          final productsRes = await SupabaseConfig.client
+              .from('produit')
+              .select('id_produit, id_business, business(id_user)')
+              .inFilter('id_produit', productIds);
+          
+          final businessUserIds = <int>{};
+          for (var p in (productsRes as List)) {
+            final b = p['business'];
+            if (b != null && b['id_user'] != null) {
+              businessUserIds.add(b['id_user'] as int);
+            }
+          }
+          
+          for (var bId in businessUserIds) {
+            await _createNotification(bId, 'Nouvelle Commande', 'Vous avez reçu une nouvelle commande (N°$idCommande).', 'commande');
+          }
+        }
+      } catch (e) {
+        print('Error notifying businesses: $e');
+      }
+
       // Refetch whole order with details
       final fullOrder = await SupabaseConfig.client
           .from('commande')
@@ -98,6 +127,28 @@ class ClientOrdersController {
       return Response.ok(jsonEncode({'success': true, 'data': fullOrder}), headers: {'content-type': 'application/json'});
     } catch (e) {
       return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+    }
+  }
+
+  Future<void> _createNotification(dynamic idUser, String titre, String message, String type) async {
+    try {
+      final notif = await SupabaseConfig.client
+          .from('notification')
+          .insert({
+            'titre': titre,
+            'message': message,
+            'type': type,
+          })
+          .select()
+          .single();
+
+      await SupabaseConfig.client.from('user_notification').insert({
+        'id_user': idUser,
+        'id_not': notif['id_not'] ?? notif['id'],
+        'est_lu': false,
+      });
+    } catch (e) {
+      print('Error creating notification: $e');
     }
   }
 

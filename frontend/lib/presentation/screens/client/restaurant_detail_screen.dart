@@ -96,6 +96,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     return Icons.restaurant_menu;
   }
 
+  String _getAddress() {
+    if (_businessInfo == null) return '';
+    final appUser = _businessInfo!['app_user'] ?? {};
+    final userAdresse = appUser['user_adresse'] as List<dynamic>? ?? [];
+    if (userAdresse.isEmpty) return 'Adresse non renseignée';
+    final adresse = userAdresse[0]['adresse'] ?? {};
+    
+    final ville = adresse['ville'] ?? '';
+    final quartier = adresse['quartier'] ?? '';
+    final details = adresse['adresse_detaillee'] ?? '';
+    
+    final String complete = [details, quartier, ville].where((s) => s.toString().isNotEmpty).join(', ');
+    return complete.isEmpty ? 'Adresse non renseignée' : complete;
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -214,11 +229,27 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   Row(
                     children: [
                       _buildInfoBadge(Icons.star, '${averageRating.toStringAsFixed(1)} ($reviewCount avis)', AppColors.accent),
-                      const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.access_time, '25-35 min', AppColors.primary),
                     ],
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.location_on, size: 18, color: AppColors.mutedForeground),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getAddress(),
+                          style: const TextStyle(
+                            color: AppColors.mutedForeground,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     _businessInfo?['description'] ?? '',
                     style: const TextStyle(

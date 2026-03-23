@@ -243,6 +243,36 @@ class BusinessController {
           .update({'statut_tmlne': statut})
           .eq('id_commande', int.parse(cid));
 
+      // 3. Notify Client
+      try {
+        final commandeData = await SupabaseConfig.client
+            .from('commande')
+            .select('client(id_user)')
+            .eq('id_commande', int.parse(cid))
+            .single();
+
+        final clientId = commandeData['client']?['id_user'];
+        if (clientId != null) {
+          final notif = await SupabaseConfig.client
+              .from('notification')
+              .insert({
+                'titre': 'Mise à jour de commande',
+                'message': 'Votre commande N°$cid est passée au statut : $statut',
+                'type': 'commande',
+              })
+              .select()
+              .single();
+
+          await SupabaseConfig.client.from('user_notification').insert({
+            'id_user': clientId,
+            'id_not': notif['id_not'] ?? notif['id'],
+            'est_lu': false,
+          });
+        }
+      } catch (e) {
+        print('Error notifying client: $e');
+      }
+
       return Response.ok(
         jsonEncode({'message': 'Updated successfully'}),
         headers: _headers,

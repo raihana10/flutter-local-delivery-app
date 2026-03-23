@@ -55,6 +55,10 @@ class ClientDataProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get filteredPharmacies => _filterByCity(pharmacies);
   List<Map<String, dynamic>> get filteredSuperMarkets => _filterByCity(superMarkets);
   
+  List<Map<String, dynamic>> get allRestaurants => restaurants;
+  List<Map<String, dynamic>> get allPharmacies => pharmacies;
+  List<Map<String, dynamic>> get allSuperMarkets => superMarkets;
+  
   Map<String, dynamic>? profile;
   List<dynamic> addresses = [];
   List<dynamic> orders = [];

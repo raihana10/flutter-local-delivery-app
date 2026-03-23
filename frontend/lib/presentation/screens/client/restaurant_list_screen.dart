@@ -221,10 +221,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Convert API data to map format and apply search query locally.
     // In production, filtering should probably be done effectively either via provider sorting 
     // or by backend endpoints passing '?search=' and '?category='. 
-    final baseRestaurants = clientData.filteredRestaurants;
+    final baseRestaurants = _showAll ? clientData.allRestaurants : clientData.filteredRestaurants;
     
     _filteredRestaurants = baseRestaurants.where((restaurant) {
       final businessUser = restaurant['app_user'] ?? {};
@@ -1246,10 +1245,16 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     );
   }
 
-  Widget _buildRestaurantCard(Map<String, dynamic> restaurantInfo, int index) {
-      final businessUser = restaurantInfo['app_user'] ?? {};
-      final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
-      final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
+  Widget _buildRestaurantCard(int index, ClientDataProvider data) {
+    final List<Map<String, dynamic>> restaurants =
+        _showAll ? data.allRestaurants : data.filteredRestaurants;
+
+    if (restaurants.isEmpty) return const SizedBox.shrink();
+
+    final restaurantInfo = restaurants[index];
+    final businessUser = restaurantInfo['app_user'] ?? {};
+    final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
+    final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1304,14 +1309,14 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: restaurantInfo['pdp'] != null 
+                        image: restaurantInfo['pdp'] != null
                             ? DecorationImage(
                                 image: NetworkImage(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: restaurantInfo['pdp'] == null 
+                      child: restaurantInfo['pdp'] == null
                           ? Center(
                               child: Text(
                                 '🍔',
@@ -1389,57 +1394,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.5',
+                                    _calculateRating(restaurantInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
                                       fontSize: 13,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${restaurantInfo['temps_preparation'] ?? 30} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
                                   ),
                                 ],
                               ),
