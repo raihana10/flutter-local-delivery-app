@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/core/providers/theme_provider.dart';
 import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
 import 'package:app/presentation/screens/livreur/historique_screen.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
 import 'package:app/presentation/screens/livreur/gains_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_notifications_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -85,20 +85,11 @@ class LivreurProfileScreen extends StatelessWidget {
                           onTap: () {
                         // show dialog
                       }),
-                      Consumer<ThemeProvider>(
-                        builder: (context, themeProvider, child) {
-                          return _buildListTile(
-                            Icons.dark_mode_outlined,
-                            'Thème sombre',
-                            trailing: Switch(
-                              value: themeProvider.isDark,
-                              onChanged: (value) => themeProvider.toggleTheme(),
-                              activeColor: AppColors.primary,
-                            ),
-                            onTap: () => themeProvider.toggleTheme(),
-                          );
-                        },
-                      ),
+                      _buildListTile(Icons.notifications_outlined, 'Notifications',
+                          trailing: const Text('Voir', style: TextStyle(color: AppColors.primary)),
+                          onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LivreurNotificationsScreen()));
+                      }),
                     ],
                   ),
                   const SizedBox(height: 24),

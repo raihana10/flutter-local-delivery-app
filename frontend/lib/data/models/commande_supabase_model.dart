@@ -8,6 +8,7 @@ class CommandeSupabaseModel extends CommandeModel {
   final String statutCommande;
   final String typeCommande;
   final double prixTotal;
+  final double fraisLivraisonDb;
 
   // Extra fields for UI display that we will fetch via Joins or use mock for now
   // since the DB might not have all the restaurant info directly inside `commande`
@@ -23,6 +24,7 @@ class CommandeSupabaseModel extends CommandeModel {
     required this.statutCommande,
     required this.typeCommande,
     required this.prixTotal,
+    required this.fraisLivraisonDb,
     required this.numTlClient,
     this.items = const [],
     this.rawItems = const [],
@@ -39,17 +41,20 @@ class CommandeSupabaseModel extends CommandeModel {
     double? lngRestaurant,
     double? latClient,
     double? lngClient,
+    String? clientName,
   }) : super(
           id: id,
           restaurant: restaurant,
           adresse: adresse,
           distance: distance,
           prix: prix,
+          fraisLivraison: fraisLivraisonDb,
           tempsRestant: tempsRestant,
           latRestaurant: latRestaurant,
           lngRestaurant: lngRestaurant,
           latClient: latClient,
           lngClient: lngClient,
+          clientName: clientName,
         );
 
   factory CommandeSupabaseModel.fromJson(Map<String, dynamic> json, {double? driverLat, double? driverLng}) {
@@ -63,6 +68,7 @@ class CommandeSupabaseModel extends CommandeModel {
     final clientData = json['client'] as Map<String, dynamic>?;
     final userData = clientData?['app_user'] as Map<String, dynamic>?;
     final String phone = userData?['num_tl'] ?? '';
+    final String cName = userData?['nom'] ?? 'Client Inconnu';
 
     final adresseData = json['adresse'] as Map<String, dynamic>?;
     final double? latClient = adresseData != null
@@ -142,6 +148,7 @@ class CommandeSupabaseModel extends CommandeModel {
       statutCommande: json['statut_commande'] as String,
       typeCommande: json['type_commande'] as String,
       prixTotal: (json['prix_total'] as num).toDouble(),
+      fraisLivraisonDb: json['frais_livraison'] != null ? (json['frais_livraison'] as num).toDouble() : 0.0,
       numTlClient: phone,
       items: parsedItems,
       rawItems: rawItemsParsed,
@@ -158,6 +165,7 @@ class CommandeSupabaseModel extends CommandeModel {
       lngRestaurant: lngRestaurant ?? -5.3694,
       latClient: latClient,
       lngClient: lngClient,
+      clientName: cName,
     );
   }
 }

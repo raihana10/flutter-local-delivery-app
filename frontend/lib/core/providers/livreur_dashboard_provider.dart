@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app/data/models/commande_supabase_model.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:app/data/models/gains_model.dart' as app_models;
 
 class LivreurDashboardProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -17,6 +18,7 @@ class LivreurDashboardProvider extends ChangeNotifier {
   List<CommandeSupabaseModel> _availableCommandes = [];
   CommandeSupabaseModel? _activeCommande;
   StreamSubscription? _commandesSubscription;
+  Timer? _pollingTimer;
   final Set<int> _ignoredCommandes = {};
 
   LivreurDashboardProvider(this._authProvider) {
@@ -57,65 +59,81 @@ class LivreurDashboardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _startListeningToCommandes() async {
+  void _startListeningToCommandes() {
     _stopListeningToCommandes();
+    _fetchAvailableCommandes();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 7), (_) => _fetchAvailableCommandes());
+  }
+
+  Future<void> _fetchAvailableCommandes() async {
+    if (!_isOnline || _isOnMission) return;
 
     Position? pos;
     try {
       pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     } catch (_) {}
 
-    // Listen to commandes that are confirmed or prepared
-    _commandesSubscription = _supabase
-        .from('commande')
-        .stream(primaryKey: ['id_commande'])
-        .inFilter('statut_commande', const ['confirmee', 'preparee'])
-        .listen((data) async {
-          if (!_isOnline || _isOnMission) return;
-
-          _availableCommandes.clear();
-
-          for (var item in data) {
-            if (_ignoredCommandes.contains(item['id_commande'])) continue;
-
-            // Need to fetch joined data (adresse, client phone)
-            try {
-              final response = await _supabase.from('commande').select('''
-                    *,
-                    adresse (*),
-                    client (
-                      app_user (num_tl)
-                    ),
-                    ligne_commande (
-                      quantite,
-                      nom_snapshot,
-                      prix_snapshot,
-                      produit (
-                        business (
-                          app_user (
-                            nom,
-                            user_adresse (
-                              adresse (latitude, longitude)
-                            )
-                          )
-                        )
-                      )
+    try {
+      final response = await _supabase.from('commande').select('''
+            *,
+            adresse (*),
+            client (
+              app_user (num_tl, nom)
+            ),
+            ligne_commande (
+              quantite,
+              nom_snapshot,
+              prix_snapshot,
+              produit (
+                business (
+                  app_user (
+                    nom,
+                    user_adresse (
+                      adresse (latitude, longitude)
                     )
-                  ''').eq('id_commande', item['id_commande']).single();
+                  )
+                )
+              )
+            ),
+            timeline (
+              id_livreur
+            )
+          ''').inFilter('statut_commande', const ['confirmee', 'preparee']);
 
-              _availableCommandes.add(CommandeSupabaseModel.fromJson(response, driverLat: pos?.latitude, driverLng: pos?.longitude));
-            } catch (e) {
-              debugPrint(
-                  'Error fetching joined data for order ${item['id_commande']}: $e');
-            }
-          }
-          
-          _availableCommandes.sort((a, b) => a.distance.compareTo(b.distance));
-          notifyListeners();
-        });
+      List<CommandeSupabaseModel> fetched = [];
+
+      for (var item in (response as List)) {
+        if (_ignoredCommandes.contains(item['id_commande'])) continue;
+
+        // Check timeline if someone claimed it
+        bool claimed = false;
+        if (item['timeline'] != null) {
+           final timelines = item['timeline'] is List ? item['timeline'] as List : [item['timeline']];
+           for (var tl in timelines) {
+             if (tl['id_livreur'] != null) {
+               claimed = true;
+               break;
+             }
+           }
+        }
+        if (claimed) continue;
+
+        fetched.add(CommandeSupabaseModel.fromJson(item, driverLat: pos?.latitude, driverLng: pos?.longitude));
+      }
+
+      fetched.sort((a, b) => a.distance.compareTo(b.distance));
+      
+      _availableCommandes = fetched;
+      notifyListeners();
+
+    } catch (e) {
+      debugPrint('Error fetching available commandes: $e');
+    }
   }
 
   void _stopListeningToCommandes() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
     _commandesSubscription?.cancel();
     _commandesSubscription = null;
     _availableCommandes.clear();
@@ -188,6 +206,37 @@ class LivreurDashboardProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> confirmerPriseEnCharge() async {
+    _setLoading(true);
+    _clearError();
+
+    if (_activeCommande == null) {
+      _setLoading(false);
+      return false;
+    }
+
+    try {
+      // Update commande status
+      await _supabase
+          .from('commande')
+          .update({'statut_commande': 'en_livraison'})
+          .eq('id_commande', _activeCommande!.idCommande);
+
+      // Update timeline status
+      await _supabase
+          .from('timeline')
+          .update({'statut_tmlne': 'en_livraison'})
+          .eq('id_commande', _activeCommande!.idCommande);
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      return false;
+    }
+  }
+
   Future<bool> terminerLivraison() async {
     _setLoading(true);
     _clearError();
@@ -242,7 +291,7 @@ class LivreurDashboardProvider extends ChangeNotifier {
             *,
             adresse (*),
             client (
-              app_user (num_tl)
+              app_user (num_tl, nom)
             ),
             ligne_commande (
               quantite,
@@ -273,6 +322,141 @@ class LivreurDashboardProvider extends ChangeNotifier {
           .toList();
     } catch (e) {
       debugPrint('Error fetching historique: $e');
+      return [];
+    }
+  }
+
+  Future<app_models.GainsModel?> fetchGains() async {
+    try {
+      final userId = _authProvider.user?.id;
+      if (userId == null) return null;
+
+      final livreurRes = await _supabase
+          .from('livreur')
+          .select('id_livreur')
+          .eq('id_user', userId)
+          .maybeSingle();
+
+      if (livreurRes == null) return null;
+      final int idLivreur = livreurRes['id_livreur'];
+
+      // Fetch lifetime stats
+      final lifetimeRes = await _supabase
+          .from('commande')
+          .select('''
+            id_commande,
+            prix_total,
+            frais_livraison,
+            type_commande,
+            distance_km,
+            updated_at,
+            timeline!inner (id_livreur)
+          ''')
+          .eq('statut_commande', 'livree')
+          .eq('timeline.id_livreur', idLivreur)
+          .order('updated_at', ascending: false);
+      
+      int totalLivraisons = lifetimeRes.length;
+      double totalDistance = 0.0;
+      double aujourdhui = 0;
+      double semaine = 0;
+      List<double> parJour = List.filled(7, 0.0);
+      Map<String, int> repartitionType = {'food_delivery': 0, 'shopping': 0};
+      List<app_models.LivraisonRecente> recentes = [];
+
+      final now = DateTime.now();
+
+      for (var row in lifetimeRes) {
+        final distStr = row['distance_km']?.toString() ?? '0';
+        totalDistance += double.tryParse(distStr) ?? 0.0;
+
+        // we use frais_livraison as the Livreur's earnings
+        final montantStr = row['frais_livraison']?.toString() ?? '0';
+        final montant = double.tryParse(montantStr) ?? 0.0;
+        
+        final dtStr = row['updated_at']?.toString() ?? now.toIso8601String();
+        // Parse dt as UTC and convert to local manually for safer calculation
+         DateTime? dtParsed = DateTime.tryParse(dtStr);
+         if (dtParsed != null && !dtStr.endsWith('Z') && !dtStr.contains('+')) {
+            dtParsed = DateTime.tryParse('${dtStr}Z');
+         }
+        final dt = (dtParsed ?? now).toLocal();
+        
+        final typeStr = row['type_commande']?.toString() ?? 'food_delivery';
+
+        // Repartition
+        repartitionType[typeStr] = (repartitionType[typeStr] ?? 0) + 1;
+
+        // Livraisons recentes (max 5)
+        if (recentes.length < 5) {
+          recentes.add(app_models.LivraisonRecente(
+            restaurant: "Commande #${row['id_commande']}", 
+            heure: "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}", 
+            montant: montant
+          ));
+        }
+
+        // Semaine et Aujourd'hui (Last 7 days)
+        final diffDays = now.difference(dt).inDays;
+        if (diffDays <= 7) {
+          semaine += montant;
+          
+          if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+            aujourdhui += montant;
+          }
+
+          int dayIndex = dt.weekday - 1; // 0=Lun, 6=Dim
+          parJour[dayIndex] += montant;
+        }
+      }
+
+      return app_models.GainsModel(
+        aujourdhui: aujourdhui,
+        semaine: semaine,
+        parJour: parJour,
+        repartitionType: repartitionType,
+        livraisonsRecentes: recentes,
+        totalLivraisons: totalLivraisons,
+        totalDistance: totalDistance,
+      );
+    } catch (e) {
+      debugPrint('Error fetching gains: $e');
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchNotifications() async {
+    try {
+      final userId = _authProvider.user?.id;
+      if (userId == null) return [];
+
+      final livreurRes = await _supabase
+          .from('livreur')
+          .select('id_livreur')
+          .eq('id_user', userId)
+          .maybeSingle();
+
+      if (livreurRes == null) return [];
+      final int idLivreur = livreurRes['id_livreur'];
+
+      // Fetch recently delivered commands as success notifications
+      final cmdRes = await _supabase
+          .from('commande')
+          .select('id_commande, statut_commande, updated_at, timeline!inner(id_livreur)')
+          .eq('statut_commande', 'livree')
+          .eq('timeline.id_livreur', idLivreur)
+          .order('updated_at', ascending: false)
+          .limit(15);
+      
+      final notifs = (cmdRes as List).map((c) => {
+        'titre': 'Livraison réussie 🛵',
+        'message': 'Vous avez livré avec succès la commande #${c['id_commande']} ! Excellent travail.',
+        'created_at': c['updated_at']
+      }).toList();
+
+      return notifs;
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
       return [];
     }
   }

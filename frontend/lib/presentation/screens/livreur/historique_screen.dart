@@ -191,6 +191,21 @@ class _HistoriqueTile extends StatelessWidget {
                 children: [
                   Row(
                     children: [
+                      const Icon(Icons.person,
+                          size: 14, color: AppColors.navyMedium),
+                      const SizedBox(width: 4),
+                      Text(
+                        commande.clientName ?? 'Client inconnu',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.navyMedium),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
                       const Icon(Icons.location_on,
                           size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
@@ -216,11 +231,11 @@ class _HistoriqueTile extends StatelessWidget {
                 ],
               ),
               Text(
-                '${commande.prixTotal.toStringAsFixed(0)} MAD',
+                '+ ${(commande.fraisLivraison ?? 0).toStringAsFixed(2)} MAD',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: AppColors.yellow,
+                  color: AppColors.forest,
                 ),
               ),
             ],
