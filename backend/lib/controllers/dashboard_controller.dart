@@ -3,42 +3,37 @@ import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 
 class DashboardController {
+  final Map<String, String> _headers = {'content-type': 'application/json'};
+
   Future<Response> getKPIs(Request request) async {
     try {
       final now = DateTime.now();
-      final todayStart = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).toIso8601String();
+      final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
 
-      // Active Orders
       final activeOrdersRes = await SupabaseConfig.client
           .from('commande')
           .select('id_commande')
           .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison'])
           .isFilter('deleted_at', null);
 
-      // Today's Revenue
       final revenueRes = await SupabaseConfig.client
           .from('commande')
-          .select('prix_total')
+          .select('prix_donne')
           .gte('created_at', todayStart)
+          .eq('statut_commande', 'livree')
           .isFilter('deleted_at', null);
 
       double dailyRevenue = 0.0;
       for (var row in revenueRes) {
-        dailyRevenue += (row['prix_total'] as num).toDouble();
+        dailyRevenue += ((row['prix_donne'] as num?)?.toDouble() ?? 0.0);
       }
 
-      // Active Drivers
       final activeDriversRes = await SupabaseConfig.client
           .from('livreur')
-          .select('id_user')
+          .select('id_livreur')
           .eq('est_actif', true)
           .isFilter('deleted_at', null);
 
-      // New Users Today
       final newUsersRes = await SupabaseConfig.client
           .from('app_user')
           .select('id_user')
@@ -52,64 +47,107 @@ class DashboardController {
           'livreurs_actifs': activeDriversRes.length,
           'nouveaux_users': newUsersRes.length,
         }),
-        headers: {'content-type': 'application/json'},
+        headers: _headers,
       );
     } catch (e) {
       print('KPIs ERROR: $e');
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: _headers);
     }
   }
 
   Future<Response> getChartData(Request request) async {
-    // Note: Complex analytical group-by queries on PostgREST might require RPC functions
-    // We simulate the daily grouping at the application level for recent days
     try {
-      final sevenDaysAgo = DateTime.now()
-          .subtract(const Duration(days: 7))
-          .toIso8601String();
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
 
-      final recentOrders = await SupabaseConfig.client
+      // ✅ Vraies colonnes : prix_donne, statut_commande
+      final orders = await SupabaseConfig.client
           .from('commande')
-          .select('created_at, prix_donne')
-          .gte('created_at', sevenDaysAgo)
-          .isFilter('deleted_at', null);
+          .select('created_at, prix_donne, statut_commande')
+          .gte('created_at', sevenDaysAgo.toIso8601String())
+          .isFilter('deleted_at', null)
+          .order('created_at');
 
-      // Simple aggregation logic would exist here
-      // Returning payload directly to satisfy the endpoint shape constraints
+      // 1. Revenus par jour (7 derniers jours)
+      final List<String> weekDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      Map<String, double> dailyRevenue = {};
+
+      for (var order in orders) {
+        if (order['statut_commande'] == 'livree') {
+          final day = (order['created_at'] as String).substring(0, 10);
+          dailyRevenue[day] = (dailyRevenue[day] ?? 0) +
+              ((order['prix_donne'] as num?)?.toDouble() ?? 0.0);
+        }
+      }
+
+      List<Map<String, dynamic>> revenueList = [];
+      for (int i = 6; i >= 0; i--) {
+        final date = DateTime.now().subtract(Duration(days: i));
+        final dateStr = date.toIso8601String().substring(0, 10);
+        revenueList.add({
+          'day': weekDays[date.weekday % 7],
+          'date': dateStr,
+          'revenue': dailyRevenue[dateStr] ?? 0.0,
+        });
+      }
+
+      // 2. Statuts des commandes — ✅ valeurs exactes de l'enum
+      final Map<String, int> statusCounts = {
+        'confirmee': 0,
+        'preparee': 0,
+        'en_livraison': 0,
+        'livree': 0,
+      };
+      final Map<String, int> statusColors = {
+        'confirmee': 0xFFFFA726,
+        'preparee': 0xFF42A5F5,
+        'en_livraison': 0xFF66BB6A,
+        'livree': 0xFF26A69A,
+      };
+      final Map<String, String> statusLabels = {
+        'confirmee': 'Confirmée',
+        'preparee': 'Préparée',
+        'en_livraison': 'En livraison',
+        'livree': 'Livrée',
+      };
+
+      for (var order in orders) {
+        final status = order['statut_commande'] as String? ?? '';
+        if (statusCounts.containsKey(status)) {
+          statusCounts[status] = statusCounts[status]! + 1;
+        }
+      }
+
+      final statusList = statusCounts.entries.map((entry) => {
+        'status': statusLabels[entry.key] ?? entry.key,
+        'count': entry.value,
+        'color': statusColors[entry.key] ?? 0xFFFFA726,
+      }).toList();
+
       return Response.ok(
         jsonEncode({
-          'success': true,
-          'message': 'Chart data aggregated from recent orders',
-          'data': recentOrders,
+          'weeklyRevenue': revenueList,
+          'ordersByStatus': statusList,
         }),
-        headers: {'content-type': 'application/json'},
+        headers: _headers,
       );
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      print('CHART DATA ERROR: $e');
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: _headers);
     }
   }
 
   Future<Response> getAlerts(Request request) async {
     try {
-      // Drivers pending validation
       final pendingDocs = await SupabaseConfig.client
           .from('livreur')
-          .select('id_user')
+          .select('id_user, cni')
           .eq('est_actif', false)
           .isFilter('deleted_at', null);
 
-      // Blocked orders > 30min (simulated check here, DB usually has a created_at)
       final thirtyMinsAgo = DateTime.now()
           .subtract(const Duration(minutes: 30))
           .toIso8601String();
+
       final blockedOrders = await SupabaseConfig.client
           .from('commande')
           .select('id_commande, statut_commande, created_at')
@@ -117,19 +155,26 @@ class DashboardController {
           .lte('created_at', thirtyMinsAgo)
           .isFilter('deleted_at', null);
 
+      // Ajouter blocked_since pour chaque commande bloquée
+      final formattedBlocked = (blockedOrders as List).map((order) {
+        final createdAt = DateTime.parse(order['created_at'] as String);
+        final diff = DateTime.now().difference(createdAt);
+        return {
+          ...Map<String, dynamic>.from(order),
+          'blocked_since': '${diff.inMinutes} min',
+        };
+      }).toList();
+
       return Response.ok(
         jsonEncode({
           'pending_validations': pendingDocs,
-          'blocked_orders': blockedOrders,
+          'blocked_orders': formattedBlocked,
         }),
-        headers: {'content-type': 'application/json'},
+        headers: _headers,
       );
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      print('ALERTS ERROR: $e');
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: _headers);
     }
   }
 
@@ -141,7 +186,7 @@ class DashboardController {
           .eq('statut_tmlne', 'en_livraison')
           .isFilter('deleted_at', null);
 
-      final formatted = liveDrivers.map((d) {
+      final formatted = (liveDrivers as List).map((d) {
         final livreur = d['livreur'];
         final user = livreur != null ? livreur['app_user'] : null;
         return {
@@ -149,20 +194,17 @@ class DashboardController {
           'position_order': d['position_order'],
           'statut_tmlne': d['statut_tmlne'],
           'nom': user?['nom'] ?? 'Livreur #${d['id_livreur']}',
-          'status': d['statut_tmlne'] == 'en_livraison' ? 'en_mission' : 'libre',
+          'status': 'en_mission',
         };
       }).toList();
 
       return Response.ok(
         jsonEncode({'data': formatted}),
-        headers: {'content-type': 'application/json'},
+        headers: _headers,
       );
     } catch (e) {
-      return Response(
-        500,
-        body: jsonEncode({'error': e.toString()}),
-        headers: {'content-type': 'application/json'},
-      );
+      print('LIVE DRIVERS ERROR: $e');
+      return Response(500, body: jsonEncode({'error': e.toString()}), headers: _headers);
     }
   }
 }

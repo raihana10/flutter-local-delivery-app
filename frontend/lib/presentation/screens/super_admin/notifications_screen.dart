@@ -15,6 +15,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
   String _selectedRole = 'Tous';
+  final _apiService = SuperAdminApiService();
 
   List<Map<String, dynamic>> notifications = [];
 
@@ -40,23 +41,48 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.dispose();
   }
 
-  void _sendNotification() {
+  void _sendNotification() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        notifications.insert(0, {
-          'id': DateTime.now().millisecondsSinceEpoch,
+      try {
+        final success = await _apiService.sendNotification({
           'titre': _titleController.text,
           'message': _messageController.text,
-          'type': 'info',
-          'date': 'A l\'instant',
+          'target_role': _selectedRole,
         });
-      });
-      _titleController.clear();
-      _messageController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Notification envoyée au groupe : $_selectedRole')),
-      );
+
+        if (success) {
+          _titleController.clear();
+          _messageController.clear();
+          // Rafraîchir la liste des notifications
+          await _loadNotifs();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Notification envoyée avec succès au groupe : $_selectedRole'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur lors de l\'envoi de la notification'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -119,7 +145,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                items: ['Tous', 'Clients', 'Livreurs', 'Restaurants']
+                items: ['Tous', 'Clients', 'Livreurs', 'Commerce']
                     .map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,

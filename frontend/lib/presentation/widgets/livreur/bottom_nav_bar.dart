@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class LivreurBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -14,6 +16,8 @@ class LivreurBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pdpUrl = context.watch<AuthProvider>().user?.pdp;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.navyDark,
@@ -43,14 +47,21 @@ class LivreurBottomNavBar extends StatelessWidget {
               _NavItem(
                   index: 2,
                   currentIndex: currentIndex,
-                  icon: Icons.history_rounded,
-                  label: 'Historique',
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Stats',
                   onTap: onTap),
               _NavItem(
                   index: 3,
                   currentIndex: currentIndex,
+                  icon: Icons.history_rounded,
+                  label: 'Historique',
+                  onTap: onTap),
+              _NavItem(
+                  index: 4,
+                  currentIndex: currentIndex,
                   icon: Icons.person_outline_rounded,
                   label: 'Profil',
+                  imageUrl: pdpUrl,
                   onTap: onTap),
             ],
           ),
@@ -66,6 +77,7 @@ class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final ValueChanged<int> onTap;
+  final String? imageUrl;
 
   const _NavItem({
     required this.index,
@@ -73,6 +85,7 @@ class _NavItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.imageUrl,
   });
 
   @override
@@ -85,11 +98,25 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: selected ? AppColors.yellow : AppColors.textSecondary,
-              size: 24,
-            ),
+            if (imageUrl != null)
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: selected ? AppColors.yellow : Colors.transparent, width: 2),
+                  image: DecorationImage(
+                    image: NetworkImage(imageUrl!),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              )
+            else
+              Icon(
+                icon,
+                color: selected ? AppColors.yellow : AppColors.textSecondary,
+                size: 24,
+              ),
             const SizedBox(height: 3),
             Text(
               label,

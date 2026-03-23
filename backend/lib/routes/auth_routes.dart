@@ -9,6 +9,7 @@ class AuthRoutes {
     final authController = AuthController();
 
     router.post('/login', authController.login);
+    router.post('/register', authController.register);
 
     return router;
   }

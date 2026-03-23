@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../../data/models/auth_models.dart';
 
@@ -36,30 +37,46 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _fetchUserDetails(String email) async {
     try {
-      // First try to fetch from the public user table
       final response = await _supabase
           .from('app_user')
           .select()
           .eq('email', email)
+          .isFilter('deleted_at', null)
           .maybeSingle();
 
       if (response != null) {
-        _user = User.fromJson(response);
+        var userData = Map<String, dynamic>.from(response);
+        final role = userData['role'] as String?;
+
+        // ✅ Pour livreur et business, lire est_actif depuis la table spécifique
+        if (role == 'livreur') {
+          final livreurRes = await _supabase
+              .from('livreur')
+              .select('est_actif')
+              .eq('id_user', userData['id_user'])
+              .maybeSingle();
+          userData['est_actif'] = livreurRes?['est_actif'] ?? false;
+        } else if (role == 'business') {
+          final businessRes = await _supabase
+              .from('business')
+              .select('est_actif')
+              .eq('id_user', userData['id_user'])
+              .maybeSingle();
+          userData['est_actif'] = businessRes?['est_actif'] ?? false;
+        } else {
+          // clients : toujours actifs
+          userData['est_actif'] = true;
+        }
+
+        _user = User.fromJson(userData);
+        print('✅ user fetched: ${_user!.email} role: ${_user!.role.value} actif: ${_user!.estActif}');
       } else {
-        // Fallback if user is in auth but not in public schema yet
-        _user = User(
-          id: 0,
-          email: email,
-          nom: 'Utilisateur',
-          role: UserRole.client,
-          estActif: true,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+        print('❌ user not found for email: $email');
+        _user = null;
       }
       notifyListeners();
     } catch (e) {
-      debugPrint("Error fetching user details: \$e");
+      print('❌ _fetchUserDetails ERROR: $e');
     }
   }
 
@@ -78,6 +95,33 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _setError('Erreur lors de la mise à jour: \${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateProfilePicture(XFile image) async {
+    if (_user == null || _user!.role != UserRole.livreur) return false;
+    _setLoading(true);
+    _clearError();
+    try {
+      final fileBytes = await image.readAsBytes();
+      final ext = image.name.split('.').last;
+      final path = '\${_user!.id}_pdp_\${DateTime.now().millisecondsSinceEpoch}.$ext';
+      
+      await _supabase.storage.from('livreur_documents').uploadBinary(
+        path, 
+        fileBytes, 
+        fileOptions: const supa.FileOptions(upsert: true)
+      );
+      
+      await _supabase.from('livreur').update({'pdp': path}).eq('id_user', _user!.id);
+      
+      await _fetchUserDetails(_user!.email);
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la mise à jour de la photo: $e');
       return false;
     } finally {
       _setLoading(false);
@@ -136,7 +180,6 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> register(RegisterRequest request) async {
     _setLoading(true);
     _errorMessage = null;
-
     try {
       if (request.email.isEmpty ||
           request.password.isEmpty ||
@@ -150,67 +193,94 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // 1. Sign up the user in Supabase Auth
-      final response = await _supabase.auth.signUp(
-        email: request.email,
-        password: request.password,
-      );
-
-      // 2. Insert into the public custom 'user' table
-      if (response.user != null) {
-        // Hash the password for the custom `user` table using crypto SHA256
-        final bytes = utf8.encode(request.password);
-        final digest = sha256.convert(bytes);
-        final hashedPassword = digest.toString();
-
-        final userData = {
-          'email': request.email,
-          'password': hashedPassword,
-          'nom': request.nom,
-          'num_tl': request.numTl,
-          'role': request.role.value,
-        };
-
-        final responseUser =
-            await _supabase.from('app_user').insert(userData).select().single();
-        final int userId = responseUser['id_user'];
-
-        // 3. Insert into the role-specific table based on UserRole
-        if (request.role == UserRole.client) {
-          await _supabase.from('client').insert({
-            'id_user': userId,
-            'sexe': request.sexe,
-          });
-        } else if (request.role == UserRole.livreur) {
-          await _supabase.from('livreur').insert({
-            'id_user': userId,
-            'sexe': request.sexe,
-            'cni': request.cni,
-          });
-        } else if (request.role == UserRole.business) {
-          String bt = 'restaurant';
-          if (request.businessType != null) {
-            final lowerBt = request.businessType!.toLowerCase();
-            if (lowerBt.contains('super'))
-              bt = 'super-marche';
-            else if (lowerBt.contains('pharmacie')) bt = 'pharmacie';
-          }
-          await _supabase.from('business').insert({
-            'id_user': userId,
-            'type_business': bt,
-            'description': request.businessDescription,
-          });
-        }
-
-        // Fetch details synchronously before returning true so the UI has the role
-        await _fetchUserDetails(request.email);
-        return true;
+      // Vérifier si email déjà utilisé
+      final existing = await _supabase
+          .from('app_user')
+          .select('id_user')
+          .eq('email', request.email)
+          .maybeSingle();
+      
+      if (existing != null) {
+        _setError('Cet email est déjà utilisé');
+        return false;
       }
-      return false;
-    } on supa.AuthException catch (e) {
-      _setError('Erreur d\'inscription: ${e.message}');
-      return false;
+
+      // Hash password SHA256
+      final bytes = utf8.encode(request.password);
+      final digest = sha256.convert(bytes);
+      final hashedPassword = digest.toString();
+
+      // 1. INSERT app_user
+      final responseUser = await _supabase.from('app_user').insert({
+        'email': request.email,
+        'password': hashedPassword,
+        'nom': request.nom,
+        'num_tl': request.numTl,
+        'role': request.role.value,
+      }).select().single();
+
+      final int userId = responseUser['id_user'];
+      print('USER CREATED id_user: $userId role: ${request.role.value}');
+
+      // Format date
+      String? dateNaissanceStr;
+      if (request.dateNaissance != null) {
+        final d = request.dateNaissance!;
+        dateNaissanceStr = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      }
+
+      // 2. INSERT selon rôle
+      if (request.role == UserRole.client) {
+        await _supabase.from('client').insert({
+          'id_user': userId,
+          'sexe': request.sexe,
+          'date_naissance': dateNaissanceStr,
+        });
+        print('CLIENT INSERT SUCCESS');
+      } else if (request.role == UserRole.livreur) {
+        await _supabase.from('livreur').insert({
+          'id_user': userId,
+          'sexe': request.sexe,
+          'date_naissance': dateNaissanceStr,
+          'cni': request.cni,
+          'documents_validation': request.documentsValidation,
+          'est_actif': false,
+        });
+        print('LIVREUR INSERT SUCCESS');
+      } else if (request.role == UserRole.business) {
+        await _supabase.from('business').insert({
+          'id_user': userId,
+          'type_business': request.businessType,
+          'description': request.businessDescription,
+          'pdp': request.profileImageUrl,
+          'documents_validation': request.documentsValidation,
+          'est_actif': false,
+          'is_open': false,
+        });
+        print('BUSINESS INSERT SUCCESS');
+      }
+
+      // 3. INSERT adresse
+      if (request.latitude != null && request.longitude != null) {
+        final adresse = await _supabase.from('adresse').insert({
+          'ville': 'Localisation GPS',
+          'latitude': request.latitude,
+          'longitude': request.longitude,
+        }).select().single();
+
+        await _supabase.from('user_adresse').insert({
+          'id_user': userId,
+          'id_adresse': adresse['id_adresse'],
+          'is_default': true,
+        });
+      }
+
+      // 4. Charger l'utilisateur
+      await _fetchUserDetails(request.email);
+      return true;
+
     } catch (e) {
+      print('REGISTER ERROR: $e'); // ← affiche l'erreur exacte
       _setError('Erreur d\'inscription: ${e.toString()}');
       return false;
     } finally {

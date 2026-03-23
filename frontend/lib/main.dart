@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,6 +14,7 @@ import 'package:app/presentation/screens/client/client_home_screen.dart';
 import 'package:app/presentation/screens/business/business_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
+import 'package:app/presentation/screens/auth/pending_approval_screen.dart';
 import 'package:app/providers/product_provider.dart';
 import 'package:app/core/providers/client_data_provider.dart';
 import 'package:app/core/providers/business_data_provider.dart';
@@ -21,6 +23,7 @@ import 'package:app/core/providers/livreur_dashboard_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('fr_FR', null);
 
   // Try to load .env, but don't crash if it doesn't exist yet (for the instructions to pass)
   try {
@@ -90,6 +93,7 @@ class MyApp extends StatelessWidget {
         '/super_admin/dashboard': (context) => const SuperAdminMainScreen(),
         '/super_admin/login': (context) => const SuperAdminLoginScreen(),
         '/auth': (context) => const AuthScreen(),
+        '/pending-approval': (context) => const PendingApprovalScreen(),
       },
     );
   }
@@ -117,8 +121,12 @@ class RoleRouter extends StatelessWidget {
           case 'client':
             return const ClientHomeScreen();
           case 'livreur':
+            // ✅ Livreur non actif → page d'attente
+            if (authProvider.user?.estActif == false) return const PendingApprovalScreen();
             return const DashboardScreen();
           case 'business':
+            // ✅ Business non actif → page d'attente
+            if (authProvider.user?.estActif == false) return const PendingApprovalScreen();
             return const BusinessMainScreen();
           case 'super_admin':
             return const SuperAdminMainScreen();

@@ -36,11 +36,23 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
 
   Future<void> _confirmerEtape() async {
     if (_currentStep == 0) {
-      setState(() => _currentStep = 1);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Prise en charge confirmée ! Allez livrer le client.'),
-        backgroundColor: AppColors.navyDark,
-      ));
+      final success = await context.read<LivreurDashboardProvider>().confirmerPriseEnCharge();
+      if (success) {
+        setState(() => _currentStep = 1);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Prise en charge confirmée ! Allez livrer le client.'),
+            backgroundColor: AppColors.navyDark,
+          ));
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erreur: ${context.read<LivreurDashboardProvider>().errorMessage ?? "inconnue"}'),
+            backgroundColor: Colors.red,
+          ));
+        }
+      }
     } else {
       final success =
           await context.read<LivreurDashboardProvider>().terminerLivraison();
@@ -53,7 +65,7 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
             title: const Text('Livraison terminée ! 🎉',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             content: Text(
-                'Vous avez gagné ${_commande.prix.toStringAsFixed(0)} MAD',
+                'Vous avez gagné ${(_commande.fraisLivraison ?? 0).toStringAsFixed(2)} MAD',
                 style: const TextStyle(fontSize: 16)),
             actions: [
               TextButton(
@@ -283,9 +295,20 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       elevation: 0),
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Ouverture de la navigation...'))),
+                  onPressed: () async {
+                    final lat = _targetPos.latitude;
+                    final lng = _targetPos.longitude;
+                    final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Impossible d\'ouvrir la navigation')),
+                        );
+                      }
+                    }
+                  },
                   icon: const Icon(Icons.navigation_rounded,
                       color: Colors.white, size: 18),
                   label: const Text(AppStrings.ouvrirNavigation,
@@ -323,11 +346,24 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
                   ),
                 )),
             const SizedBox(height: 10),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _ContactButton(icon: Icons.phone, onTap: _callerClient),
-              const SizedBox(width: 12),
-              _ContactButton(icon: Icons.chat_bubble_outline, onTap: () {}),
-            ]),
+            Row(
+              children: [
+                _ContactButton(icon: Icons.phone, onTap: _callerClient),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Appeler le client', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        _commande.clientName ?? 'Client inconnu', 
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.navyDark, fontSize: 15)
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ]),
     );
   }

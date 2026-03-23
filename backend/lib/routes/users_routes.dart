@@ -13,9 +13,11 @@ class UsersRoutes {
     router.get('/<id>', usersController.getUserDetail);
 
     // Toggles and Actions
+    router.patch('/<id>/toggle', usersController.toggleUserStatus);
     router.patch('/livreurs/<id>/toggle', usersController.toggleUserStatus);
     router.patch('/businesses/<id>/toggle', usersController.toggleUserStatus);
 
+    router.patch('/<id>/validate', usersController.validateUser);
     router.patch('/livreurs/<id>/validate', usersController.validateUser);
     router.patch('/businesses/<id>/validate', usersController.validateUser);
 

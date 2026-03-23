@@ -181,13 +181,27 @@ class _NouvelleCommandeCardState extends State<NouvelleCommandeCard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text(
-                'Total à gagner',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.mutedForeground,
-                  fontWeight: FontWeight.w600,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Total commande',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.mutedForeground,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (widget.commande.fraisLivraison != null && widget.commande.fraisLivraison! > 0)
+                    Text(
+                      '+ Vous gagnez: ${widget.commande.fraisLivraison!.toStringAsFixed(2)} MAD',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.yellow,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
               ),
               Text(
                 '${widget.commande.prix.toStringAsFixed(2)} MAD',

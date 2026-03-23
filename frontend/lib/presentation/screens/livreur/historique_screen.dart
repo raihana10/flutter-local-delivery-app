@@ -5,6 +5,10 @@ import 'package:app/core/constants/app_strings.dart';
 import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/data/models/commande_supabase_model.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
+import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
+import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
+import 'package:app/presentation/screens/livreur/gains_screen.dart';
 
 class HistoriqueScreen extends StatefulWidget {
   const HistoriqueScreen({super.key});
@@ -14,7 +18,6 @@ class HistoriqueScreen extends StatefulWidget {
 }
 
 class _HistoriqueScreenState extends State<HistoriqueScreen> {
-  int _navIndex = 2; // Historique is tab index 2
   bool _isLoading = true;
   List<CommandeSupabaseModel> _historique = [];
 
@@ -72,10 +75,30 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
 
           // ── Bottom Nav ──────────────────────────────────────
           LivreurBottomNavBar(
-            currentIndex: _navIndex,
+            currentIndex: 3,
             onTap: (i) {
-              if (i != _navIndex) {
-                Navigator.pop(context); // Return to Dashboard
+              if (i == 3) return;
+              final provider = context.read<LivreurDashboardProvider>();
+              if (i == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const DashboardScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 1 && provider.activeCommande != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: provider.activeCommande)),
+                );
+              } else if (i == 2) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const GainsScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 4) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const LivreurProfileScreen(), transitionDuration: Duration.zero),
+                );
               }
             },
           ),
@@ -168,6 +191,21 @@ class _HistoriqueTile extends StatelessWidget {
                 children: [
                   Row(
                     children: [
+                      const Icon(Icons.person,
+                          size: 14, color: AppColors.navyMedium),
+                      const SizedBox(width: 4),
+                      Text(
+                        commande.clientName ?? 'Client inconnu',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.navyMedium),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
                       const Icon(Icons.location_on,
                           size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
@@ -193,11 +231,11 @@ class _HistoriqueTile extends StatelessWidget {
                 ],
               ),
               Text(
-                '${commande.prixTotal.toStringAsFixed(0)} MAD',
+                '+ ${(commande.fraisLivraison ?? 0).toStringAsFixed(2)} MAD',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: AppColors.yellow,
+                  color: AppColors.forest,
                 ),
               ),
             ],

@@ -29,12 +29,17 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
         setState(() {
           orders = data.map((e) {
             final map = Map<String, dynamic>.from(e);
-            // map postgres schema to ui model
+            
+            // ✅ Utiliser les champs aplatis retournés par le backend
             map['statut'] = map['statut_commande'] ?? 'confirmee';
             map['type'] = map['type_commande'] ?? 'food_delivery';
             map['date'] = map['created_at'] ?? DateTime.now().toIso8601String();
-            map['client'] = 'Client #${map['id_client']}';
-            map['business'] = 'Store #${map['id_business'] ?? ''}';
+            
+            // ✅ Utiliser les champs retournés par le backend avec les joins
+            map['client'] = map['client_nom'] ?? 'Client #${map['id_client']}';
+            map['business'] = map['business_nom'] ?? 'Non défini';
+            map['livreur'] = map['livreur_nom']; // null si pas assigné
+            
             return map;
           }).toList();
           _isLoading = false;
