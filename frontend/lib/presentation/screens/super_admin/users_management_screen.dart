@@ -101,16 +101,41 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
         final index = users.indexWhere((u) => u['id_user'] == userId);
         if (index != -1) {
           users[index] = Map<String, dynamic>.from(users[index]);
-          users[index]['est_actif'] = !currentStatus;
-          if (!currentStatus) {
-            users[index]['documents_validation'] =
-                'validated'; // schema uses varchar for business/livreur? or we just use truthy visual
+          final newStatus = !currentStatus;
+
+          // ✅ Mettre à jour est_actif à la racine
+          users[index]['est_actif'] = newStatus;
+
+          // ✅ Mettre à jour aussi dans les données imbriquées
+          final role = users[index]['role'] as String?;
+          if (role == 'livreur' && users[index]['livreur'] != null) {
+            final livreurData = users[index]['livreur'];
+            if (livreurData is List && livreurData.isNotEmpty) {
+              final updated = Map<String, dynamic>.from(livreurData[0] as Map);
+              updated['est_actif'] = newStatus;
+              users[index]['livreur'] = [updated];
+            } else if (livreurData is Map) {
+              final updated = Map<String, dynamic>.from(livreurData as Map<String, dynamic>);
+              updated['est_actif'] = newStatus;
+              users[index]['livreur'] = updated;
+            }
+          } else if (role == 'business' && users[index]['business'] != null) {
+            final businessData = users[index]['business'];
+            if (businessData is List && businessData.isNotEmpty) {
+              final updated = Map<String, dynamic>.from(businessData[0] as Map);
+              updated['est_actif'] = newStatus;
+              users[index]['business'] = [updated];
+            } else if (businessData is Map) {
+              final updated = Map<String, dynamic>.from(businessData as Map<String, dynamic>);
+              updated['est_actif'] = newStatus;
+              users[index]['business'] = updated;
+            }
           }
         }
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Statut de l\'utilisateur mis à jour.')),
+          const SnackBar(content: Text('Statut mis à jour.')),
         );
       }
     } else {
@@ -711,14 +736,15 @@ class _UserDataTableSource extends DataTableSource {
                 tooltip: 'Approuver Documents',
                 onPressed: () => onValidate(user),
               ),
-            IconButton(
-              icon: Icon(estActif ? LucideIcons.ban : LucideIcons.check,
-                  color: estActif ? AppColors.destructive : Colors.green,
-                  size: 20),
-              tooltip: estActif ? 'Suspendre' : 'Activer',
-              onPressed: () =>
-                  onStatusToggle(user['id_user'], estActif, user['nom']),
-            ),
+           if (role != 'client')
+  IconButton(
+    icon: Icon(estActif ? LucideIcons.ban : LucideIcons.check,
+        color: estActif ? AppColors.destructive : Colors.green,
+        size: 20),
+    tooltip: estActif ? 'Suspendre' : 'Activer',
+    onPressed: () =>
+        onStatusToggle(user['id_user'], estActif, user['nom']),
+  ),
           ],
         ),
       ),

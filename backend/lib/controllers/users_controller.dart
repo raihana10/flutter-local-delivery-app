@@ -147,24 +147,40 @@ class UsersController {
 
   Future<Response> toggleUserStatus(Request request, String id) async {
     try {
-      final user = await SupabaseConfig.client
+      final userRes = await SupabaseConfig.client
           .from('app_user')
           .select('role')
           .eq('id_user', id)
           .isFilter('deleted_at', null)
           .maybeSingle();
 
-      if (user == null) {
+      if (userRes == null) {
         return Response.notFound(jsonEncode({'error': 'User not found'}));
       }
 
-      final role = user['role'] as String;
+      final role = userRes['role'] as String;
+
       if (role == 'client') {
-        return Response(
-          400,
-          body: jsonEncode({
-            'error': 'Clients cannot be suspended in this schema.',
-          }),
+        // Pour les clients : toggle un champ est_actif dans app_user (ou ajouter si absent)
+        // On utilise un champ custom dans app_user — est_actif bool
+        final clientRes = await SupabaseConfig.client
+            .from('app_user')
+            .select('est_actif')
+            .eq('id_user', id)
+            .maybeSingle();
+
+        final currentStatus = clientRes?['est_actif'] as bool? ?? true;
+        final newStatus = !currentStatus;
+
+        final updated = await SupabaseConfig.client
+            .from('app_user')
+            .update({'est_actif': newStatus})
+            .eq('id_user', id)
+            .select();
+
+        return Response.ok(
+          jsonEncode({'success': true, 'data': updated}),
+          headers: {'content-type': 'application/json'},
         );
       }
 

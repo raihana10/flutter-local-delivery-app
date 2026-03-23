@@ -145,7 +145,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                items: ['Tous', 'Clients', 'Livreurs', 'Restaurants']
+                items: ['Tous', 'Clients', 'Livreurs', 'Commerce']
                     .map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
