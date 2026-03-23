@@ -209,7 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: 250000, // Augmenter pour éviter les bâtonnets infinis
+                  maxY: 1000, // Échelle réduite à 1k
                   barTouchData: BarTouchData(enabled: false),
                   titlesData: FlTitlesData(
                     show: true,
@@ -225,7 +225,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          return Text('${value.toInt()}€');
+                        },
+                        reservedSize: 40,
+                      ),
                     ),
                     topTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),

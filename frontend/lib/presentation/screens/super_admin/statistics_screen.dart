@@ -184,7 +184,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: LineChart(
                 LineChartData(
                   minY: 0,
-                  maxY: 150000, // Augmenter pour éviter les bâtonnets infinis
+                  maxY: 1000, // Échelle réduite à 1k
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
@@ -218,11 +218,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             showTitles: true,
                             reservedSize: 40,
                             getTitlesWidget: (value, meta) {
-                              if (value % 10000 != 0)
+                              if (value % 200 != 0)
                                 return const SizedBox.shrink();
                               return SideTitleWidget(
                                 axisSide: meta.axisSide,
-                                child: Text('${(value / 1000).toInt()}k',
+                                child: Text('${(value / 1000).toStringAsFixed(1)}k',
                                     style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.mutedForeground)),
