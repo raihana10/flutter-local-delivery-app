@@ -10,7 +10,7 @@ class BusinessProfileController {
       
       final business = await SupabaseConfig.client
           .from('business')
-          .select('*, app_user(nom, email, num_tl)')
+          .select('*, app_user(*, user_adresse(*, adresse(*)))')
           .eq('id_user', int.parse(businessIdStr))
           .single();
 
@@ -57,11 +57,17 @@ class BusinessProfileController {
         return Response(400, body: jsonEncode({'error': 'Latitude and longitude are required'}));
       }
 
+      // Round coordinates to 6 decimal places to avoid floating-point precision issues
+      final roundedLat = (data['latitude'] as num).toDouble();
+      final roundedLng = (data['longitude'] as num).toDouble();
+      final lat = double.parse(roundedLat.toStringAsFixed(6));
+      final lng = double.parse(roundedLng.toStringAsFixed(6));
+
       var existingAddress = await SupabaseConfig.client
           .from('adresse')
           .select()
-          .eq('latitude', data['latitude'])
-          .eq('longitude', data['longitude'])
+          .eq('latitude', lat)
+          .eq('longitude', lng)
           .maybeSingle();
 
       Map<String, dynamic> finalAddress;
@@ -74,8 +80,8 @@ class BusinessProfileController {
             .insert({
               'ville': data['ville'] ?? '',
               'details': data['details'] ?? '',
-              'latitude': data['latitude'],
-              'longitude': data['longitude'],
+              'latitude': lat,
+              'longitude': lng,
             })
             .select()
             .single();

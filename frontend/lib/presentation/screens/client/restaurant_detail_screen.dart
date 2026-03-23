@@ -143,17 +143,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   );
                 }
               ),
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.share, color: AppColors.card),
-                  onPressed: () {},
-                ),
-              ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Hero(
@@ -614,6 +603,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               'price': basePrice,
                               'quantity': quantity,
                               'image': item['image'] ?? '🍽️',
+                              'business_id': widget.businessId, // Add business_id for hybrid order detection
                             });
                             Navigator.pop(innerModalContext);
                             ScaffoldMessenger.of(context).showSnackBar(

@@ -21,6 +21,40 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   final TextEditingController _monnaieController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize payment method based on client's default
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializePaymentMethod();
+    });
+  }
+
+  void _initializePaymentMethod() {
+    final clientData = context.read<ClientDataProvider>();
+    final paymentMethods = clientData.paymentMethods;
+    
+    // Check if there is a default payment card
+    if (paymentMethods.isNotEmpty) {
+      final defaultCard = paymentMethods.firstWhere(
+        (m) => m['is_default'] == true,
+        orElse: () => <String, dynamic>{},
+      );
+      
+      if (defaultCard.isNotEmpty) {
+        // If there's a default card, select 'card' payment method
+        setState(() {
+          _selectedPaymentMethod = 1; // card
+        });
+      } else {
+        // Otherwise, default to cash
+        setState(() {
+          _selectedPaymentMethod = 0; // cash
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _monnaieController.dispose();
     super.dispose();
@@ -29,17 +63,65 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   double? _calcDistance(List<dynamic> addresses, int idx, ClientDataProvider clientData) {
     if (idx < 0 || idx >= addresses.length) return null;
     final adresse = addresses[idx]['adresse'] ?? {};
-    final clientLat = adresse['latitude'] as double?;
-    final clientLng = adresse['longitude'] as double?;
-    // Business lat/lng from the cart's business -- stored in provider
-    final businessAddr = clientData.businessAddress;
-    final bizLat = businessAddr?['latitude'] as double?;
-    final bizLng = businessAddr?['longitude'] as double?;
-    if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
-      final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
-      return meters / 1000; // km
+    final clientLat = double.tryParse(adresse['latitude']?.toString() ?? '');
+    final clientLng = double.tryParse(adresse['longitude']?.toString() ?? '');
+    
+    final cartItems = clientData.cartItems;
+    if (cartItems.isEmpty) return null;
+
+    // Check if this is a hybrid order (multiple business_ids)
+    final businessIds = <String>{};
+    for (var item in cartItems) {
+      final bizId = item['business_id'];
+      if (bizId != null) {
+        businessIds.add(bizId.toString());
+      }
     }
+
+    // If single or no business_id tracked, use the single business address
+    if (businessIds.length <= 1) {
+      final businessAddr = clientData.businessAddress;
+      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+        return meters / 1000; // km
+      }
+    } else {
+      // Hybrid order: calculate average distance from all businesses
+      // For now, use the single business address as fallback
+      // In production, you'd fetch all business addresses and average them
+      final businessAddr = clientData.businessAddress;
+      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+        return meters / 1000; // km
+      }
+    }
+    
     return null;
+  }
+
+  double _calculateDeliveryFee(double? distanceKm) {
+    if (distanceKm == null || distanceKm <= 0) {
+      return 1.5; // Minimum fee or something, maybe 1.5 for basic
+    }
+    // Calculate fee: 1.5 DH per km
+    return (distanceKm * 1.5);
+  }
+
+  /// Check if the current cart contains items from multiple businesses
+  bool _isHybridOrder(List<Map<String, dynamic>> cartItems) {
+    if (cartItems.isEmpty) return false;
+    final businessIds = <String>{};
+    for (var item in cartItems) {
+      final bizId = item['business_id'];
+      if (bizId != null) {
+        businessIds.add(bizId.toString());
+      }
+    }
+    return businessIds.length > 1;
   }
 
   final List<Map<String, dynamic>> _paymentMethods = [
@@ -62,7 +144,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final cartItems = clientData.cartItems;
 
     double subtotal = clientData.cartSubtotal;
-    double deliveryFee = 10.0;
+    double deliveryFee = _calculateDeliveryFee(_distanceKm);
     double total = subtotal + deliveryFee;
 
     return Scaffold(
@@ -427,10 +509,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
 
                   final clientData = context.read<ClientDataProvider>();
                   final cartItems = clientData.cartItems;
+                  final isHybrid = _isHybridOrder(cartItems);
 
                   final payload = {
                     'id_adresse': selectedAddress['id_adresse'] ?? selectedAddress['adresse']?['id_adresse'],
-                    'type_commande': 'food_delivery',
+                    'type_commande': isHybrid ? 'hybride' : 'food_delivery',
                     'mode_paiement': _selectedPaymentMethod == 0 ? 'cash' : 'card',
                     if (_selectedPaymentMethod == 0 && _monnaieController.text.trim().isNotEmpty)
                       'prix_donne': double.tryParse(_monnaieController.text.trim()),
@@ -541,17 +624,15 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       builder: (context) {
         return AddAddressBottomSheet(
           onSave: (data) async {
+            // addAddress() internally calls fetchAddresses(), so no need to call it again
             final success = await clientData.addAddress(data);
-            if (success) {
-              await clientData.fetchAddresses();
-              if (mounted) {
-                // Auto-select the newly added address (last one)
-                final newIdx = clientData.addresses.length - 1;
-                setState(() {
-                  _selectedAddressIndex = newIdx < 0 ? 0 : newIdx;
-                  _distanceKm = _calcDistance(clientData.addresses, _selectedAddressIndex, clientData);
-                });
-              }
+            if (success && mounted) {
+              // Auto-select the newly added address (last one)
+              final newIdx = clientData.addresses.length - 1;
+              setState(() {
+                _selectedAddressIndex = newIdx < 0 ? 0 : newIdx;
+                _distanceKm = _calcDistance(clientData.addresses, _selectedAddressIndex, clientData);
+              });
             }
             return success;
           },

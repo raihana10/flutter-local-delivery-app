@@ -163,6 +163,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Adresse principale mise à jour')));
               }
+            } else if (value == 'edit') {
+              _showEditTitleDialog(idAddress, title);
             } else if (value == 'delete') {
               final success = await context
                   .read<ClientDataProvider>()
@@ -174,6 +176,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
             }
           },
           itemBuilder: (context) => [
+            const PopupMenuItem(
+                value: 'edit', child: Text('Renommer le titre')),
             if (!isDefault)
               const PopupMenuItem(
                   value: 'default', child: Text('Définir par défaut')),
@@ -184,6 +188,54 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEditTitleDialog(String addressId, String currentTitle) {
+    final titleController = TextEditingController(text: currentTitle);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text('Renommer le titre', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.foreground)),
+        content: TextField(
+          controller: titleController,
+          decoration: InputDecoration(
+            hintText: 'Nouveau titre',
+            filled: true,
+            fillColor: AppColors.card,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              titleController.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              final newTitle = titleController.text.trim();
+              if (newTitle.isNotEmpty) {
+                final success = await context.read<ClientDataProvider>().updateAddress(addressId, {'titre': newTitle});
+                if (mounted && success) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titre mis à jour')));
+                  Navigator.pop(context);
+                }
+              }
+              titleController.dispose();
+            },
+            child: const Text('Enregistrer', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

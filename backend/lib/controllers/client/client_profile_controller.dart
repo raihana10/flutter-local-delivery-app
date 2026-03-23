@@ -130,12 +130,18 @@ class ClientProfileController {
         );
       }
 
+      // Round coordinates to 6 decimal places to avoid floating-point precision issues
+      final roundedLat = (data['latitude'] as num).toDouble();
+      final roundedLng = (data['longitude'] as num).toDouble();
+      final lat = double.parse(roundedLat.toStringAsFixed(6));
+      final lng = double.parse(roundedLng.toStringAsFixed(6));
+
       // Handle duplicate addresses based on coordinates and details
       var existingAddress = await SupabaseConfig.client
           .from('adresse')
           .select()
-          .eq('latitude', data['latitude'])
-          .eq('longitude', data['longitude'])
+          .eq('latitude', lat)
+          .eq('longitude', lng)
           .maybeSingle();
 
       Map<String, dynamic> finalAddress;
@@ -149,8 +155,8 @@ class ClientProfileController {
             .insert({
               'ville': data['ville'] ?? '',
               'details': data['details'] ?? '',
-              'latitude': data['latitude'],
-              'longitude': data['longitude'],
+              'latitude': lat,
+              'longitude': lng,
             })
             .select()
             .single();

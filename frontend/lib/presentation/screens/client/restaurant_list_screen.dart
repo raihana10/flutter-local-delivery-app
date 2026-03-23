@@ -716,9 +716,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Restaurants proches', !_showAll ? 'Voir tout' : '', () {
+                            'Restaurants proches', _showAll ? 'Voir moins' : 'Voir tout', () {
                               setState(() {
-                                _showAll = true;
+                                _showAll = !_showAll;
                               });
                             }),
                         const SizedBox(height: 12),

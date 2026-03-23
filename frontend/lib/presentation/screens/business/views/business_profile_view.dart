@@ -24,7 +24,7 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
   bool _isSwitching = false;
   bool _isUploadingPhoto = false;
 
-  Future<void> _pickAndUploadPhoto(BusinessDataProvider provider, String type) async {
+  Future<void> _pickAndUploadPhoto(BusinessDataProvider provider) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null) return;
@@ -33,9 +33,9 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
     try {
       final bytes = await File(picked.path).readAsBytes();
       final ext = picked.path.split('.').last;
-      final fileName = '${type}_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final businessId = provider.profile['id_user']?.toString() ?? 'unknown';
-      final storagePath = '$businessId/$fileName';
+      final fileName = 'logo_${businessId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final storagePath = fileName;
 
       await Supabase.instance.client.storage
           .from('alae')
@@ -45,11 +45,11 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
           .from('alae')
           .getPublicUrl(storagePath);
 
-      await provider.updateProfile({type == 'logo' ? 'logo_url' : 'cover_url': publicUrl});
+      await provider.updateProfile({'logo_url': publicUrl});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${type == 'logo' ? 'Logo' : 'Bannière'} mis à jour avec succès')));
+            const SnackBar(content: Text('Photo de profil mise à jour avec succès')));
       }
     } catch (e) {
       if (mounted) {
@@ -121,73 +121,36 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                 ),
               ),
 
-              // Business Logo & Banner (tappable for upload)
+              // Business Logo (tappable for upload) - only keep profile photo
               Center(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _pickAndUploadPhoto(provider, 'cover'),
-                      child: Container(
-                        height: 140,
-                        width: double.infinity,
-                        margin: const EdgeInsets.symmetric(horizontal: 24),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          image: DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover),
-                          boxShadow: AppColors.cardShadow,
+                child: GestureDetector(
+                  onTap: () => _pickAndUploadPhoto(provider),
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 20),
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: AppColors.cardShadow),
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: AppColors.warmWhite,
+                          backgroundImage: NetworkImage(logoUrl),
                         ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(24),
-                            color: Colors.black26,
-                          ),
-                          child: const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(LucideIcons.camera, color: Colors.white, size: 24),
-                                SizedBox(height: 4),
-                                Text('Changer la bannière', style: TextStyle(color: Colors.white, fontSize: 12)),
-                              ],
-                            ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(color: AppColors.forest, shape: BoxShape.circle),
+                            child: const Icon(LucideIcons.camera, color: Colors.white, size: 16),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                    Positioned(
-                      bottom: -40,
-                      child: GestureDetector(
-                        onTap: () => _pickAndUploadPhoto(provider, 'logo'),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                          child: Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundColor: AppColors.warmWhite,
-                                backgroundImage: NetworkImage(logoUrl),
-                              ),
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(color: AppColors.forest, shape: BoxShape.circle),
-                                  child: const Icon(LucideIcons.camera, color: Colors.white, size: 14),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 24),
 
               Center(
                 child: Column(
@@ -267,7 +230,12 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                         builder: (context) {
                           return AddAddressBottomSheet(
                             onSave: (data) async {
-                              return await provider.apiService.addAddress(data);
+                              final success = await provider.apiService.addAddress(data);
+                              if (success) {
+                                // Reload profile to show the newly added address
+                                await provider.fetchProfile();
+                              }
+                              return success;
                             },
                           );
                         },

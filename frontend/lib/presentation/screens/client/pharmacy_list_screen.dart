@@ -703,9 +703,9 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Pharmacies proches', !_showAll ? 'Voir tout' : '', () {
+                            'Pharmacies proches', _showAll ? 'Voir moins' : 'Voir tout', () {
                               setState(() {
-                                _showAll = true;
+                                _showAll = !_showAll;
                               });
                             }),
                         const SizedBox(height: 12),
@@ -1292,14 +1292,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: pharmacyInfo['pdp'] != null 
+                        image: pharmacyInfo['logo_url'] != null 
                             ? DecorationImage(
-                                image: NetworkImage(pharmacyInfo['pdp']),
+                                image: NetworkImage(pharmacyInfo['logo_url']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: pharmacyInfo['pdp'] == null 
+                      child: pharmacyInfo['logo_url'] == null 
                           ? Center(
                               child: Text(
                                 '💊',
@@ -1386,61 +1386,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                 ],
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${pharmacyInfo['temps_preparation'] ?? 15} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '1.5 km',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -1460,6 +1405,33 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                         ),
                       ],
                     ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Favorite button
+                  Consumer<ClientDataProvider>(
+                    builder: (context, provider, _) {
+                      final idB = int.tryParse(idBusiness) ?? 0;
+                      final isFav = provider.isFavorite(idB);
+                      return GestureDetector(
+                        onTap: () {
+                          if (idB > 0) provider.toggleFavorite(idB);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                            size: 22,
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(width: 8),

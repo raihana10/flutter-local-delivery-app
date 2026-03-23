@@ -703,9 +703,9 @@ class _MarketListScreenState extends State<MarketListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Magasins proches', !_showAll ? 'Voir tout' : '', () {
+                            'Magasins proches', _showAll ? 'Voir moins' : 'Voir tout', () {
                               setState(() {
-                                _showAll = true;
+                                _showAll = !_showAll;
                               });
                             }),
                         const SizedBox(height: 12),
