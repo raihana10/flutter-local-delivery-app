@@ -112,10 +112,10 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                       label: Text('Business(×75%)',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('Livreur(×70%)',
+                      label: Text('Livreur(×85%)',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('App(25%+30%)',
+                      label: Text('App(25%+15%)',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
                 source: _PaymentDataTableSource(data: _details),
