@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/constants/app_strings.dart';
-import 'package:app/core/providers/theme_provider.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/presentation/widgets/livreur/status_toggle_button.dart';
+import 'package:app/presentation/screens/livreur/livreur_notifications_screen.dart';
 import 'package:app/presentation/widgets/livreur/nouvelle_commande_card.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
 import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
@@ -172,25 +172,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // Boutons droite : toggle theme + avatar
               Row(
                 children: [
-                  // Toggle dark/light
-                  Consumer<ThemeProvider>(
-                    builder: (context, themeProvider, _) => GestureDetector(
-                      onTap: () => themeProvider.toggleTheme(),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.navyMedium,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          themeProvider.isDark
-                              ? Icons.light_mode
-                              : Icons.dark_mode,
-                          color: AppColors.yellow,
-                          size: 18,
-                        ),
+                  // Notifications
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const LivreurNotificationsScreen()));
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.navyMedium,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        color: AppColors.textWhite,
+                        size: 20,
                       ),
                     ),
                   ),

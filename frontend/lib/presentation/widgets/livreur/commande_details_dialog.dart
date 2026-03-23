@@ -69,7 +69,40 @@ class CommandeDetailsDialog extends StatelessWidget {
               'Distance: ${commande.distance.toStringAsFixed(1)} km',
               style: const TextStyle(fontSize: 14, color: AppColors.navyMedium),
             ),
+            if (commande.fraisLivraison > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.delivery_dining, size: 16, color: AppColors.navyMedium),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Frais de livraison: ${commande.fraisLivraison.toStringAsFixed(2)} MAD',
+                    style: const TextStyle(fontSize: 14, color: AppColors.navyMedium, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
+            
+            // Client info
+            const Text(
+              'Client:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.navyDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              commande.clientName ?? 'Client inconnu',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: AppColors.navyDark,
+              ),
+            ),
+            const Divider(height: 30),
 
             // Products section
             const Text(

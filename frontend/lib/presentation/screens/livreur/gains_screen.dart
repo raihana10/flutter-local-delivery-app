@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:app/core/constants/app_strings.dart';
-import 'package:app/data/datasources/livreur_mock_datasource.dart';
+import 'package:provider/provider.dart';
+import 'package:app/core/providers/livreur_dashboard_provider.dart';
 import 'package:app/data/models/gains_model.dart';
 import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
+import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
+import 'package:app/presentation/screens/livreur/historique_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
+import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
 
 class GainsScreen extends StatefulWidget {
   const GainsScreen({super.key});
@@ -14,7 +19,6 @@ class GainsScreen extends StatefulWidget {
 }
 
 class _GainsScreenState extends State<GainsScreen> {
-  int _navIndex = 2;
   bool _isLoading = true;
   GainsModel? _gains;
   int? _touchedIndex;
@@ -28,11 +32,16 @@ class _GainsScreenState extends State<GainsScreen> {
   }
 
   Future<void> _loadData() async {
-    final gains =
-        await LivreurMockDatasource.withDelay(LivreurMockDatasource.mockGains);
+    final gains = await context.read<LivreurDashboardProvider>().fetchGains();
     if (mounted)
       setState(() {
-        _gains = gains;
+        _gains = gains ?? GainsModel(
+          aujourdhui: 0,
+          semaine: 0,
+          parJour: List.filled(7, 0.0),
+          repartitionType: {'food_delivery': 0, 'shopping': 0},
+          livraisonsRecentes: []
+        );
         _isLoading = false;
       });
   }
@@ -60,6 +69,12 @@ class _GainsScreenState extends State<GainsScreen> {
                         _buildChartCard(),
                         const SizedBox(height: 24),
 
+                        // Pie Chart
+                        if (_gains!.repartitionType.values.any((v) => v > 0)) ...[
+                          _buildPieChartCard(),
+                          const SizedBox(height: 24),
+                        ],
+
                         // Titre livraisons récentes
                         const Text(
                           AppStrings.livraisonsRecentes,
@@ -82,8 +97,32 @@ class _GainsScreenState extends State<GainsScreen> {
 
           // ── Bottom Nav ──────────────────────────────────────
           LivreurBottomNavBar(
-            currentIndex: _navIndex,
-            onTap: (i) => setState(() => _navIndex = i),
+            currentIndex: 2,
+            onTap: (i) {
+              if (i == 2) return;
+              final provider = context.read<LivreurDashboardProvider>();
+              if (i == 0) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const DashboardScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 1 && provider.activeCommande != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => LivraisonActiveScreen(commande: provider.activeCommande)),
+                );
+              } else if (i == 3) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const HistoriqueScreen(), transitionDuration: Duration.zero),
+                );
+              } else if (i == 4) {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(pageBuilder: (_,__,___) => const LivreurProfileScreen(), transitionDuration: Duration.zero),
+                );
+              }
+            },
           ),
         ],
       ),
@@ -140,6 +179,20 @@ class _GainsScreenState extends State<GainsScreen> {
               _StatBadge(
                   label: "Aujourd'hui",
                   value: "${_gains!.aujourdhui.toStringAsFixed(0)} MAD",
+                  isSecondary: true),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _StatBadge(
+                  label: "Total Livraisons",
+                  value: "${_gains!.totalLivraisons}",
+                  isSecondary: true),
+              const SizedBox(width: 12),
+              _StatBadge(
+                  label: "Distance parcourue",
+                  value: "${_gains!.totalDistance.toStringAsFixed(1)} km",
                   isSecondary: true),
             ],
           ),
@@ -252,6 +305,91 @@ class _GainsScreenState extends State<GainsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPieChartCard() {
+    final food = _gains!.repartitionType['food_delivery'] ?? 0;
+    final shopping = _gains!.repartitionType['shopping'] ?? 0;
+    final total = food + shopping;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Répartition par type", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.navyDark)),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 160,
+            child: Row(
+              children: [
+                Expanded(
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 40,
+                      sections: [
+                        if (food > 0)
+                          PieChartSectionData(
+                            color: AppColors.yellow,
+                            value: food.toDouble(),
+                            title: '${((food / total) * 100).toStringAsFixed(0)}%',
+                            radius: 30,
+                            titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.navyDark),
+                          ),
+                        if (shopping > 0)
+                          PieChartSectionData(
+                            color: AppColors.navyDark,
+                            value: shopping.toDouble(),
+                            title: '${((shopping / total) * 100).toStringAsFixed(0)}%',
+                            radius: 30,
+                            titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _PieIndicator(color: AppColors.yellow, text: 'Food Delivery ($food)'),
+                    const SizedBox(height: 8),
+                    _PieIndicator(color: AppColors.navyDark, text: 'Shopping ($shopping)'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PieIndicator extends StatelessWidget {
+  final Color color;
+  final String text;
+  const _PieIndicator({required this.color, required this.text});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+        const SizedBox(width: 6),
+        Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      ],
     );
   }
 }
