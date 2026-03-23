@@ -57,7 +57,7 @@ class NotificationsController {
       if (idUser != null) {
         await SupabaseConfig.client.from('user_notification').insert({
           'id_user': idUser,
-          'id_notification': notif['id'],
+          'id_not': notif['id_not'],
           'lu': false,
         });
       }

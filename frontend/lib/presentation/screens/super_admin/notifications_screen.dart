@@ -47,7 +47,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final success = await _apiService.sendNotification({
           'titre': _titleController.text,
           'message': _messageController.text,
-          'target_role': _selectedRole,
+          'type': _selectedRole,
         });
 
         if (success) {

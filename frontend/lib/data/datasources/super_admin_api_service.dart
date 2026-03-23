@@ -228,7 +228,7 @@ class SuperAdminApiService {
     try {
       final options = await _getAuthOptions();
       final response = await _dio.post(
-        '$baseUrl/admin/notifications/send',
+        '$baseUrl/admin/notifications',
         data: notificationData,
         options: options,
       );
