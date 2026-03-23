@@ -227,8 +227,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                       _buildInfoBadge(Icons.star, '${averageRating.toStringAsFixed(1)} ($reviewCount avis)', AppColors.accent),
                       const SizedBox(width: 12),
                       _buildInfoBadge(Icons.access_time, '25-35 min', AppColors.primary),
-                      const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.delivery_dining, '10 DH', AppColors.secondary),
                     ],
                   ),
                   const SizedBox(height: 16),

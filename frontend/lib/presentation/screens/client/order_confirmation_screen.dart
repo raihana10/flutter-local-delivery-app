@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/app_colors.dart';
-
 import 'package:provider/provider.dart';
 import '../../../core/providers/client_data_provider.dart';
 import 'client_addresses_screen.dart';
@@ -15,8 +15,32 @@ class OrderConfirmationScreen extends StatefulWidget {
 
 class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   int _selectedAddressIndex = 0;
-  int _selectedPaymentMethod = 0;
+  int _selectedPaymentMethod = 0; // 0 = cash, 1 = card
   bool _isSubmitting = false;
+  double? _distanceKm;
+  final TextEditingController _monnaieController = TextEditingController();
+
+  @override
+  void dispose() {
+    _monnaieController.dispose();
+    super.dispose();
+  }
+
+  double? _calcDistance(List<dynamic> addresses, int idx, ClientDataProvider clientData) {
+    if (idx < 0 || idx >= addresses.length) return null;
+    final adresse = addresses[idx]['adresse'] ?? {};
+    final clientLat = adresse['latitude'] as double?;
+    final clientLng = adresse['longitude'] as double?;
+    // Business lat/lng from the cart's business -- stored in provider
+    final businessAddr = clientData.businessAddress;
+    final bizLat = businessAddr?['latitude'] as double?;
+    final bizLng = businessAddr?['longitude'] as double?;
+    if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+      final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+      return meters / 1000; // km
+    }
+    return null;
+  }
 
   final List<Map<String, dynamic>> _paymentMethods = [
     {
@@ -68,12 +92,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 else
                   ...List.generate(
                     addresses.length,
-                    (index) => _buildAddressItem(index, addresses[index]),
+                    (index) => _buildAddressItem(index, addresses[index], clientData),
                   ),
                 TextButton.icon(
-                  onPressed: _showAddAddressBottomSheet,
-                  icon: const Icon(Icons.add_circle_outline,
-                      color: AppColors.primary),
+                  onPressed: () => _showAddAddressBottomSheet(clientData),
+                  icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
                   label: const Text('Ajouter une nouvelle adresse',
                       style: TextStyle(color: AppColors.primary)),
                 ),
@@ -85,12 +108,49 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   _paymentMethods.length,
                   (index) => _buildPaymentMethod(index, _paymentMethods[index]),
                 ),
+                // Monnaie donnée – visible only for cash payment
+                if (_selectedPaymentMethod == 0) ...
+                  [
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Monnaie à préparer',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
+                          const SizedBox(height: 4),
+                          Text('Total à payer: $total DH – indiquez le montant que vous donnerez au livreur',
+                              style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _monnaieController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              hintText: 'Ex: 200 DH',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              suffixText: 'DH',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                 const SizedBox(height: 32),
                 _buildSectionHeader('Récapitulatif', Icons.receipt_long),
                 const SizedBox(height: 12),
-                _buildOrderSummaryWidget(
-                    cartItems.length, subtotal, deliveryFee, total),
+                _buildOrderSummaryWidget(cartItems.length, subtotal, deliveryFee, total),
 
                 const SizedBox(height: 100), // padding bottom
               ]),
@@ -99,7 +159,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         ],
       ),
       bottomNavigationBar: _buildConfirmationBar(
-          total, addresses.isEmpty ? null : addresses[_selectedAddressIndex]),
+          total, addresses.isEmpty ? null : addresses[_selectedAddressIndex], clientData),
     );
   }
 
@@ -120,7 +180,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildAddressItem(int index, dynamic addressRelation) {
+  Widget _buildAddressItem(int index, dynamic addressRelation, ClientDataProvider clientData) {
     bool isSelected = _selectedAddressIndex == index;
     final isDefault = addressRelation['is_default'] == true;
     final addressModel = addressRelation['adresse'] ?? {};
@@ -134,6 +194,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       onTap: () {
         setState(() {
           _selectedAddressIndex = index;
+          _distanceKm = _calcDistance(clientData.addresses, index, clientData);
         });
       },
       child: AnimatedContainer(
@@ -319,7 +380,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildConfirmationBar(double total, dynamic selectedAddress) {
+  Widget _buildConfirmationBar(double total, dynamic selectedAddress, ClientDataProvider clientData) {
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -368,13 +429,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   final cartItems = clientData.cartItems;
 
                   final payload = {
-                    'id_adresse': selectedAddress['id_adresse'],
+                    'id_adresse': selectedAddress['id_adresse'] ?? selectedAddress['adresse']?['id_adresse'],
                     'type_commande': 'food_delivery',
+                    'mode_paiement': _selectedPaymentMethod == 0 ? 'cash' : 'card',
+                    if (_selectedPaymentMethod == 0 && _monnaieController.text.trim().isNotEmpty)
+                      'prix_donne': double.tryParse(_monnaieController.text.trim()),
+                    if (_distanceKm != null)
+                      'distance_km': double.parse(_distanceKm!.toStringAsFixed(2)),
                     'items': cartItems.map((item) {
                       return {
                         'quantite': item['quantity'],
-                        'id_produit': item[
-                            'id'], // Assumes item has an id, fallback to 1 or something if mocked earlier
+                        'id_produit': item['id'],
                         'prix_snapshot': item['price'],
                         'nom_snapshot': item['name']
                       };
@@ -468,13 +533,29 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  void _showAddAddressBottomSheet() {
+  void _showAddAddressBottomSheet(ClientDataProvider clientData) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return const AddAddressBottomSheet();
+        return AddAddressBottomSheet(
+          onSave: (data) async {
+            final success = await clientData.addAddress(data);
+            if (success) {
+              await clientData.fetchAddresses();
+              if (mounted) {
+                // Auto-select the newly added address (last one)
+                final newIdx = clientData.addresses.length - 1;
+                setState(() {
+                  _selectedAddressIndex = newIdx < 0 ? 0 : newIdx;
+                  _distanceKm = _calcDistance(clientData.addresses, _selectedAddressIndex, clientData);
+                });
+              }
+            }
+            return success;
+          },
+        );
       },
     );
   }

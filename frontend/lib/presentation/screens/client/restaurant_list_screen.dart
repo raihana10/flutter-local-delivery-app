@@ -1441,15 +1441,6 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                     color: AppColors.secondary,
                                     size: 14,
                                   ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '1.2 km', // Mock distance
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),

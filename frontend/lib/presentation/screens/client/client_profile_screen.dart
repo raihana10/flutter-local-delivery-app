@@ -65,26 +65,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                     MaterialPageRoute(builder: (_) => const ClientNotificationsScreen()),
                   );
                 }),
-                _buildListTile(Icons.notifications_active_outlined, 'Paramètres des notifications', onTap: () {
-                  _showNotificationSettingsBottomSheet(context);
-                }),
-                _buildListTile(Icons.language, 'Langue', trailing: Text('Français', style: TextStyle(color: AppColors.mutedForeground)), onTap: () {
-                  _showLanguageDialog(context);
-                }),
-                Consumer<ThemeProvider>(
-                  builder: (context, themeProvider, child) {
-                    return _buildListTile(
-                      Icons.dark_mode_outlined,
-                      'Thème sombre',
-                      trailing: Switch(
-                        value: themeProvider.isDark,
-                        onChanged: (value) => themeProvider.toggleTheme(),
-                        activeColor: AppColors.primary,
-                      ),
-                      onTap: () => themeProvider.toggleTheme(),
-                    );
-                  },
-                ),
               ],
             ),
             const SizedBox(height: 24),

@@ -65,6 +65,26 @@ class ClientDataProvider extends ChangeNotifier {
   // Cart Data
   List<Map<String, dynamic>> cartItems = [];
 
+  // Tracks the business whose products are in the cart (used for distance calculation)
+  Map<String, dynamic>? _currentCartBusiness;
+
+  void setCurrentBusiness(Map<String, dynamic>? business) {
+    _currentCartBusiness = business;
+  }
+
+  /// Returns the primary address map {latitude, longitude} of the business in the cart, or null.
+  Map<String, dynamic>? get businessAddress {
+    final appUser = _currentCartBusiness?['app_user'] ?? {};
+    final userAddresses = appUser['user_adresse'] as List<dynamic>? ?? [];
+    if (userAddresses.isEmpty) return null;
+    final primary = userAddresses.firstWhere(
+      (ua) => ua['is_default'] == true,
+      orElse: () => userAddresses.first,
+    );
+    return primary['adresse'] as Map<String, dynamic>?;
+  }
+
+
   void addToCart(Map<String, dynamic> item) {
     cartItems.add(item);
     notifyListeners();
