@@ -9,6 +9,10 @@ class BusinessProfileRoutes {
 
     router.get('/', controller.getProfile);
     router.patch('/', controller.updateProfile);
+    router.post('/addresses', controller.addAddress);
+    router.get('/addresses', controller.getAddresses);
+    router.patch('/addresses/<id>', controller.updateAddress);
+    router.delete('/addresses/<id>', controller.deleteAddress);
 
     return router;
   }

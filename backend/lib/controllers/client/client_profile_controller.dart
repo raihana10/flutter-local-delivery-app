@@ -130,31 +130,77 @@ class ClientProfileController {
         );
       }
 
-      // First insert the address
-      final newAddress = await SupabaseConfig.client
-          .from('adresse')
-          .insert({
-            'ville': data['ville'] ?? '',
-            'latitude': data['latitude'],
-            'longitude': data['longitude'],
-          })
-          .select()
-          .single();
+      // Round coordinates to 6 decimal places to avoid floating-point precision issues
+      final roundedLat = (data['latitude'] as num).toDouble();
+      final roundedLng = (data['longitude'] as num).toDouble();
+      final lat = double.parse(roundedLat.toStringAsFixed(6));
+      final lng = double.parse(roundedLng.toStringAsFixed(6));
 
-      // Then link the address to the user
-      final userAddress = await SupabaseConfig.client
-          .from('user_adresse')
-          .insert({
-            'id_user': clientId,
-            'id_adresse': newAddress['id_adresse'],
-            'is_default': data['is_default'] ?? false,
-          })
+      // Handle duplicate addresses based on coordinates and details
+      var existingAddress = await SupabaseConfig.client
+          .from('adresse')
           .select()
-          .single();
+          .eq('latitude', lat)
+          .eq('longitude', lng)
+          .maybeSingle();
+
+      Map<String, dynamic> finalAddress;
+
+      if (existingAddress != null) {
+        finalAddress = existingAddress;
+      } else {
+        // Insert new address if no duplicate found
+        finalAddress = await SupabaseConfig.client
+            .from('adresse')
+            .insert({
+              'ville': data['ville'] ?? '',
+              'details': data['details'] ?? '',
+              'latitude': lat,
+              'longitude': lng,
+            })
+            .select()
+            .single();
+      }
+
+      // Check if user already linked this address
+      var existingUserAddress = await SupabaseConfig.client
+          .from('user_adresse')
+          .select()
+          .eq('id_user', clientId)
+          .eq('id_adresse', finalAddress['id_adresse'])
+          .maybeSingle();
+
+      Map<String, dynamic> userAddress;
+
+      if (existingUserAddress != null) {
+        // Just update default status and title if already exists
+        userAddress = await SupabaseConfig.client
+            .from('user_adresse')
+            .update({
+              'is_default': data['is_default'] ?? false,
+              'titre': data['titre'] ?? 'Adresse',
+            })
+            .eq('id_user', clientId)
+            .eq('id_adresse', finalAddress['id_adresse'])
+            .select()
+            .single();
+      } else {
+        // Link the address to the user
+        userAddress = await SupabaseConfig.client
+            .from('user_adresse')
+            .insert({
+              'id_user': clientId,
+              'id_adresse': finalAddress['id_adresse'],
+              'is_default': data['is_default'] ?? false,
+              'titre': data['titre'] ?? 'Adresse',
+            })
+            .select()
+            .single();
+      }
 
       return Response.ok(
         jsonEncode({
-          'data': {'adresse': newAddress, 'user_adresse': userAddress},
+          'data': {'adresse': finalAddress, 'user_adresse': userAddress},
         }),
         headers: {'content-type': 'application/json'},
       );
@@ -177,6 +223,7 @@ class ClientProfileController {
 
       final updateData = <String, dynamic>{};
       if (data.containsKey('ville')) updateData['ville'] = data['ville'];
+      if (data.containsKey('details')) updateData['details'] = data['details'];
       if (data.containsKey('latitude'))
         updateData['latitude'] = data['latitude'];
       if (data.containsKey('longitude'))
@@ -201,6 +248,13 @@ class ClientProfileController {
         await SupabaseConfig.client
             .from('user_adresse')
             .update({'is_default': data['is_default']})
+            .match({'id_user': clientId, 'id_adresse': addressId});
+      }
+
+      if (data.containsKey('titre')) {
+        await SupabaseConfig.client
+            .from('user_adresse')
+            .update({'titre': data['titre']})
             .match({'id_user': clientId, 'id_adresse': addressId});
       }
 

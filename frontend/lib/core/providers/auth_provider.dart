@@ -46,9 +46,30 @@ class AuthProvider extends ChangeNotifier {
 
       if (response != null) {
         var userData = Map<String, dynamic>.from(response);
-        // Ne pas chercher pdp dans livreur (champ inexistant)
+        final role = userData['role'] as String?;
+
+        // ✅ Pour livreur et business, lire est_actif depuis la table spécifique
+        if (role == 'livreur') {
+          final livreurRes = await _supabase
+              .from('livreur')
+              .select('est_actif')
+              .eq('id_user', userData['id_user'])
+              .maybeSingle();
+          userData['est_actif'] = livreurRes?['est_actif'] ?? false;
+        } else if (role == 'business') {
+          final businessRes = await _supabase
+              .from('business')
+              .select('est_actif')
+              .eq('id_user', userData['id_user'])
+              .maybeSingle();
+          userData['est_actif'] = businessRes?['est_actif'] ?? false;
+        } else {
+          // clients : toujours actifs
+          userData['est_actif'] = true;
+        }
+
         _user = User.fromJson(userData);
-        print('✅ user fetched: ${_user!.email} role: ${_user!.role.value}');
+        print('✅ user fetched: ${_user!.email} role: ${_user!.role.value} actif: ${_user!.estActif}');
       } else {
         print('❌ user not found for email: $email');
         _user = null;

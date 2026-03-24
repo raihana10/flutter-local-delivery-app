@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/app_colors.dart';
-
 import 'package:provider/provider.dart';
 import '../../../core/providers/client_data_provider.dart';
+import 'client_addresses_screen.dart';
 
 class OrderConfirmationScreen extends StatefulWidget {
   const OrderConfirmationScreen({super.key});
@@ -14,8 +15,133 @@ class OrderConfirmationScreen extends StatefulWidget {
 
 class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   int _selectedAddressIndex = 0;
-  int _selectedPaymentMethod = 0;
+  int _selectedPaymentMethod = 0; // 0 = cash, 1 = card
   bool _isSubmitting = false;
+  double? _distanceKm;
+  final TextEditingController _monnaieController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize payment method based on client's default
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializePaymentMethod();
+      _initializeInitialDistance();
+    });
+  }
+
+  void _initializeInitialDistance() {
+    final clientData = context.read<ClientDataProvider>();
+    if (clientData.addresses.isNotEmpty) {
+      setState(() {
+        _distanceKm = _calcDistance(clientData.addresses, 0, clientData);
+      });
+    }
+  }
+
+  void _initializePaymentMethod() {
+    final clientData = context.read<ClientDataProvider>();
+    final paymentMethods = clientData.paymentMethods;
+    
+    // Check if there is a default payment card
+    if (paymentMethods.isNotEmpty) {
+      final defaultCard = paymentMethods.firstWhere(
+        (m) => m['is_default'] == true,
+        orElse: () => <String, dynamic>{},
+      );
+      
+      if (defaultCard.isNotEmpty) {
+        // If there's a default card, select 'card' payment method
+        setState(() {
+          _selectedPaymentMethod = 1; // card
+        });
+      } else {
+        // Otherwise, default to cash
+        setState(() {
+          _selectedPaymentMethod = 0; // cash
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _monnaieController.dispose();
+    super.dispose();
+  }
+
+  double? _calcDistance(List<dynamic> addresses, int idx, ClientDataProvider clientData) {
+    if (idx < 0 || idx >= addresses.length) return null;
+    final adresse = addresses[idx]['adresse'] ?? {};
+    final clientLat = double.tryParse(adresse['latitude']?.toString() ?? '');
+    final clientLng = double.tryParse(adresse['longitude']?.toString() ?? '');
+    
+    final cartItems = clientData.cartItems;
+    if (cartItems.isEmpty) return null;
+
+    // Check if this is a hybrid order (multiple business_ids)
+    final businessIds = <String>{};
+    for (var item in cartItems) {
+      final bizId = item['business_id'];
+      if (bizId != null) {
+        businessIds.add(bizId.toString());
+      }
+    }
+
+    // If single or no business_id tracked, use the single business address
+    if (businessIds.length <= 1) {
+      final businessAddr = clientData.businessAddress;
+      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+        return meters / 1000; // km
+      }
+    } else {
+      // Hybrid order: calculate average distance from all businesses
+      // For now, use the single business address as fallback
+      // In production, you'd fetch all business addresses and average them
+      final businessAddr = clientData.businessAddress;
+      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+        return meters / 1000; // km
+      }
+    }
+    
+    return null;
+  }
+
+  double _calculateDeliveryFee(double? distanceKm) {
+    if (distanceKm == null || distanceKm <= 0) {
+      return 1.5;
+    }
+    double baseFee = distanceKm * 1.5;
+    
+    // Custom rounding:
+    // If decimal is between 0 and 0.5 -> 0.5
+    // If decimal > 0.5 -> round up to next integer
+    double integerPart = baseFee.truncateToDouble();
+    double fraction = baseFee - integerPart;
+    
+    if (fraction == 0) return baseFee;
+    if (fraction <= 0.5) return integerPart + 0.5;
+    return integerPart + 1.0;
+  }
+
+  /// Check if the current cart contains items from multiple businesses
+  bool _isHybridOrder(List<Map<String, dynamic>> cartItems) {
+    if (cartItems.isEmpty) return false;
+    final businessIds = <String>{};
+    for (var item in cartItems) {
+      final bizId = item['business_id'];
+      if (bizId != null) {
+        businessIds.add(bizId.toString());
+      }
+    }
+    return businessIds.length > 1;
+  }
 
   final List<Map<String, dynamic>> _paymentMethods = [
     {
@@ -37,7 +163,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final cartItems = clientData.cartItems;
 
     double subtotal = clientData.cartSubtotal;
-    double deliveryFee = 10.0;
+    double deliveryFee = _calculateDeliveryFee(_distanceKm);
     double total = subtotal + deliveryFee;
 
     return Scaffold(
@@ -67,12 +193,11 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                 else
                   ...List.generate(
                     addresses.length,
-                    (index) => _buildAddressItem(index, addresses[index]),
+                    (index) => _buildAddressItem(index, addresses[index], clientData),
                   ),
                 TextButton.icon(
-                  onPressed: _showAddAddressBottomSheet,
-                  icon: const Icon(Icons.add_circle_outline,
-                      color: AppColors.primary),
+                  onPressed: () => _showAddAddressBottomSheet(clientData),
+                  icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
                   label: const Text('Ajouter une nouvelle adresse',
                       style: TextStyle(color: AppColors.primary)),
                 ),
@@ -84,12 +209,49 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   _paymentMethods.length,
                   (index) => _buildPaymentMethod(index, _paymentMethods[index]),
                 ),
+                // Monnaie donnée – visible only for cash payment
+                if (_selectedPaymentMethod == 0) ...
+                  [
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Monnaie à préparer',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
+                          const SizedBox(height: 4),
+                          Text('Total à payer: $total DH – indiquez le montant que vous donnerez au livreur',
+                              style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _monnaieController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              hintText: 'Ex: 200 DH',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              suffixText: 'DH',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                 const SizedBox(height: 32),
                 _buildSectionHeader('Récapitulatif', Icons.receipt_long),
                 const SizedBox(height: 12),
-                _buildOrderSummaryWidget(
-                    cartItems.length, subtotal, deliveryFee, total),
+                _buildOrderSummaryWidget(cartItems.length, subtotal, deliveryFee, total),
 
                 const SizedBox(height: 100), // padding bottom
               ]),
@@ -98,7 +260,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
         ],
       ),
       bottomNavigationBar: _buildConfirmationBar(
-          total, addresses.isEmpty ? null : addresses[_selectedAddressIndex]),
+          total, addresses.isEmpty ? null : addresses[_selectedAddressIndex], clientData),
     );
   }
 
@@ -119,17 +281,21 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildAddressItem(int index, dynamic addressRelation) {
+  Widget _buildAddressItem(int index, dynamic addressRelation, ClientDataProvider clientData) {
     bool isSelected = _selectedAddressIndex == index;
     final isDefault = addressRelation['is_default'] == true;
     final addressModel = addressRelation['adresse'] ?? {};
     final ville = addressModel['ville'] ?? 'Adresse';
-    final title = isDefault ? 'Adresse Principale' : 'Nouvelle Adresse';
+    final details = addressModel['details'] ?? ville;
+    
+    // Fallback to title if available, otherwise default logic
+    final title = addressRelation['titre'] ?? (isDefault ? 'Adresse Principale' : 'Nouvelle Adresse');
 
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedAddressIndex = index;
+          _distanceKm = _calcDistance(clientData.addresses, index, clientData);
         });
       },
       child: AnimatedContainer(
@@ -175,7 +341,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    ville,
+                    details,
                     style: const TextStyle(
                       color: AppColors.mutedForeground,
                       fontSize: 14,
@@ -315,7 +481,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  Widget _buildConfirmationBar(double total, dynamic selectedAddress) {
+  Widget _buildConfirmationBar(double total, dynamic selectedAddress, ClientDataProvider clientData) {
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -359,18 +525,41 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   setState(() {
                     _isSubmitting = true;
                   });
-
                   final clientData = context.read<ClientDataProvider>();
                   final cartItems = clientData.cartItems;
+                  final isHybrid = _isHybridOrder(cartItems);
+
+                  // Sanitization for prix_donne
+                  double? prixDonne;
+                  if (_selectedPaymentMethod == 0) {
+                    final raw = _monnaieController.text.trim().replaceAll(RegExp(r'[^0-9.]'), '');
+                    if (raw.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Veuillez indiquer le montant que vous donnerez au livreur')));
+                      setState(() => _isSubmitting = false);
+                      return;
+                    }
+                    prixDonne = double.tryParse(raw);
+                    if (prixDonne == null || prixDonne < total) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Le montant doit être supérieur ou égal au total (${total.toStringAsFixed(2)} DH)')));
+                      setState(() => _isSubmitting = false);
+                      return;
+                    }
+                  }
 
                   final payload = {
-                    'id_adresse': selectedAddress['id_adresse'],
-                    'type_commande': 'food_delivery',
+                    'id_adresse': selectedAddress['id_adresse'] ?? selectedAddress['adresse']?['id_adresse'],
+                    'type_commande': isHybrid ? 'hybride' : 'food_delivery',
+                    'mode_paiement': _selectedPaymentMethod == 0 ? 'cash' : 'card',
+                    if (_selectedPaymentMethod == 0)
+                      'prix_donne': prixDonne,
+                    if (_distanceKm != null)
+                      'distance_km': double.parse(_distanceKm!.toStringAsFixed(2)),
                     'items': cartItems.map((item) {
                       return {
                         'quantite': item['quantity'],
-                        'id_produit': item[
-                            'id'], // Assumes item has an id, fallback to 1 or something if mocked earlier
+                        'id_produit': item['id'],
                         'prix_snapshot': item['price'],
                         'nom_snapshot': item['name']
                       };
@@ -386,6 +575,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     });
                     if (success != null) {
                       clientData.clearCart();
+                      // Fetch notifications immediately to show the confirmation badge/notif
+                      clientData.fetchNotifications();
                       _showSuccessDialog();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -464,155 +655,26 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  void _showAddAddressBottomSheet() {
+  void _showAddAddressBottomSheet(ClientDataProvider clientData) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Ajouter une adresse',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-
-              // Geolocation Button
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  foregroundColor: AppColors.primary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.primary),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Recherche de votre position GPS en cours...')),
-                  );
-                  // Simulate fetching geolocation and adding
-                  Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) {
-                      context.read<ClientDataProvider>().addAddress({
-                        'ville': 'Tétouan',
-                        'latitude': 35.5800,
-                        'longitude': -5.3700,
-                        'is_default': false,
-                        'titre': 'Position actuelle',
-                      }).then((success) {
-                        if (mounted && success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Adresse GPS ajoutée')));
-                        }
-                      });
-                    }
-                  });
-                },
-                icon: const Icon(Icons.my_location),
-                label: const Text('Utiliser ma position actuelle',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-
-              const SizedBox(height: 24),
-              const Center(
-                  child: Text('OU',
-                      style: TextStyle(
-                          color: AppColors.mutedForeground,
-                          fontWeight: FontWeight.bold))),
-              const SizedBox(height: 24),
-
-              // Manual Entry Form
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Titre (ex: Maison, Bureau)',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Ville',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-                onChanged: (val) {
-                  // We would bind a controller here for city
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Adresse complète',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () async {
-                  // Fake manual address data
-                  final success =
-                      await context.read<ClientDataProvider>().addAddress({
-                    'ville': 'Tétouan', // In real life, value from controller
-                    'latitude': 35.5800,
-                    'longitude': -5.3700,
-                  });
-                  if (mounted) {
-                    Navigator.pop(context);
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Adresse ajoutée manuellement')));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Erreur ajout d\'adresse')));
-                    }
-                  }
-                },
-                child: const Text('Enregistrer l\'adresse',
-                    style: TextStyle(
-                        color: AppColors.card, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+        return AddAddressBottomSheet(
+          onSave: (data) async {
+            // addAddress() internally calls fetchAddresses(), so no need to call it again
+            final success = await clientData.addAddress(data);
+            if (success && mounted) {
+              // Auto-select the newly added address (last one)
+              final newIdx = clientData.addresses.length - 1;
+              setState(() {
+                _selectedAddressIndex = newIdx < 0 ? 0 : newIdx;
+                _distanceKm = _calcDistance(clientData.addresses, _selectedAddressIndex, clientData);
+              });
+            }
+            return success;
+          },
         );
       },
     );

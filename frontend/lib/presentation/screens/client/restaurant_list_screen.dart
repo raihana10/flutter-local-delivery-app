@@ -221,10 +221,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Convert API data to map format and apply search query locally.
     // In production, filtering should probably be done effectively either via provider sorting 
     // or by backend endpoints passing '?search=' and '?category='. 
-    final baseRestaurants = clientData.filteredRestaurants;
+    final baseRestaurants = _showAll ? clientData.allRestaurants : clientData.filteredRestaurants;
     
     _filteredRestaurants = baseRestaurants.where((restaurant) {
       final businessUser = restaurant['app_user'] ?? {};
@@ -305,16 +304,21 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                   child: Row(
                                                     key: ValueKey(user?.nom),
                                                     children: [
-                                                      Text(
-                                                        'Bonjour, ${user?.nom ?? 'Client'}',
-                                                        style: const TextStyle(
-                                                          fontSize: 28,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: AppColors
-                                                              .textWhite,
-                                                          height: 1.2,
-                                                          letterSpacing: -0.5,
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
@@ -407,7 +411,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -716,9 +720,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Restaurants proches', !_showAll ? 'Voir tout' : '', () {
+                            'Restaurants proches', _showAll ? 'Voir moins' : 'Voir tout', () {
                               setState(() {
-                                _showAll = true;
+                                _showAll = !_showAll;
                               });
                             }),
                         const SizedBox(height: 12),
@@ -1246,10 +1250,20 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     );
   }
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> restaurantInfo, int index) {
-      final businessUser = restaurantInfo['app_user'] ?? {};
-      final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
-      final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
+    final businessUser = restaurantInfo['app_user'] ?? {};
+    final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
+    final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1304,14 +1318,14 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: restaurantInfo['pdp'] != null 
+                        image: restaurantInfo['pdp'] != null
                             ? DecorationImage(
                                 image: NetworkImage(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: restaurantInfo['pdp'] == null 
+                      child: restaurantInfo['pdp'] == null
                           ? Center(
                               child: Text(
                                 '🍔',
@@ -1389,64 +1403,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.5',
+                                    _calculateRating(restaurantInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${restaurantInfo['temps_preparation'] ?? 30} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '1.2 km', // Mock distance
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -1478,7 +1438,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                   Consumer<ClientDataProvider>(
                     builder: (context, provider, _) {
-                      final idB = int.tryParse(idBusiness) ?? 0;
+                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
                       final isFav = provider.isFavorite(idB);
                       return GestureDetector(
                         onTap: () {

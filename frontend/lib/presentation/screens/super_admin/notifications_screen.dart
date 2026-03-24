@@ -47,7 +47,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final success = await _apiService.sendNotification({
           'titre': _titleController.text,
           'message': _messageController.text,
-          'target_role': _selectedRole,
+          'type': _selectedRole,
         });
 
         if (success) {
@@ -145,7 +145,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                items: ['Tous', 'Clients', 'Livreurs', 'Restaurants']
+                items: ['Tous', 'Clients', 'Livreurs', 'Commerce']
                     .map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,

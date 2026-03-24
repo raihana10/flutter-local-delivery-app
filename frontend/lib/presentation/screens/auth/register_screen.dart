@@ -315,25 +315,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final success = await authProvider.register(request);
 
     if (success && mounted) {
-      print('REGISTERED ROLE: ${authProvider.user?.role.value}');
+      print('REGISTERED ROLE: \${authProvider.user?.role.value}');
       
-      // Seuls les clients sont redirigés automatiquement
-      // Livreur et Business doivent attendre validation admin
       switch (authProvider.user?.role) {
         case UserRole.client:
           Navigator.of(context).pushReplacementNamed('/client/home');
           break;
         case UserRole.livreur:
-          _showSuccessSnackBar('Inscription livreur réussie ! En attente de validation de vos documents par l\'administrateur.');
-          // Attendre 3 secondes avant la redirection pour que le message soit visible
-          await Future.delayed(const Duration(seconds: 3));
-          if (mounted) Navigator.of(context).pushReplacementNamed('/');
-          break;
         case UserRole.business:
-          _showSuccessSnackBar('Inscription commerce réussie ! En attente de validation de vos documents par l\'administrateur.');
-          // Attendre 3 secondes avant la redirection pour que le message soit visible
-          await Future.delayed(const Duration(seconds: 3));
-          if (mounted) Navigator.of(context).pushReplacementNamed('/');
+          // ✅ Rediriger vers la page d'attente de validation
+          Navigator.of(context).pushReplacementNamed('/pending-approval');
           break;
         default:
           Navigator.of(context).pushReplacementNamed('/');
@@ -625,64 +616,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Avatar avec upload
-          Center(
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(40),
-                    image: _profileImage != null
-                        ? DecorationImage(
-                            image: kIsWeb
-                                ? NetworkImage(_profileImage!.path)
-                                : FileImage(File(_profileImage!.path)) as ImageProvider,
-                            fit: BoxFit.cover,
+          // ✅ Photo de profil uniquement pour client et livreur
+          if (_selectedRole != UserRole.business) ...[            
+            Center(
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(40),
+                      image: _profileImage != null
+                          ? DecorationImage(
+                              image: kIsWeb
+                                  ? NetworkImage(_profileImage!.path)
+                                  : FileImage(File(_profileImage!.path)) as ImageProvider,
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _profileImage == null
+                        ? Icon(
+                            LucideIcons.user,
+                            size: 40,
+                            color: AppColors.mutedForeground,
                           )
                         : null,
                   ),
-                  child: _profileImage == null
-                      ? Icon(
-                          LucideIcons.user,
-                          size: 40,
-                          color: AppColors.mutedForeground,
-                        )
-                      : null,
-                ),
-                GestureDetector(
-                  onTap: () {
-                    _pickAndUpload(
-                      folder: 'users/avatars',
-                      onDone: (file, url) {
-                        setState(() {
-                          _profileImage = file;
-                          _profileImageUrl = url;
-                        });
-                      },
-                    );
-                  },
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      LucideIcons.camera,
-                      size: 16,
-                      color: AppColors.primary,
+                  GestureDetector(
+                    onTap: () {
+                      _pickAndUpload(
+                        folder: 'users/avatars',
+                        onDone: (file, url) {
+                          setState(() {
+                            _profileImage = file;
+                            _profileImageUrl = url;
+                          });
+                        },
+                      );
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        LucideIcons.camera,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 32),
+            SizedBox(height: 32),
+          ],
 
           // Full Name
           _buildTextField(

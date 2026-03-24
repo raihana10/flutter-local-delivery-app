@@ -55,6 +55,10 @@ class ClientDataProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get filteredPharmacies => _filterByCity(pharmacies);
   List<Map<String, dynamic>> get filteredSuperMarkets => _filterByCity(superMarkets);
   
+  List<Map<String, dynamic>> get allRestaurants => restaurants;
+  List<Map<String, dynamic>> get allPharmacies => pharmacies;
+  List<Map<String, dynamic>> get allSuperMarkets => superMarkets;
+  
   Map<String, dynamic>? profile;
   List<dynamic> addresses = [];
   List<dynamic> orders = [];
@@ -64,6 +68,32 @@ class ClientDataProvider extends ChangeNotifier {
 
   // Cart Data
   List<Map<String, dynamic>> cartItems = [];
+
+  // Tracks the business whose products are in the cart (used for distance calculation)
+  Map<String, dynamic>? _currentCartBusiness;
+
+  void setCurrentBusiness(Map<String, dynamic>? business) {
+    _currentCartBusiness = business;
+    notifyListeners();
+  }
+
+  bool get isCurrentBusinessOpen {
+    return _currentCartBusiness?['is_open'] == true;
+  }
+
+
+  /// Returns the primary address map {latitude, longitude} of the business in the cart, or null.
+  Map<String, dynamic>? get businessAddress {
+    final appUser = _currentCartBusiness?['app_user'] ?? {};
+    final userAddresses = appUser['user_adresse'] as List<dynamic>? ?? [];
+    if (userAddresses.isEmpty) return null;
+    final primary = userAddresses.firstWhere(
+      (ua) => ua['is_default'] == true,
+      orElse: () => userAddresses.first,
+    );
+    return primary['adresse'] as Map<String, dynamic>?;
+  }
+
 
   void addToCart(Map<String, dynamic> item) {
     cartItems.add(item);
@@ -177,6 +207,10 @@ class ClientDataProvider extends ChangeNotifier {
   Future<void> fetchNotifications() async {
     notifications = await apiService.getNotifications();
     notifyListeners();
+  }
+
+  int get unreadNotificationsCount {
+    return notifications.where((n) => n['est_lu'] == false).length;
   }
 
   Future<void> fetchPaymentMethods() async {

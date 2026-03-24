@@ -337,19 +337,31 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                       ),
                       Consumer<ClientDataProvider>(
                         builder: (context, data, _) {
-                          final hasUnread =
-                              data.notifications.any((n) => n['lu'] == false);
-                          if (!hasUnread) return const SizedBox.shrink();
+                          final count = data.unreadNotificationsCount;
+                          if (count == 0) return const SizedBox.shrink();
 
                           return Positioned(
-                            top: 12,
-                            right: 12,
+                            top: 4,
+                            right: 4,
                             child: Container(
-                              width: 8,
-                              height: 8,
+                              padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
                                 color: AppColors.destructive,
                                 shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           );
@@ -360,86 +372,63 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              InkWell(
-                onTap: () => _showCitySelector(context),
-                borderRadius: BorderRadius.circular(20),
+              // 3-dot menu for Profile and Logout
+              PopupMenuButton<String>(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: AppColors.card,
+                elevation: 8,
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'profile',
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_outline, color: AppColors.primary, size: 20),
+                        SizedBox(width: 12),
+                        Text('Mon Profil', style: TextStyle(color: AppColors.foreground)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: AppColors.destructive, size: 20),
+                        SizedBox(width: 12),
+                        Text('Déconnexion', style: TextStyle(color: AppColors.destructive)),
+                      ],
+                    ),
+                  ),
+                ],
+                onSelected: (String value) {
+                  if (value == 'profile') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ClientProfileScreen(),
+                      ),
+                    );
+                  } else if (value == 'logout') {
+                    context.read<AuthProvider>().logout();
+                    Navigator.of(context).pushReplacementNamed('/');
+                  }
+                },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on,
-                          color: AppColors.accent, size: 16),
-                      const SizedBox(width: 4),
-                      Consumer<ClientDataProvider>(
-                        builder: (context, data, _) => Text(
-                          data.currentCity,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary.withOpacity(0.7),
-                          ),
-                        ),
-                      ),
-                      const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 16),
-                    ],
-                  ),
+                  child: const Icon(Icons.more_vert, color: AppColors.foreground, size: 24),
                 ),
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  void _showCitySelector(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        String newCity = '';
-        return AlertDialog(
-          backgroundColor: AppColors.background,
-          title: const Text('Rechercher dans une ville', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.foreground)),
-          content: TextField(
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'Nom de la ville (ex: Tanger)',
-              filled: true,
-              fillColor: AppColors.card,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            ),
-            onChanged: (val) => newCity = val,
-            onSubmitted: (val) {
-              if (val.trim().isNotEmpty) {
-                context.read<ClientDataProvider>().setActiveCity(val.trim());
-              }
-              Navigator.pop(context);
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () {
-                if (newCity.trim().isNotEmpty) {
-                  context.read<ClientDataProvider>().setActiveCity(newCity.trim());
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Valider', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
     );
   }
 

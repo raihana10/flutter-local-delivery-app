@@ -66,8 +66,6 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
     switch (_currentScreen) {
       case BusinessScreen.dashboard:
         return _DashboardView(
-          isOpen: _isOpen,
-          onToggleOpen: () => setState(() => _isOpen = !_isOpen),
           onNavigate: _setScreen,
         );
       case BusinessScreen.catalog:
@@ -91,16 +89,19 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
 }
 
 // ============ DASHBOARD VIEW ============
-class _DashboardView extends StatelessWidget {
-  final bool isOpen;
-  final VoidCallback onToggleOpen;
+class _DashboardView extends StatefulWidget {
   final Function(BusinessScreen, {int? index}) onNavigate;
 
   const _DashboardView({
-    required this.isOpen,
-    required this.onToggleOpen,
     required this.onNavigate,
   });
+
+  @override
+  State<_DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<_DashboardView> {
+  bool _isSwitching = false;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +117,7 @@ class _DashboardView extends StatelessWidget {
     final typeFormatted = typeBusiness.isNotEmpty 
         ? '${typeBusiness[0].toUpperCase()}${typeBusiness.substring(1)}'
         : typeBusiness;
+    final bool isOpen = profile['is_open'] == true;
 
     return Stack(
       children: [
@@ -169,7 +171,14 @@ class _DashboardView extends StatelessWidget {
                       ),
                     ),
                     GestureDetector(
-                      onTap: onToggleOpen,
+                      onTap: _isSwitching ? null : () async {
+                        setState(() => _isSwitching = true);
+                        final success = await provider.updateProfile({'is_open': !isOpen});
+                        setState(() => _isSwitching = false);
+                        if (!success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la mise à jour.')));
+                        }
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -179,34 +188,59 @@ class _DashboardView extends StatelessWidget {
                               : Colors.white.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          isOpen ? 'Ouvert' : 'Fermé',
-                          style: TextStyle(
-                            color: isOpen ? AppColors.forest : Colors.white60,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isSwitching 
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: AppColors.forest, strokeWidth: 2))
+                            : Text(
+                                isOpen ? 'Ouvert' : 'Fermé',
+                                style: TextStyle(
+                                  color: isOpen ? AppColors.forest : Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => onNavigate(BusinessScreen.notifications),
+                      onTap: () => widget.onNavigate(BusinessScreen.notifications),
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(LucideIcons.bell,
-                            color: Colors.white, size: 20),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Icon(LucideIcons.bell,
+                                color: Colors.white, size: 20),
+                            if (provider.unreadNotificationsCount > 0)
+                              Positioned(
+                                top: -6,
+                                right: -6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                  child: Text(
+                                    '${provider.unreadNotificationsCount}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     PopupMenuButton<String>(
                       onSelected: (value) async {
                         if (value == 'profile') {
-                          onNavigate(BusinessScreen.profile);
+                          widget.onNavigate(BusinessScreen.profile);
                         } else if (value == 'logout') {
                           await context.read<AuthProvider>().logout();
                           if (context.mounted) {
@@ -306,13 +340,13 @@ class _DashboardView extends StatelessWidget {
           child: Row(
             children: [
               _buildNavButton(
-                  '📦 Catalogue', () => onNavigate(BusinessScreen.catalog)),
+                  '📦 Catalogue', () => widget.onNavigate(BusinessScreen.catalog)),
               const SizedBox(width: 12),
               _buildNavButton(
-                  '📈 Stats', () => onNavigate(BusinessScreen.stats)),
+                  '📈 Stats', () => widget.onNavigate(BusinessScreen.stats)),
               const SizedBox(width: 12),
               _buildNavButton(
-                  '⚙️ Profil', () => onNavigate(BusinessScreen.profile)),
+                  '⚙️ Profil', () => widget.onNavigate(BusinessScreen.profile)),
             ],
           ),
         ),
@@ -347,10 +381,10 @@ class _DashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderButton(String text, Color bg, Color textCol) {
+  Widget _buildOrderButton(String text, Color bg, Color textCol, VoidCallback onTap) {
     return Expanded(
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -390,7 +424,11 @@ class _DashboardView extends StatelessWidget {
       ),
     );
   }
-Widget _buildOrderCard(dynamic o) {
+  Widget _buildOrderCard(dynamic o) {
+    final provider = context.read<BusinessDataProvider>();
+    final orderId = o['id'].toString();
+    final currentStatut = o['statut'] ?? 'confirmee';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -407,42 +445,74 @@ Widget _buildOrderCard(dynamic o) {
             children: [
               Row(
                 children: [
-                  Text('#${o['id'] ?? 'N/A'}',
+                  Text('#$orderId',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.forest)),
                   const SizedBox(width: 8),
-                  Text('${o['client_name'] ?? 'Client'}',
-                      style: const TextStyle(
-                          color: AppColors.mutedForeground,
-                          fontSize: 12)),
+                  Flexible(
+                    child: Text('${o['client_name'] ?? 'Client'}',
+                        style: const TextStyle(
+                            color: AppColors.mutedForeground,
+                            fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1),
+                  ),
                 ],
               ),
-              Text('${o['created_at'] ?? 'Maintenant'}',
-                  style: const TextStyle(
-                      color: AppColors.gold,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warmWhite,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  currentStatut.toUpperCase(),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.forest),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
-          Text('${o['items_count'] ?? 0} articles',
+          Text('${o['items_count'] ?? 0} articles • ${o['total'] ?? 0} DH',
               style: const TextStyle(
                   color: AppColors.mutedForeground,
                   fontSize: 12)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildOrderButton(
-                  'Accepter', AppColors.forest, Colors.white),
-              const SizedBox(width: 8),
-              _buildOrderButton(
-                  'Préparer', AppColors.sage, Colors.white),
-              const SizedBox(width: 8),
-              _buildOrderButton(
-                  'Prêt', AppColors.amber, AppColors.forest),
-            ],
-          ),
+          if (currentStatut == 'confirmee')
+            Row(
+              children: [
+                _buildOrderButton(
+                    'Accepter', AppColors.forest, Colors.white, () async {
+                      await provider.updateOrderStatus(orderId, 'confirmee');
+                    }),
+                const SizedBox(width: 8),
+                _buildOrderButton(
+                    'Préparer', AppColors.sage, Colors.white, () async {
+                      await provider.updateOrderStatus(orderId, 'en_preparation');
+                    }),
+              ],
+            )
+          else if (currentStatut == 'en_preparation' || currentStatut == 'preparee')
+             Row(
+              children: [
+                _buildOrderButton(
+                    'Prêt / Livraison', AppColors.amber, AppColors.forest, () async {
+                      await provider.updateOrderStatus(orderId, 'en_livraison');
+                    }),
+              ],
+            )
+          else if (currentStatut == 'en_livraison')
+             Row(
+              children: [
+                _buildOrderButton(
+                    'Livrée', AppColors.forest, Colors.white, () async {
+                      await provider.updateOrderStatus(orderId, 'livree');
+                    }),
+              ],
+            )
+          else
+            const Text('Commande terminée', style: TextStyle(color: AppColors.mutedForeground, fontStyle: FontStyle.italic, fontSize: 12)),
         ],
       ),
     );

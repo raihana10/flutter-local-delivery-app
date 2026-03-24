@@ -48,6 +48,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
         _businessInfo = details;
         _isLoadingDetails = false;
       });
+      provider.setCurrentBusiness(details);
     }
   }
 
@@ -96,6 +97,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     return Icons.restaurant_menu;
   }
 
+  String _getAddress() {
+    if (_businessInfo == null) return '';
+    final appUser = _businessInfo!['app_user'] ?? {};
+    final userAdresse = appUser['user_adresse'] as List<dynamic>? ?? [];
+    if (userAdresse.isEmpty) return 'Adresse non renseignée';
+    final adresse = userAdresse[0]['adresse'] ?? {};
+    
+    final ville = adresse['ville'] ?? '';
+    final quartier = adresse['quartier'] ?? '';
+    final details = adresse['adresse_detaillee'] ?? '';
+    
+    final String complete = [details, quartier, ville].where((s) => s.toString().isNotEmpty).join(', ');
+    return complete.isEmpty ? 'Adresse non renseignée' : complete;
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -142,17 +158,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     ),
                   );
                 }
-              ),
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.share, color: AppColors.card),
-                  onPressed: () {},
-                ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -225,13 +230,27 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   Row(
                     children: [
                       _buildInfoBadge(Icons.star, '${averageRating.toStringAsFixed(1)} ($reviewCount avis)', AppColors.accent),
-                      const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.access_time, '25-35 min', AppColors.primary),
-                      const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.delivery_dining, '10 DH', AppColors.secondary),
                     ],
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.location_on, size: 18, color: AppColors.mutedForeground),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getAddress(),
+                          style: const TextStyle(
+                            color: AppColors.mutedForeground,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     _businessInfo?['description'] ?? '',
                     style: const TextStyle(
@@ -394,8 +413,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             ),
           ],
         ),
-        child: Row(
-          children: [
+        child: Opacity(
+          opacity: (_businessInfo?['is_open'] == true) ? 1.0 : 0.6,
+          child: Row(
+            children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,8 +475,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showProductOptions(Map<String, dynamic> item) {
     int quantity = 1;
@@ -608,7 +630,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
+                          onPressed: (_businessInfo?['is_open'] == true) ? () {
                             context.read<ClientDataProvider>().addToCart({
                               'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
                               'name': item['name'],
@@ -616,6 +638,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               'price': basePrice,
                               'quantity': quantity,
                               'image': item['image'] ?? '🍽️',
+                              'business_id': widget.businessId, // Add business_id for hybrid order detection
                             });
                             Navigator.pop(innerModalContext);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -638,9 +661,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                                 ),
                               ),
                             );
-                          },
+                          } : null,
                           child: Text(
-                            'Ajouter - $totalPrice DH',
+                            (_businessInfo?['is_open'] == true) ? 'Ajouter - $totalPrice DH' : 'Fermé actuellement',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

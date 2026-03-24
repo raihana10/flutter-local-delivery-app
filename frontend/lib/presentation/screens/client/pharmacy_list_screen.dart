@@ -217,7 +217,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    final basePharmacies = clientData.filteredPharmacies;
+    final basePharmacies = _showAll ? clientData.allPharmacies : clientData.filteredPharmacies;
     
     _filteredRestaurants = basePharmacies.where((pharmacy) {
       final businessUser = pharmacy['app_user'] ?? {};
@@ -297,16 +297,21 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                   child: Row(
                                                     key: ValueKey(user?.nom),
                                                     children: [
-                                                      Text(
-                                                        'Bonjour, ${user?.nom ?? 'Client'}',
-                                                        style: const TextStyle(
-                                                          fontSize: 28,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: AppColors
-                                                              .textWhite,
-                                                          height: 1.2,
-                                                          letterSpacing: -0.5,
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
@@ -399,7 +404,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -703,9 +708,9 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
                         // Nearby Restaurants Section
                         _buildSectionTitle(
-                            'Pharmacies proches', !_showAll ? 'Voir tout' : '', () {
+                            'Pharmacies proches', _showAll ? 'Voir moins' : 'Voir tout', () {
                               setState(() {
-                                _showAll = true;
+                                _showAll = !_showAll;
                               });
                             }),
                         const SizedBox(height: 12),
@@ -1235,6 +1240,16 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     );
   }
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> pharmacyInfo, int index) {
     final businessUser = pharmacyInfo['app_user'] ?? {};
     final idBusiness = pharmacyInfo['id_business'] ?? '0';
@@ -1292,14 +1307,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: pharmacyInfo['pdp'] != null 
+                        image: (pharmacyInfo['pdp'] != null && pharmacyInfo['pdp'].toString().startsWith('http'))
                             ? DecorationImage(
-                                image: NetworkImage(pharmacyInfo['pdp']),
+                                image: NetworkImage(pharmacyInfo['pdp'].toString()),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: pharmacyInfo['pdp'] == null 
+                      child: (pharmacyInfo['pdp'] == null || !pharmacyInfo['pdp'].toString().startsWith('http'))
                           ? Center(
                               child: Text(
                                 '💊',
@@ -1377,64 +1392,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.8',
+                                    _calculateRating(pharmacyInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${pharmacyInfo['temps_preparation'] ?? 15} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '1.5 km',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -1460,6 +1421,33 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                         ),
                       ],
                     ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Favorite button
+                  Consumer<ClientDataProvider>(
+                    builder: (context, provider, _) {
+                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
+                      final isFav = provider.isFavorite(idB);
+                      return GestureDetector(
+                        onTap: () {
+                          if (idB > 0) provider.toggleFavorite(idB);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                            size: 22,
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(width: 8),

@@ -48,6 +48,46 @@ class BusinessApiService {
     }
   }
 
+  Future<bool> addAddress(Map<String, dynamic> data) async {
+    try {
+      await _dio.post('$baseUrl/business/profile/addresses', data: data, options: _getAuthOptions());
+      return true;
+    } catch (e) {
+      print('addAddress Error: $e');
+      return false;
+    }
+  }
+
+  Future<List<dynamic>> getAddresses() async {
+    try {
+      final res = await _dio.get('$baseUrl/business/profile/addresses', options: _getAuthOptions());
+      return res.data['data'] as List<dynamic>;
+    } catch (e) {
+      print('getAddresses Error: $e');
+      return [];
+    }
+  }
+
+  Future<bool> updateAddress(String id, Map<String, dynamic> data) async {
+    try {
+      await _dio.patch('$baseUrl/business/profile/addresses/$id', data: data, options: _getAuthOptions());
+      return true;
+    } catch (e) {
+      print('updateAddress Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteAddress(String id) async {
+    try {
+      await _dio.delete('$baseUrl/business/profile/addresses/$id', options: _getAuthOptions());
+      return true;
+    } catch (e) {
+      print('deleteAddress Error: $e');
+      return false;
+    }
+  }
+
   Future<List<dynamic>> getNotifications() async {
     try {
       final res = await _dio.get('$baseUrl/business/notifications', options: _getAuthOptions());
@@ -72,6 +112,23 @@ class BusinessApiService {
       await _dio.patch('$baseUrl/business/notifications/mark-all-read', options: _getAuthOptions());
       return true;
     } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> updateOrderStatus(String orderId, String status) async {
+    try {
+      final businessId = overrideBusinessId ?? authProvider.user?.id;
+      if (businessId == null) return false;
+      
+      final response = await _dio.patch(
+        '$baseUrl/business/$businessId/commandes/$orderId/statut',
+        data: {'statut': status},
+        options: _getAuthOptions(),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('updateOrderStatus Error: $e');
       return false;
     }
   }

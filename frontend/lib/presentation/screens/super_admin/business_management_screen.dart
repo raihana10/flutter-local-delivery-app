@@ -87,49 +87,72 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Gestion des Businesses',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDropdown('Type', _selectedType,
-                  ['Tous', 'restaurant', 'super-marche', 'pharmacie'], (val) {
-                setState(() => _selectedType = val!);
-                _applyFilters();
-              }),
-              const SizedBox(width: 16),
-              _buildDropdown(
-                  'Statut', _selectedStatut, ['Tous', 'Actif', 'Inactif'],
-                  (val) {
-                setState(() => _selectedStatut = val!);
-                _applyFilters();
-              }),
+              const Text(
+                'Gestion des Businesses',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              isMobile
+                  ? Column(
+                      children: [
+                        _buildDropdown('Type', _selectedType,
+                            ['Tous', 'restaurant', 'super-marche', 'pharmacie'], (val) {
+                          setState(() => _selectedType = val!);
+                          _applyFilters();
+                        }),
+                        const SizedBox(height: 16),
+                        _buildDropdown(
+                            'Statut', _selectedStatut, ['Tous', 'Actif', 'Inactif'],
+                            (val) {
+                          setState(() => _selectedStatut = val!);
+                          _applyFilters();
+                        }),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        _buildDropdown('Type', _selectedType,
+                            ['Tous', 'restaurant', 'super-marche', 'pharmacie'], (val) {
+                          setState(() => _selectedType = val!);
+                          _applyFilters();
+                        }),
+                        const SizedBox(width: 16),
+                        _buildDropdown(
+                            'Statut', _selectedStatut, ['Tous', 'Actif', 'Inactif'],
+                            (val) {
+                          setState(() => _selectedStatut = val!);
+                          _applyFilters();
+                        }),
+                      ],
+                    ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : RefreshIndicator(
+                        onRefresh: _loadBusinesses,
+                        child: ListView.builder(
+                          itemCount: _filteredBusinesses.length,
+                          itemBuilder: (context, index) {
+                            final b = _filteredBusinesses[index];
+                            return _buildBusinessCard(b, isMobile);
+                          },
+                        ),
+                      ),
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _loadBusinesses,
-                    child: ListView.builder(
-                      itemCount: _filteredBusinesses.length,
-                      itemBuilder: (context, index) {
-                        final b = _filteredBusinesses[index];
-                        return _buildBusinessCard(b);
-                      },
-                    ),
-                  ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -160,7 +183,7 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
     );
   }
 
-  Widget _buildBusinessCard(dynamic b) {
+  Widget _buildBusinessCard(dynamic b, bool isMobile) {
     final bool isActive = b['est_actif'] == true;
     final String type = b['type_business'] ?? 'Inconnu';
     final appUser = b['app_user'] ?? {};
@@ -195,74 +218,162 @@ class _BusinessManagementScreenState extends State<BusinessManagementScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              child: Icon(icon, color: AppColors.primary, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
+        child: isMobile
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nom,
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(email,
-                      style: const TextStyle(color: AppColors.mutedForeground)),
-                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        child: Icon(icon, color: AppColors.primary, size: 30),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              nom,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              email,
+                              style: const TextStyle(color: AppColors.mutedForeground),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       _buildBadge(typeLabel, Colors.blue),
-                      _buildBadge(isActive ? 'Actif 🟢' : 'Inactif 🔴',
-                          isActive ? Colors.green : Colors.red),
+                      _buildBadge(
+                        isActive ? 'Actif 🟢' : 'Inactif 🔴',
+                        isActive ? Colors.green : Colors.red,
+                      ),
                       if (pendingValidation)
                         _buildBadge('En attente validation', Colors.orange),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _toggleStatus(b),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: isActive ? Colors.red : Colors.green,
+                            side: BorderSide(
+                              color: isActive ? Colors.red : Colors.green,
+                            ),
+                          ),
+                          child: Text(isActive ? 'Suspendre' : 'Activer'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BusinessDetailAdminScreen(
+                                  idBusiness: idBusiness,
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
+                          child: const Text(
+                            'Gérer →',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    child: Icon(icon, color: AppColors.primary, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(nom,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(email,
+                            style: const TextStyle(color: AppColors.mutedForeground)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildBadge(typeLabel, Colors.blue),
+                            _buildBadge(isActive ? 'Actif 🟢' : 'Inactif 🔴',
+                                isActive ? Colors.green : Colors.red),
+                            if (pendingValidation)
+                              _buildBadge('En attente validation', Colors.orange),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: 120,
+                        child: OutlinedButton(
+                          onPressed: () => _toggleStatus(b),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: isActive ? Colors.red : Colors.green,
+                              side: BorderSide(
+                                  color: isActive ? Colors.red : Colors.green)),
+                          child: Text(isActive ? 'Suspendre' : 'Activer'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: 120,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => BusinessDetailAdminScreen(
+                                      idBusiness: idBusiness)),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary),
+                          child: const Text('Gérer →',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                      ),
+                    ],
+                  )
                 ],
               ),
-            ),
-            Column(
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: OutlinedButton(
-                    onPressed: () => _toggleStatus(b),
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: isActive ? Colors.red : Colors.green,
-                        side: BorderSide(
-                            color: isActive ? Colors.red : Colors.green)),
-                    child: Text(isActive ? 'Suspendre' : 'Activer'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 120,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => BusinessDetailAdminScreen(
-                                idBusiness: idBusiness)),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary),
-                    child: const Text('Gérer →',
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
       ),
     );
   }

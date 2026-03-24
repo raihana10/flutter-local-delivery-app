@@ -91,15 +91,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildKPIGrid(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 800;
+    final isTablet = width >= 600;
 
     return GridView.count(
-      crossAxisCount: isDesktop ? 4 : 2,
+      crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
+      childAspectRatio: isDesktop ? 1.5 : (isTablet ? 1.3 : 1.15),
       children: [
         _buildKPICard(
             'Commandes Actives',
@@ -169,29 +171,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildChartsSection(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 800;
 
     if (isDesktop) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 2, child: _buildRevenueChart()),
+          Expanded(flex: 2, child: _buildRevenueChart(isDesktop: true)),
           const SizedBox(width: 24),
-          Expanded(flex: 1, child: _buildOrdersPieChart()),
+          Expanded(flex: 1, child: _buildOrdersPieChart(isDesktop: true)),
         ],
       );
     } else {
       return Column(
         children: [
-          _buildRevenueChart(),
+          _buildRevenueChart(isDesktop: false),
           const SizedBox(height: 24),
-          _buildOrdersPieChart(),
+          _buildOrdersPieChart(isDesktop: false),
         ],
       );
     }
   }
 
-  Widget _buildRevenueChart() {
+  Widget _buildRevenueChart({required bool isDesktop}) {
     return Card(
       elevation: 4,
       shadowColor: AppColors.primary.withOpacity(0.1),
@@ -205,11 +208,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
-              height: 250,
+              height: isDesktop ? 250 : 180,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: 250000, // Augmenter pour éviter les bâtonnets infinis
+                  maxY: 1000, // Échelle réduite à 1k
                   barTouchData: BarTouchData(enabled: false),
                   titlesData: FlTitlesData(
                     show: true,
@@ -225,7 +228,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          return Text('${value.toInt()}€');
+                        },
+                        reservedSize: 40,
+                      ),
                     ),
                     topTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),
@@ -260,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildOrdersPieChart() {
+  Widget _buildOrdersPieChart({required bool isDesktop}) {
     return Card(
       elevation: 4,
       shadowColor: AppColors.primary.withOpacity(0.1),
@@ -274,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
-              height: 200,
+              height: isDesktop ? 200 : 160,
               child: PieChart(
                 PieChartData(
                   sectionsSpace: 2,
