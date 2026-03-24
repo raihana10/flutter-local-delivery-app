@@ -177,7 +177,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
 
   void _showDocumentValidationModal(Map<String, dynamic> user) {
     String docsValidStr = '';
-    
+
     if (user['role'] == 'livreur' && user['livreur'] != null) {
       final livreurData = (user['livreur'] is List && user['livreur'].isNotEmpty) ? user['livreur'][0] : user['livreur'];
       if (livreurData is Map) docsValidStr = livreurData['documents_validation']?.toString() ?? '';
@@ -188,145 +188,191 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
       docsValidStr = user['documents_validation']?.toString() ?? '';
     }
 
-    final urls = docsValidStr.isNotEmpty && docsValidStr != 'validated' && docsValidStr != 'false' 
-        ? docsValidStr.split(',') 
+    final urls = docsValidStr.isNotEmpty && docsValidStr != 'validated' && docsValidStr != 'false'
+        ? docsValidStr.split(',')
         : <String>[];
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Documents de ${user['nom']}'),
+      builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width < 600
+                ? MediaQuery.of(context).size.width * 0.9
+                : 600,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Documents de ${user['nom']}',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
                 const Text(
-                  'Veuillez vérifier les documents fournis par l\'utilisateur avant de l\'approuver sur la plateforme.'),
-              const SizedBox(height: 16),
-              if (urls.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text('Aucun document fourni.', style: TextStyle(color: Colors.red)),
-                )
-              else
-                SizedBox(
-                  height: 300,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: urls.length,
-                    itemBuilder: (context, index) {
-                      String currentUrl = urls[index].trim();
-                      if (!currentUrl.startsWith('http')) {
-                        try {
-                          currentUrl = Supabase.instance.client.storage.from('alae').getPublicUrl(currentUrl);
-                        } catch (e) {
-                          // Ignore if supabase is uninitialized
-                        }
-                      }
-                      
-                      return Container(
-                        width: 280,
-                        margin: const EdgeInsets.only(right: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  currentUrl,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) {
-                                    if (progress == null) return child;
-                                    return const Center(child: CircularProgressIndicator());
-                                  },
-                                  errorBuilder: (context, error, stack) {
-                                    return Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.card,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppColors.border),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.description, size: 48, color: AppColors.accent),
-                                          const SizedBox(height: 8),
-                                          const Text('Document disponible', style: TextStyle(fontWeight: FontWeight.bold)),
-                                          const SizedBox(height: 4),
-                                          TextButton.icon(
-                                            icon: const Icon(Icons.open_in_new, size: 16),
-                                            label: const Text('Ouvrir le document'),
-                                            onPressed: () async {
-                                              final uri = Uri.parse(currentUrl);
-                                              if (await canLaunchUrl(uri)) {
-                                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                              }
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
+                  'Veuillez vérifier les documents fournis par l\'utilisateur avant de l\'approuver sur la plateforme.',
+                ),
+                const SizedBox(height: 16),
+                if (urls.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Aucun document fourni.',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  )
+                else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 600;
+                      return SizedBox(
+                        height: isMobile ? 400 : 300,
+                        child: isMobile
+                            ? ListView.builder(
+                                itemCount: urls.length,
+                                itemBuilder: (context, index) {
+                                  return _buildDocumentTile(urls[index], isMobile: true);
+                                },
+                              )
+                            : GridView.count(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                children: urls.map((url) => _buildDocumentTile(url)).toList(),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton.icon(
-                              icon: const Icon(Icons.open_in_new, size: 16),
-                              label: const Text('Voir en plein écran'),
-                              onPressed: () async {
-                                final uri = Uri.parse(currentUrl);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
                       );
                     },
                   ),
+                const SizedBox(height: 8),
+                if (urls.isNotEmpty)
+                  Text(
+                    '${urls.length} document(s) trouvé(s)',
+                    style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
+                  ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Fermer',
+                        style: TextStyle(color: AppColors.mutedForeground),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.cancel, size: 16),
+                      label: const Text('Rejeter'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.destructive,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Documents rejetés. L\'utilisateur sera notifié.'),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.check_circle, size: 16),
+                      label: const Text('Approuver'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _validateDocuments(user['id_user']);
+                      },
+                    ),
+                  ],
                 ),
-              const SizedBox(height: 8),
-              if (urls.isNotEmpty)
-                Text('${urls.length} document(s) trouvé(s)',
-                    style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer',
-                style: TextStyle(color: AppColors.mutedForeground)),
+    );
+  }
+
+  Widget _buildDocumentTile(String url, {bool isMobile = false}) {
+    String currentUrl = url.trim();
+    if (!currentUrl.startsWith('http')) {
+      try {
+        currentUrl = Supabase.instance.client.storage.from('alae').getPublicUrl(currentUrl);
+      } catch (e) {
+        // Ignore if supabase is uninitialized
+      }
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: isMobile ? 16 : 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                currentUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(child: CircularProgressIndicator());
+                },
+                errorBuilder: (context, error, stack) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.description, size: 48, color: AppColors.accent),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Document disponible',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        TextButton.icon(
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Ouvrir le document'),
+                          onPressed: () async {
+                            final uri = Uri.parse(currentUrl);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.cancel, size: 16),
-            label: const Text('Rejeter'),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.destructive,
-                foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content:
-                      Text('Documents rejetés. L\'utilisateur sera notifié.')));
-            },
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.check_circle, size: 16),
-            label: const Text('Approuver'),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green, foregroundColor: Colors.white),
-            onPressed: () {
-              Navigator.pop(context);
-              _validateDocuments(user['id_user']);
+          const SizedBox(height: 8),
+          TextButton.icon(
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Voir en plein écran'),
+            onPressed: () async {
+              final uri = Uri.parse(currentUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
             },
           ),
         ],
@@ -339,49 +385,70 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 400,
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width < 600
+                ? MediaQuery.of(context).size.width * 0.9
+                : 400,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Détails de l\'utilisateur',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Détails de l\'utilisateur',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(LucideIcons.user, 'Nom Complet', user['nom']),
+                  _buildDetailRow(LucideIcons.mail, 'Email', user['email']),
+                  _buildDetailRow(
+                    LucideIcons.calendar,
+                    'Date d\'inscription',
+                    (user['created_at'] as String).substring(0, 10),
+                  ),
+                  _buildDetailRow(
+                    LucideIcons.tag,
+                    'Rôle',
+                    user['role'].toString().toUpperCase(),
+                  ),
+                  if (user['role'] == 'business')
+                    _buildDetailRow(
+                      LucideIcons.store,
+                      'Type',
+                      user['type_business'] ?? 'Non spécifié',
+                    ),
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.background,
+                      ),
+                      child: const Text('Fermer'),
+                    ),
                   )
                 ],
               ),
-              const Divider(),
-              const SizedBox(height: 16),
-              _buildDetailRow(LucideIcons.user, 'Nom Complet', user['nom']),
-              _buildDetailRow(LucideIcons.mail, 'Email', user['email']),
-              _buildDetailRow(LucideIcons.calendar, 'Date d\'inscription',
-                  (user['created_at'] as String).substring(0, 10)),
-              _buildDetailRow(LucideIcons.tag, 'Rôle',
-                  user['role'].toString().toUpperCase()),
-              if (user['role'] == 'business')
-                _buildDetailRow(LucideIcons.store, 'Type',
-                    user['type_business'] ?? 'Non spécifié'),
-              const SizedBox(height: 24),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.background,
-                  ),
-                  child: const Text('Fermer'),
-                ),
-              )
-            ],
+            ),
           ),
         ),
       ),

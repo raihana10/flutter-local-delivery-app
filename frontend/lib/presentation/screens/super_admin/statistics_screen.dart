@@ -4,7 +4,9 @@ import 'package:app/core/constants/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
 import 'dart:convert';
-import 'dart:html' as html;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:csv/csv.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -556,18 +558,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   void _exportToCSV() async {
     try {
       List<List<dynamic>> csvData = [];
-      
-      // En-têtes
-      csvData.add([
-        'Type',
-        'Nom', 
-        'Revenus (MAD)',
-        'Commandes/Livraisons',
-        'Taux/Rating',
-        'Période'
-      ]);
-      
-      // Ajouter les top livreurs
+      csvData.add(['Type', 'Nom', 'Revenus (MAD)', 'Commandes/Livraisons', 'Rating', 'Période']);
+
       for (var driver in _topDrivers) {
         csvData.add([
           'Livreur',
@@ -575,11 +567,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           (driver['total_gains'] ?? 0).toString(),
           (driver['nb_courses'] ?? 0).toString(),
           (driver['note_moyenne'] ?? 0).toString(),
-          _selectedPeriod
+          _selectedPeriod,
         ]);
       }
-      
-      // Ajouter les top commerces
+
       for (var business in _topBusinesses) {
         csvData.add([
           'Commerce',
@@ -587,37 +578,24 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           (business['revenus_totaux'] ?? 0).toString(),
           (business['nb_commandes'] ?? 0).toString(),
           (business['note_moyenne'] ?? 0).toString(),
-          _selectedPeriod
+          _selectedPeriod,
         ]);
       }
-      
-      // Convertir en CSV
-      String csv = const ListToCsvConverter().convert(csvData);
-      
-      // Créer le blob et télécharger
-      final bytes = latin1.encode(csv);
-      final blob = html.Blob([bytes]);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'statistiques_$_selectedPeriod.csv')
-        ..click();
-      
-      html.Url.revokeObjectUrl(url);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Export CSV ($_selectedPeriod) téléchargé avec succès !'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+
+      final csv = const ListToCsvConverter().convert(csvData);
+
+      // Sauvegarder le fichier
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/statistiques_$_selectedPeriod.csv');
+      await file.writeAsString(csv);
+
+      // ✅ Partager/télécharger via le système natif
+      await Share.shareXFiles([XFile(file.path)], text: 'Statistiques LocalDelivery - $_selectedPeriod');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Erreur lors de l\'export CSV: $e'),
+            content: Text('❌ Erreur export: $e'),
             backgroundColor: Colors.red,
           ),
         );
