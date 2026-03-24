@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/providers/client_data_provider.dart';
+import 'package:app/core/providers/client_data_provider.dart';
+import '../../widgets/product_image_placeholder.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../data/models/business_model.dart';
 import 'cart_screen.dart';
@@ -89,6 +90,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             'description': p.description,
             'prix_unitaire': p.prix,
             'image': p.image,
+            'type_produit': p.type,
             'deleted_at': p.deletedAt,
           }).toList();
           _isLoadingProducts = false;
@@ -310,7 +312,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                             'name': p['nom_produit'] ?? 'Produit',
                             'desc': p['description'] ?? '',
                             'price': p['prix_unitaire'] ?? 0,
-                            'image': p['image'] ?? '🍽️',
+                            'image': p['image'],
+                            'type': p['type_produit'] ?? 'meal',
                           });
                         },
                       ),
@@ -456,24 +459,23 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
               ),
             ),
             const SizedBox(width: 12),
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(12),
-                image: (item['image'] != null && item['image'].toString().startsWith('http'))
-                    ? DecorationImage(image: NetworkImage(item['image'].toString()), fit: BoxFit.cover)
-                    : null,
-              ),
-              child: (item['image'] == null || !item['image'].toString().startsWith('http'))
-                ? Center(
-                    child: Text(
-                      getHeaderEmoji(),
-                      style: const TextStyle(fontSize: 40),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: (item['image'] != null && item['image'].toString().startsWith('http'))
+                  ? Image.network(
+                      item['image'].toString(),
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => ProductImagePlaceholder(
+                        type: item['type'],
+                        size: 80,
+                      ),
+                    )
+                  : ProductImagePlaceholder(
+                      type: item['type'],
+                      size: 80,
                     ),
-                  )
-                : null,
             ),
           ],
         ),
@@ -641,7 +643,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               'options': '', // Removed options tracking
                               'price': basePrice,
                               'quantity': quantity,
-                              'image': item['image'] ?? '🍽️',
+                              'image': item['image'],
+                              'type': item['type'],
                             });
                             Navigator.pop(innerModalContext);
                             ScaffoldMessenger.of(context).showSnackBar(

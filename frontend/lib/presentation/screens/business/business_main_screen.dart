@@ -9,6 +9,7 @@ import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/product_provider.dart';
 import 'package:app/data/models/business_model.dart';
 import 'package:app/core/providers/business_data_provider.dart';
+import '../../widgets/product_image_placeholder.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -707,7 +708,7 @@ class _CatalogView extends StatelessWidget {
                                 aspectRatio: 4 / 3,
                                 child: Stack(
                                   children: [
-                                    item.image != null
+                                    item.image != null && item.image!.startsWith('http')
                                         ? ColorFiltered(
                                             colorFilter: isAvailable
                                                 ? const ColorFilter.mode(
@@ -719,15 +720,15 @@ class _CatalogView extends StatelessWidget {
                                             child: Image.network(
                                               item.image!,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => Container(
-                                                color: AppColors.warmWhite,
-                                                child: const Icon(LucideIcons.image, color: AppColors.mutedForeground),
+                                              errorBuilder: (context, error, stackTrace) => ProductImagePlaceholder(
+                                                type: item.type,
+                                                borderRadius: BorderRadius.zero,
                                               ),
                                             ))
-                                        : Container(
-                                            color: AppColors.warmWhite,
-                                            child: const Icon(LucideIcons.image,
-                                                color: AppColors.mutedForeground)),
+                                        : ProductImagePlaceholder(
+                                            type: item.type,
+                                            borderRadius: BorderRadius.zero,
+                                          ),
                                     if (!isAvailable)
                                       Positioned(
                                         top: 8,
@@ -1148,11 +1149,14 @@ class _AddProductViewState extends State<_AddProductView> {
 
                       setState(() => _isUploading = true);
                       
-                      String imageUrl = 'https://images.unsplash.com/photo-1541529086526-db283c563270?w=400&h=300&fit=crop';
+                      String? imageUrl;
                       if (_selectedImage != null) {
                         final provider = context.read<ProductProvider>();
                         final uploadedUrl = await provider.uploadImage(_selectedImage!, 'business_$businessId');
                         if (uploadedUrl != null) imageUrl = uploadedUrl;
+                      } else {
+                        // Fallback to null if no image selected to allow icons
+                        imageUrl = null;
                       }
 
                       final p = Produit(

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/providers/client_data_provider.dart';
+import 'package:app/core/providers/client_data_provider.dart';
+import '../../widgets/product_image_placeholder.dart';
 import 'order_confirmation_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -46,12 +47,23 @@ class _CartScreenState extends State<CartScreen> {
                             color: AppColors.background,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Center(
-                            child: Text(
-                              item['image'] as String,
-                              style: const TextStyle(fontSize: 36),
-                            ),
-                          ),
+                          child: (item['image'] != null && item['image'].toString().startsWith('http'))
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.network(
+                                    item['image'].toString(),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        ProductImagePlaceholder(
+                                      type: item['type'],
+                                      size: 72,
+                                    ),
+                                  ),
+                                )
+                              : ProductImagePlaceholder(
+                                  type: item['type'],
+                                  size: 72,
+                                ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -333,12 +345,23 @@ class _CartScreenState extends State<CartScreen> {
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(
-                child: Text(
-                  item['image'],
-                  style: const TextStyle(fontSize: 35),
-                ),
-              ),
+              child: (item['image'] != null && item['image'].toString().startsWith('http'))
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        item['image'].toString(),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            ProductImagePlaceholder(
+                          type: item['type'],
+                          size: 70,
+                        ),
+                      ),
+                    )
+                  : ProductImagePlaceholder(
+                      type: item['type'],
+                      size: 70,
+                    ),
             ),
             const SizedBox(width: 16),
 
