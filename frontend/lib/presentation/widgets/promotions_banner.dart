@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/product_provider.dart';
 import '../../data/models/business_model.dart';
+import '../screens/client/promotion_product_screen.dart';
 
 class PromotionsBanner extends StatefulWidget {
   const PromotionsBanner({super.key});
@@ -80,82 +81,154 @@ class RealPromoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.forest, AppColors.primary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    final originalPrice = promo.produit?.prix ?? 0.0;
+    final discountedPrice = originalPrice * (1 - promo.pourcentage / 100);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PromotionProductScreen(promotion: promo),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.forest, AppColors.primary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.forest.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.forest.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -20,
-            bottom: -20,
-            child: Icon(
-              LucideIcons.ticket,
-              size: 140,
-              color: Colors.white.withOpacity(0.15),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -20,
+              bottom: -20,
+              child: Icon(
+                LucideIcons.ticket,
+                size: 140,
+                color: Colors.white.withOpacity(0.15),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(10),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'OFFRE SPÉCIALE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.destructive,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '-${promo.pourcentage.toInt()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'OFFRE SPÉCIALE',
-                    style: TextStyle(
+                  const SizedBox(height: 12),
+                  Text(
+                    promo.produit?.nom ?? 'Offre Spéciale',
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  promo.produit?.nom ?? 'Offre Spéciale',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Text(
+                        '${discountedPrice.toStringAsFixed(2)} MAD',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${originalPrice.toStringAsFixed(2)} MAD',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 13,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: Colors.white.withOpacity(0.6),
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Commander',
+                              style: TextStyle(
+                                color: AppColors.forest,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(LucideIcons.arrowRight,
+                                size: 14, color: AppColors.forest),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '-${promo.pourcentage.toInt()}% sur ce produit !',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 13,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
