@@ -349,49 +349,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
 
                         SizedBox(height: 24),
-
-                        // Social Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  // TODO: Google Sign-In
-                                },
-                                icon: Icon(LucideIcons.search, size: 18),
-                                label: Text('Google'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  side: BorderSide(color: AppColors.border),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  backgroundColor: AppColors.card,
-                                  foregroundColor: AppColors.foreground,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  // TODO: Facebook Sign-In
-                                },
-                                icon: Icon(LucideIcons.share2, size: 18),
-                                label: Text('Facebook'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  side: BorderSide(color: AppColors.border),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  backgroundColor: AppColors.card,
-                                  foregroundColor: AppColors.foreground,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),

@@ -74,6 +74,32 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
                   ],
                 )
               : _screens[_selectedIndex],
+          bottomNavigationBar: isDesktop
+              ? null
+              : BottomNavigationBar(
+                  currentIndex: _selectedIndex,
+                  onTap: (index) {
+                    _onItemTapped(index);
+                  },
+                  type: BottomNavigationBarType.fixed,
+                  selectedItemColor: AppColors.accent,
+                  unselectedItemColor: AppColors.mutedForeground,
+                  items: [
+                    const BottomNavigationBarItem(
+                        icon: Icon(LucideIcons.layoutDashboard),
+                        label: 'Dashboard'),
+                    const BottomNavigationBarItem(
+                        icon: Icon(LucideIcons.users), label: 'Utilisateurs'),
+                    const BottomNavigationBarItem(
+                        icon: Icon(LucideIcons.package2), label: 'Commandes'),
+                    const BottomNavigationBarItem(
+                        icon: Icon(LucideIcons.wallet), label: 'Paiements'),
+                    const BottomNavigationBarItem(
+                        icon: Icon(Icons.bar_chart), label: 'Statistiques'),
+                    const BottomNavigationBarItem(
+                        icon: Icon(LucideIcons.bell), label: 'Notifications'),
+                  ],
+                ),
         );
       },
     );

@@ -376,52 +376,90 @@ class BusinessController {
 
       final produitIds = produits.map((p) => p['id_produit']).toList();
 
-      // Commandes livrées
-      double revenusTotaux = 0.0;
-      int nbCommandes = 0;
-      Map<int, Map<String, dynamic>> topProduits = {};
+      // Fetch order lines containing these products to calculate stats
+      final orderLines = await SupabaseConfig.client
+          .from('ligne_commande')
+          .select('id_commande, quantite, total_ligne, nom_snapshot, id_produit, commande(created_at)')
+          .inFilter('id_produit', produitIds)
+          .isFilter('deleted_at', null);
 
-      if (produitIds.isNotEmpty) {
-        final lignes = await SupabaseConfig.client
-            .from('ligne_commande')
-            .select('id_commande, id_produit, quantite, total_ligne')
-            .inFilter('id_produit', produitIds)
-            .isFilter('deleted_at', null);
+      double totalRevenu = 0;
+      Set<int> uniqueOrders = {};
+      Map<int, Map<String, dynamic>> productStats = {};
+      
+      List<double> chartData = List.filled(7, 0.0);
+      final today = DateTime.now();
+      final todayDay = DateTime(today.year, today.month, today.day);
 
-        final commandeIds = lignes.map((l) => l['id_commande']).toSet().toList();
+      for (var line in orderLines) {
+        final prixLigne = (line['total_ligne'] as num).toDouble();
+        final qty = line['quantite'] as int;
+        final pId = line['id_produit'] as int;
+        final pName = line['nom_snapshot'] as String;
 
-        if (commandeIds.isNotEmpty) {
-          final commandes = await SupabaseConfig.client
-              .from('commande')
-              .select('id_commande, prix_total')
-              .inFilter('id_commande', commandeIds)
-              .eq('statut_commande', 'livree')
-              .isFilter('deleted_at', null);
+        totalRevenu += prixLigne;
+        uniqueOrders.add(line['id_commande'] as int);
 
-          nbCommandes = commandes.length;
-          for (var cmd in commandes) {
-            revenusTotaux += ((cmd['prix_total'] as num).toDouble() * 0.75);
+        if (!productStats.containsKey(pId)) {
+          productStats[pId] = {'nom': pName, 'qte': 0, 'revenu': 0.0};
+        }
+        productStats[pId]!['qte'] += qty;
+        productStats[pId]!['revenu'] += prixLigne;
+        
+        final commandeData = line['commande'];
+        if (commandeData != null && commandeData is Map) {
+          final createdAtStr = commandeData['created_at'];
+          if (createdAtStr != null) {
+            final date = DateTime.tryParse(createdAtStr.toString());
+            if (date != null) {
+              final dateDay = DateTime(date.year, date.month, date.day);
+              final diff = todayDay.difference(dateDay).inDays;
+              if (diff >= 0 && diff < 7) {
+                chartData[6 - diff] += prixLigne;
+              }
+            }
           }
         }
+      }
 
-        // Top produits
-        final Map<String, dynamic> produitNoms = {
-          for (var p in produits)
-            p['id_produit'].toString(): p['nom_produit'] as String
-        };
+      // Sort Top Products by quantity
+      var topProducts = productStats.values.toList();
+      topProducts.sort((a, b) => (b['qte'] as int).compareTo(a['qte'] as int));
+      topProducts = topProducts.take(5).toList();
 
-        for (var ligne in lignes) {
-          final pid = ligne['id_produit'] as int;
-          if (!topProduits.containsKey(pid)) {
-            topProduits[pid] = {
-              'id_produit': pid,
-              'nom_produit': produitNoms[pid.toString()] ?? 'Inconnu',
-              'count': 0,
-            };
-          }
-          topProduits[pid]!['count'] =
-              (topProduits[pid]!['count'] as int) + (ligne['quantite'] as int);
-        }
+      // Fetch recent orders (5 most recent)
+      List<Map<String, dynamic>> recentOrders = [];
+      if (uniqueOrders.isNotEmpty) {
+        final orderIds = uniqueOrders.toList();
+        final recentOrdersData = await SupabaseConfig.client
+            .from('commande')
+            .select('''
+              id_commande,
+              statut_commande,
+              prix_total,
+              created_at,
+              client(
+                id_client,
+                app_user:id_user(nom, num_tl)
+              )
+            ''')
+            .inFilter('id_commande', orderIds)
+            .isFilter('deleted_at', null)
+            .order('created_at', ascending: false)
+            .limit(5);
+
+        recentOrders = recentOrdersData.map((order) {
+          final client = order['client'];
+          final clientUser = client is Map ? client['app_user'] : null;
+          return {
+            'id_commande': order['id_commande'],
+            'statut_commande': order['statut_commande'],
+            'prix_total': order['prix_total'],
+            'created_at': order['created_at'],
+            'client_nom': clientUser?['nom'] ?? 'Client',
+            'client_tel': clientUser?['num_tl'] ?? '',
+          };
+        }).toList();
       }
 
       // Note moyenne
@@ -438,18 +476,16 @@ class BusinessController {
         noteMoyenne = total / reviews.length;
       }
 
-      // Top 5 produits triés
-      final top5 = topProduits.values.toList()
-        ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
-
       return Response.ok(
         jsonEncode({
           'data': {
-            'revenus_totaux': revenusTotaux,
-            'nb_commandes': nbCommandes,
-            'note_moyenne': noteMoyenne,
+            'revenus_totaux': totalRevenu,
+            'nb_commandes': uniqueOrders.length,
+            'note_moyenne': noteMoyenne.toStringAsFixed(1),
             'nb_produits': produits.length,
-            'top_produits': top5.take(5).toList(),
+            'top_produits': topProducts,
+            'chart_data': chartData,
+            'recent_orders': recentOrders
           }
         }),
         headers: _headers,

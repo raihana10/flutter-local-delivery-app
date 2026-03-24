@@ -17,7 +17,6 @@ class ClientBusinessesController {
           .select('*, app_user(*, user_adresse(*, adresse(*)))')
           .eq('type_business', type)
           .eq('est_actif', true)
-          .eq('is_open', true)
           .isFilter('deleted_at', null);
 
       return Response.ok(jsonEncode({'data': businesses}), headers: {'content-type': 'application/json'});

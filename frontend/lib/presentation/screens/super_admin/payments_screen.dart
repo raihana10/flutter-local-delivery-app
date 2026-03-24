@@ -27,7 +27,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Future<void> _loadData() async {
     final res = await _api.getCommissions();
-    final liv = await _api.getLivreurs();
+    
+    // ✅ Récupérer uniquement les livreurs
+    final livreursRes = await _api.getLivreurs();
 
     if (mounted) {
       setState(() {
@@ -35,7 +37,16 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         _totalLivreurs = (res['revenus_livreurs_total'] ?? 0).toDouble();
         _totalBusinesses = (res['revenus_businesses_total'] ?? 0).toDouble();
         _details = res['detail'] ?? [];
-        _livreurs = liv;
+        
+        // ✅ Dédupliquer par id_user
+        final seen = <int>{};
+        _livreurs = livreursRes.where((l) {
+          final id = l['id_user'] as int?;
+          if (id == null || seen.contains(id)) return false;
+          seen.add(id);
+          return true;
+        }).toList();
+        
         _isLoading = false;
       });
     }
@@ -45,78 +56,223 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
-    return SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Paiements & Commissions',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Paiements & Commissions',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              isMobile
+                  ? _buildMobileSummaryCards()
+                  : _buildDesktopSummaryCards(),
+              const SizedBox(height: 32),
+              const Text(
+                'Détail par commande',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              isMobile
+                  ? _buildMobilePaymentList()
+                  : _buildDesktopPaymentTable(),
+              const SizedBox(height: 32),
+              const Text(
+                'Gains par livreur',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildLivreurList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileSummaryCards() {
+    return Column(
+      children: [
+        _buildSummaryCard(
+          'Total revenus app',
+          '$_totalApp MAD',
+          LucideIcons.coins,
+          AppColors.accent,
+        ),
+        const SizedBox(height: 16),
+        _buildSummaryCard(
+          'Total versé livreurs',
+          '$_totalLivreurs MAD',
+          LucideIcons.truck,
+          AppColors.secondary,
+        ),
+        const SizedBox(height: 16),
+        _buildSummaryCard(
+          'Total versé businesses',
+          '$_totalBusinesses MAD',
+          LucideIcons.store,
+          AppColors.primary,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopSummaryCards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSummaryCard(
+            'Total revenus app',
+            '$_totalApp MAD',
+            LucideIcons.coins,
+            AppColors.accent,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildSummaryCard(
+            'Total versé livreurs',
+            '$_totalLivreurs MAD',
+            LucideIcons.truck,
+            AppColors.secondary,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildSummaryCard(
+            'Total versé businesses',
+            '$_totalBusinesses MAD',
+            LucideIcons.store,
+            AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobilePaymentList() {
+    if (_details.isEmpty) {
+      return const Center(child: Text('Aucune donnée disponible'));
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _details.length,
+      itemBuilder: (context, index) {
+        final comm = _details[index];
+        final app = (comm['revenus_app'] ?? 0).toDouble();
+        final sLivr = (comm['revenus_livreur'] ?? 0).toDouble();
+        final sBus = (comm['revenus_business'] ?? 0).toDouble();
+        final pdxTotal = (comm['prix_total'] ?? 0).toDouble();
+        final fraisLiv = (comm['frais_livraison'] ?? 0).toDouble();
+        final dist = (comm['distance_km'] ?? 0).toDouble();
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                    child: _buildSummaryCard('Total revenus app',
-                        '$_totalApp MAD', LucideIcons.coins, AppColors.accent)),
-                const SizedBox(width: 16),
-                Expanded(
-                    child: _buildSummaryCard(
-                        'Total versé livreurs',
-                        '$_totalLivreurs MAD',
-                        LucideIcons.truck,
-                        AppColors.secondary)),
-                const SizedBox(width: 16),
-                Expanded(
-                    child: _buildSummaryCard(
-                        'Total versé businesses',
-                        '$_totalBusinesses MAD',
-                        LucideIcons.store,
-                        AppColors.primary)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '#${comm['id_commande']}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '${pdxTotal.toStringAsFixed(2)} MAD',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildPaymentDetailRow('Distance', '${dist.toStringAsFixed(2)} km'),
+                _buildPaymentDetailRow('Frais livraison', '${fraisLiv.toStringAsFixed(2)} MAD'),
+                const Divider(),
+                _buildPaymentDetailRow('Business (75%)', '${sBus.toStringAsFixed(2)} MAD', color: Colors.blue),
+                _buildPaymentDetailRow('Livreur (85%)', '${sLivr.toStringAsFixed(2)} MAD', color: Colors.orange),
+                _buildPaymentDetailRow('App (25%+15%)', '${app.toStringAsFixed(2)} MAD', color: Colors.green, bold: true),
               ],
             ),
-            const SizedBox(height: 32),
-            const Text('Détail par commande',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: PaginatedDataTable(
-                rowsPerPage: _details.length > 5
-                    ? 5
-                    : (_details.isEmpty ? 1 : _details.length),
-                columns: const [
-                  DataColumn(
-                      label: Text('#ID',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Distance (km)',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Prix produits',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Frais livraison',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Business(×75%)',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Livreur(×70%)',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('App(25%+30%)',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                ],
-                source: _PaymentDataTableSource(data: _details),
-              ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentDetailRow(String label, String value, {Color? color, bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.mutedForeground,
             ),
-            const SizedBox(height: 32),
-            const Text('Gains par livreur',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            _buildLivreurList(),
-          ],
-        ));
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: color ?? AppColors.foreground,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopPaymentTable() {
+    return SizedBox(
+      width: double.infinity,
+      child: PaginatedDataTable(
+        rowsPerPage: _details.length > 5 ? 5 : (_details.isEmpty ? 1 : _details.length),
+        columns: const [
+          DataColumn(
+            label: Text('#ID', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Distance (km)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Prix produits', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Frais livraison', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Business(×75%)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('Livreur(×85%)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          DataColumn(
+            label: Text('App(25%+15%)', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+        source: _PaymentDataTableSource(data: _details),
+      ),
+    );
   }
 
   Widget _buildLivreurList() {
@@ -173,6 +329,7 @@ class _LivreurListItem extends StatefulWidget {
 
 class _LivreurListItemState extends State<_LivreurListItem> {
   double _gains = 0;
+  int _nbCourses = 0;
   bool _loading = true;
 
   @override
@@ -182,10 +339,26 @@ class _LivreurListItemState extends State<_LivreurListItem> {
   }
 
   Future<void> _loadGains() async {
-    final res = await widget.api.getLivreurGains(widget.livreur['id_user']);
+    final livreurData = widget.livreur['livreur'];
+    final idLivreur = livreurData is List && livreurData.isNotEmpty
+        ? livreurData[0]['id_livreur']
+        : (livreurData is Map ? livreurData['id_livreur'] : null);
+
+    if (idLivreur == null) {
+      if (mounted) {
+        setState(() { _gains = 0; _nbCourses = 0; _loading = false; });
+      }
+      return;
+    }
+
+    // idLivreur should be an int or parsed to int
+    final parsedId = idLivreur is int ? idLivreur : int.tryParse(idLivreur.toString()) ?? 0;
+
+    final res = await widget.api.getLivreurGains(parsedId);
     if (mounted) {
       setState(() {
-        _gains = (res['recompenses_totales'] ?? 0).toDouble();
+        _gains = (res['total_gains'] ?? 0).toDouble();
+        _nbCourses = (res['nb_courses'] ?? 0) as int;
         _loading = false;
       });
     }
@@ -198,7 +371,9 @@ class _LivreurListItemState extends State<_LivreurListItem> {
       child: ListTile(
         leading: CircleAvatar(child: Icon(LucideIcons.truck)),
         title: Text(widget.livreur['nom'] ?? 'Inconnu'),
-        subtitle: const Text('... courses'),
+        subtitle: _loading 
+            ? const Text('Chargement...')
+            : Text('$_nbCourses courses'),
         trailing: _loading
             ? const SizedBox(
                 width: 20,

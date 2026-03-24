@@ -234,7 +234,7 @@ class Livreur {
           json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(
           json['updated_at'] ?? DateTime.now().toIso8601String()),
-      user: json['user'] is Map<String, dynamic> ? User.fromJson(json['user']) : null,
+      user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
 

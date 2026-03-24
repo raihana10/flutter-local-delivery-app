@@ -3,6 +3,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:csv/csv.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -18,6 +23,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   bool _isLoading = true;
   List<dynamic> _topDrivers = [];
   List<dynamic> _topBusinesses = [];
+  List<dynamic> _allBusinesses = [];
   List<dynamic> _weeklyRevenue = [];
 
   @override
@@ -29,30 +35,37 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Future<void> _loadStats() async {
     setState(() => _isLoading = true);
     try {
-      final res = await _apiService.getRevenus();
-      if (res['success'] == true) {
-        final data = res['data'];
+      print('🔍 Loading statistics...');
+      
+      // ✅ Appeler les endpoints séparément
+      // le endpoint revenus n'est pas très bien utilisé ici, on va s'appuyer sur getChartData pour les revenus globaux aussi
+      final livreurStats = await _apiService.getLivreurStats();
+      final businessStats = await _apiService.getAllBusinessStats();
+      final chartData = await _apiService.getChartData();
 
-        final drivers = List<dynamic>.from(data['livreurStats'] ?? []);
-        drivers.sort((a, b) => ((b['courses_count'] ?? 0) as num)
-            .compareTo((a['courses_count'] ?? 0) as num));
+      if (mounted) {
+        setState(() {
+          // Livreurs
+          final drivers = List<dynamic>.from(livreurStats['data'] ?? []);
+          drivers.sort((a, b) => ((b['nb_courses'] ?? 0) as num)
+              .compareTo((a['nb_courses'] ?? 0) as num));
+          _topDrivers = drivers.take(3).toList();
 
-        final businesses = List<dynamic>.from(data['businessStats'] ?? []);
-        businesses.sort((a, b) =>
-            ((b['revenue'] ?? 0) as num).compareTo((a['revenue'] ?? 0) as num));
+          // Businesses
+          final businesses = List<dynamic>.from(businessStats['data'] ?? []);
+          _allBusinesses = List<dynamic>.from(businesses); // Garder la liste complète pour le pie chart
+          businesses.sort((a, b) => ((b['revenus_totaux'] ?? 0) as num)
+              .compareTo((a['revenus_totaux'] ?? 0) as num));
+          _topBusinesses = businesses.take(3).toList();
 
-        if (mounted) {
-          setState(() {
-            _topDrivers = drivers.take(3).toList();
-            _topBusinesses = businesses.take(3).toList();
-            _weeklyRevenue = (data['weeklyRevenue'] as List<dynamic>?) ?? [];
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
+          // Graphique revenus
+          _weeklyRevenue = List<dynamic>.from(chartData['weeklyRevenue'] ?? []);
+
+          _isLoading = false;
+        });
       }
     } catch (e) {
+      print('STATS ERROR: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -114,13 +127,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ElevatedButton.icon(
                       icon: const Icon(LucideIcons.download),
                       label: const Text('Exporter CSV'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Export CSV simulé ($_selectedPeriod) enregistré en local.')),
-                        );
-                      },
+                      onPressed: () => _exportToCSV(),
                     )
                   ],
                 )
@@ -179,7 +186,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: LineChart(
                 LineChartData(
                   minY: 0,
-                  maxY: 30000,
+                  maxY: 1000, // Échelle réduite à 1k
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
@@ -213,11 +220,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             showTitles: true,
                             reservedSize: 40,
                             getTitlesWidget: (value, meta) {
-                              if (value % 10000 != 0)
+                              if (value % 200 != 0)
                                 return const SizedBox.shrink();
                               return SideTitleWidget(
                                 axisSide: meta.axisSide,
-                                child: Text('${(value / 1000).toInt()}k',
+                                child: Text('${(value / 1000).toStringAsFixed(1)}k',
                                     style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.mutedForeground)),
@@ -268,7 +275,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Répartition par Type de Commande',
+            const Text('Répartition par Type de Commerce',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
@@ -277,45 +284,97 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 PieChartData(
                   sectionsSpace: 2,
                   centerSpaceRadius: 40,
-                  sections: [
-                    PieChartSectionData(
-                      color: AppColors.primary,
-                      value: 65,
-                      title: 'Food',
-                      radius: 50,
-                      titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
-                    PieChartSectionData(
-                      color: AppColors.secondary,
-                      value: 35,
-                      title: 'Shopping',
-                      radius: 50,
-                      titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
-                    ),
-                  ],
+                  sections: _buildCommerceSections(),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                LegendIndicator(
-                    color: AppColors.primary, text: 'Food Delivery (65%)'),
-                SizedBox(width: 16),
-                LegendIndicator(
-                    color: AppColors.secondary, text: 'Shopping (35%)'),
-              ],
-            )
+            _buildCommerceLegend(),
           ],
         ),
       ),
+    );
+  }
+
+  List<PieChartSectionData> _buildCommerceSections() {
+    // Compter les types de commerce
+    Map<String, int> typeCounts = {};
+    Map<String, double> typeRevenues = {};
+    
+    for (var commerce in _allBusinesses) {
+      String type = commerce['type_business'] as String? ?? 'Autre';
+      typeCounts[type] = (typeCounts[type] ?? 0) + 1;
+      typeRevenues[type] = (typeRevenues[type] ?? 0) + (commerce['revenus_totaux'] as num? ?? 0).toDouble();
+    }
+    
+    final colors = [
+      AppColors.primary,
+      AppColors.secondary,
+      AppColors.accent,
+      Colors.orange,
+      Colors.purple,
+    ];
+    
+    int index = 0;
+    return typeRevenues.entries.map((entry) {
+      final color = colors[index % colors.length];
+      index++;
+      
+      return PieChartSectionData(
+        color: color,
+        value: entry.value,
+        title: '${entry.key}',
+        radius: 50,
+        titleStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white),
+      );
+    }).toList();
+  }
+
+  Widget _buildCommerceLegend() {
+    Map<String, double> typeRevenues = {};
+    double totalRevenue = 0;
+    
+    for (var commerce in _allBusinesses) {
+      String type = commerce['type_business'] as String? ?? 'Autre';
+      double revenue = (commerce['revenus_totaux'] as num? ?? 0).toDouble();
+      typeRevenues[type] = (typeRevenues[type] ?? 0) + revenue;
+      totalRevenue += revenue;
+    }
+    
+    final colors = [
+      AppColors.primary,
+      AppColors.secondary,
+      AppColors.accent,
+      Colors.orange,
+      Colors.purple,
+    ];
+    
+    List<Widget> legends = [];
+    int index = 0;
+    
+    for (var entry in typeRevenues.entries) {
+      final percentage = totalRevenue > 0 ? (entry.value / totalRevenue * 100).round() : 0;
+      final color = colors[index % colors.length];
+      index++;
+      
+      legends.add(LegendIndicator(
+        color: color, 
+        text: '${entry.key} ($percentage%)'
+      ));
+      
+      if (index < typeRevenues.length) {
+        legends.add(const SizedBox(width: 16));
+      }
+    }
+    
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
+      children: legends,
     );
   }
 
@@ -352,8 +411,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       _buildRankingRow(
                           '${i + 1}',
                           topDrivers[i]['nom'] ?? 'Inconnu',
-                          '${topDrivers[i]['courses_count'] ?? 0} courses',
-                          '${topDrivers[i]['rating'] ?? 0} ★'),
+                          '${topDrivers[i]['nb_courses'] ?? 0} courses',
+                          '${(topDrivers[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                     ],
                   ],
                 ),
@@ -384,8 +443,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         _buildRankingRow(
                             '${i + 1}',
                             topBusinesses[i]['nom'] ?? 'Inconnu',
-                            '${topBusinesses[i]['revenue'] ?? 0} MAD',
-                            '${topBusinesses[i]['rating'] ?? 0} ★'),
+                            '${(topBusinesses[i]['revenus_totaux'] as num?)?.toStringAsFixed(0) ?? 0} MAD',
+                            '${(topBusinesses[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                       ],
                     ],
                   ),
@@ -417,8 +476,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     _buildRankingRow(
                         '${i + 1}',
                         topDrivers[i]['nom'] ?? 'Inconnu',
-                        '${topDrivers[i]['courses_count'] ?? 0} courses',
-                        '${topDrivers[i]['rating'] ?? 0} ★'),
+                        '${topDrivers[i]['nb_courses'] ?? 0} courses',
+                        '${(topDrivers[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                   ],
                 ],
               ),
@@ -445,8 +504,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     _buildRankingRow(
                         '${i + 1}',
                         topBusinesses[i]['nom'] ?? 'Inconnu',
-                        '${topBusinesses[i]['revenue'] ?? 0} MAD',
-                        '${topBusinesses[i]['rating'] ?? 0} ★'),
+                        '${(topBusinesses[i]['revenus_totaux'] as num?)?.toStringAsFixed(0) ?? 0} MAD',
+                        '${(topBusinesses[i]['note_moyenne'] as num?)?.toStringAsFixed(1) ?? '0'} ★'),
                   ],
                 ],
               ),
@@ -494,6 +553,54 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ],
       ),
     );
+  }
+
+  void _exportToCSV() async {
+    try {
+      List<List<dynamic>> csvData = [];
+      csvData.add(['Type', 'Nom', 'Revenus (MAD)', 'Commandes/Livraisons', 'Rating', 'Période']);
+
+      for (var driver in _topDrivers) {
+        csvData.add([
+          'Livreur',
+          driver['nom'] ?? 'N/A',
+          (driver['total_gains'] ?? 0).toString(),
+          (driver['nb_courses'] ?? 0).toString(),
+          (driver['note_moyenne'] ?? 0).toString(),
+          _selectedPeriod,
+        ]);
+      }
+
+      for (var business in _topBusinesses) {
+        csvData.add([
+          'Commerce',
+          business['nom'] ?? 'N/A',
+          (business['revenus_totaux'] ?? 0).toString(),
+          (business['nb_commandes'] ?? 0).toString(),
+          (business['note_moyenne'] ?? 0).toString(),
+          _selectedPeriod,
+        ]);
+      }
+
+      final csv = const ListToCsvConverter().convert(csvData);
+
+      // Sauvegarder le fichier
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/statistiques_$_selectedPeriod.csv');
+      await file.writeAsString(csv);
+
+      // ✅ Partager/télécharger via le système natif
+      await Share.shareXFiles([XFile(file.path)], text: 'Statistiques LocalDelivery - $_selectedPeriod');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erreur export: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -16,7 +16,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool _isLoading = true;
   Map<String, dynamic> _stats = {};
-  Map<String, dynamic> _alerts = {};
   List<dynamic> _liveDrivers = [];
   List<dynamic> _chartData = [];
   List<dynamic> _ordersStatus = [];
@@ -29,23 +28,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadDashboardData() async {
     try {
+      print('🔍 Loading dashboard data...');
       final stats = await _apiService.getKPIs();
+      print('📊 KPIs: $stats');
+      
+      final chartData = await _apiService.getChartData();
+      print('📈 Chart Data: $chartData');
+      
       final alerts = await _apiService.getAlerts();
       final driversResponse = await _apiService.getLiveDrivers();
 
       if (mounted) {
         setState(() {
           _stats = stats;
-          _alerts = alerts;
+          _chartData = (chartData['weeklyRevenue'] as List<dynamic>?) ?? [];
+          _ordersStatus = (chartData['ordersByStatus'] as List<dynamic>?) ?? [];
+          
+          // Limiter à 7 jours maximum pour éviter les bâtonnets infinis
+          if (_chartData.length > 7) {
+            _chartData = _chartData.take(7).toList();
+          }
+          
+          print('✅ Chart Data Length: ${_chartData.length}');
+          print('✅ Orders Status Length: ${_ordersStatus.length}');
+          
           _liveDrivers = driversResponse is List
               ? driversResponse
               : ((driversResponse as Map<String, dynamic>)['data'] as List<dynamic>? ?? []);
-          _chartData = (stats['weeklyRevenue'] as List<dynamic>?) ?? [];
-          _ordersStatus = (stats['ordersByStatus'] as List<dynamic>?) ?? [];
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('❌ Dashboard loading ERROR: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -71,24 +85,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _buildKPIGrid(context),
           const SizedBox(height: 32),
           _buildChartsSection(context),
-          _buildLiveMap(context),
-          const SizedBox(height: 32),
-          _buildLiveAlerts(),
         ],
       ),
     );
   }
 
   Widget _buildKPIGrid(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 800;
+    final isTablet = width >= 600;
 
     return GridView.count(
-      crossAxisCount: isDesktop ? 4 : 2,
+      crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
+      childAspectRatio: isDesktop ? 1.5 : (isTablet ? 1.3 : 1.15),
       children: [
         _buildKPICard(
             'Commandes Actives',
@@ -158,29 +171,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildChartsSection(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 800;
 
     if (isDesktop) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 2, child: _buildRevenueChart()),
+          Expanded(flex: 2, child: _buildRevenueChart(isDesktop: true)),
           const SizedBox(width: 24),
-          Expanded(flex: 1, child: _buildOrdersPieChart()),
+          Expanded(flex: 1, child: _buildOrdersPieChart(isDesktop: true)),
         ],
       );
     } else {
       return Column(
         children: [
-          _buildRevenueChart(),
+          _buildRevenueChart(isDesktop: false),
           const SizedBox(height: 24),
-          _buildOrdersPieChart(),
+          _buildOrdersPieChart(isDesktop: false),
         ],
       );
     }
   }
 
-  Widget _buildRevenueChart() {
+  Widget _buildRevenueChart({required bool isDesktop}) {
     return Card(
       elevation: 4,
       shadowColor: AppColors.primary.withOpacity(0.1),
@@ -194,11 +208,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
-              height: 250,
+              height: isDesktop ? 250 : 180,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: 30000,
+                  maxY: 1000, // Échelle réduite à 1k
                   barTouchData: BarTouchData(enabled: false),
                   titlesData: FlTitlesData(
                     show: true,
@@ -214,7 +228,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          return Text('${value.toInt()}€');
+                        },
+                        reservedSize: 40,
+                      ),
                     ),
                     topTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),
@@ -249,7 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildOrdersPieChart() {
+  Widget _buildOrdersPieChart({required bool isDesktop}) {
     return Card(
       elevation: 4,
       shadowColor: AppColors.primary.withOpacity(0.1),
@@ -263,14 +283,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             SizedBox(
-              height: 200,
+              height: isDesktop ? 200 : 160,
               child: PieChart(
                 PieChartData(
                   sectionsSpace: 2,
                   centerSpaceRadius: 40,
                   sections: _ordersStatus.map((status) {
+                    int colorValue;
+                    if (status['color'] is String) {
+                      String colorHex = status['color'] as String;
+                      colorValue = int.parse(colorHex.replaceFirst('#', '0xFF'));
+                    } else {
+                      colorValue = status['color'] as int? ?? 0xFF000000;
+                    }
+                    
                     return PieChartSectionData(
-                      color: Color(status['color'] ?? 0xFF000000),
+                      color: Color(colorValue),
                       value: (status['count'] ?? 0).toDouble(),
                       title: '${status['count'] ?? 0}',
                       radius: 50,
@@ -298,209 +326,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 );
               }).toList(),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiveAlerts() {
-    final blockedOrders = _alerts['blocked_orders'] as List<dynamic>? ?? [];
-    final pendingUsers = _alerts['pending_validations'] as List<dynamic>? ?? [];
-
-    final List<Map<String, dynamic>> dynamicAlerts = [];
-    for (var order in blockedOrders) {
-      dynamicAlerts.add({
-        'titre': 'Commande bloquée',
-        'message':
-            'La commande #${order['id_commande']} est bloquée depuis ${order['blocked_since']}.',
-        'type': 'warning',
-        'date': 'A l\'instant',
-      });
-    }
-    for (var user in pendingUsers) {
-      dynamicAlerts.add({
-        'titre': 'Validation en attente',
-        'message':
-            'L\'utilisateur #${user['id_user']} attend la validation de ses documents.',
-        'type': 'alert',
-        'date': 'A l\'instant',
-      });
-    }
-
-    // dynamicAlerts.addAll(MockSuperAdminData.notifications);
-
-    return Card(
-      elevation: 4,
-      shadowColor: AppColors.primary.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(LucideIcons.bellRing, color: AppColors.destructive),
-                SizedBox(width: 8),
-                Text('Alertes système',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.destructive)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: dynamicAlerts.length,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, index) {
-                final notif = dynamicAlerts[index];
-                final isAlert = notif['type'] == 'alert';
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: isAlert
-                        ? AppColors.destructive.withOpacity(0.1)
-                        : AppColors.accent.withOpacity(0.1),
-                    child: Icon(
-                      isAlert
-                          ? Icons.warning_amber_rounded
-                          : Icons.info_outline,
-                      color: isAlert ? AppColors.destructive : AppColors.accent,
-                    ),
-                  ),
-                  title: Text(notif['titre'],
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(notif['message']),
-                  trailing: Text(notif['date'],
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.mutedForeground)),
-                );
-              },
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiveMap(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shadowColor: AppColors.primary.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Live Map - Positions des Livreurs',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Row(
-                    children: [
-                      Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                              color: Colors.green, shape: BoxShape.circle)),
-                      const SizedBox(width: 6),
-                      const Text('En direct',
-                          style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Container(
-              height: 400,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                image: const DecorationImage(
-                  // A beautiful, legal, public placeholder map grid image
-                  image: NetworkImage(
-                      'https://api.maptiler.com/maps/basic-v2/256/0/0/0.png?key=get_your_own_OpIi9ZULNHzrESv6T2vL'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              child: Stack(
-                children: _liveDrivers.where((d) => 
-                    d['position_order'] != null &&
-                    d['position_order']['lat'] != null &&
-                    d['position_order']['lng'] != null
-                ).map((driver) {
-                  final isMission = driver['status'] == 'en_mission';
-                  // Simulate coordinates on the center of the viewport
-                  final alignX = ((driver['position_order']['lng'] as num) - (-5.36)) * 10;
-                  final alignY = ((driver['position_order']['lat'] as num) - 35.58) * -10; // Invert lat for visual accuracy
-
-                  return Align(
-                    alignment: Alignment(
-                      alignX.clamp(-1.0, 1.0),
-                      alignY.clamp(-1.0, 1.0),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isMission ? AppColors.primary : Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: isMission
-                                      ? AppColors.primary.withOpacity(0.5)
-                                      : Colors.green.withOpacity(0.5),
-                                  blurRadius: 8,
-                                  spreadRadius: 2)
-                            ],
-                          ),
-                          child: Icon(
-                              isMission ? LucideIcons.bike : LucideIcons.check,
-                              color: Colors.white,
-                              size: 16),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black12, blurRadius: 4)
-                              ]),
-                          child: Text(driver['nom'],
-                              style: const TextStyle(
-                                  fontSize: 10, fontWeight: FontWeight.bold)),
-                        )
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
             )
           ],
         ),
