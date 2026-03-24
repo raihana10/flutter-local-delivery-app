@@ -337,19 +337,31 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                       ),
                       Consumer<ClientDataProvider>(
                         builder: (context, data, _) {
-                          final hasUnread =
-                              data.notifications.any((n) => n['lu'] == false);
-                          if (!hasUnread) return const SizedBox.shrink();
+                          final count = data.unreadNotificationsCount;
+                          if (count == 0) return const SizedBox.shrink();
 
                           return Positioned(
-                            top: 12,
-                            right: 12,
+                            top: 4,
+                            right: 4,
                             child: Container(
-                              width: 8,
-                              height: 8,
+                              padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
                                 color: AppColors.destructive,
                                 shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           );

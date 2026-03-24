@@ -297,16 +297,21 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                   child: Row(
                                                     key: ValueKey(user?.nom),
                                                     children: [
-                                                      Text(
-                                                        'Bonjour, ${user?.nom ?? 'Client'}',
-                                                        style: const TextStyle(
-                                                          fontSize: 28,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: AppColors
-                                                              .textWhite,
-                                                          height: 1.2,
-                                                          letterSpacing: -0.5,
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
@@ -399,7 +404,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -1302,14 +1307,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: pharmacyInfo['logo_url'] != null 
+                        image: (pharmacyInfo['pdp'] != null && pharmacyInfo['pdp'].toString().startsWith('http'))
                             ? DecorationImage(
-                                image: NetworkImage(pharmacyInfo['logo_url']),
+                                image: NetworkImage(pharmacyInfo['pdp'].toString()),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: pharmacyInfo['logo_url'] == null 
+                      child: (pharmacyInfo['pdp'] == null || !pharmacyInfo['pdp'].toString().startsWith('http'))
                           ? Center(
                               child: Text(
                                 '💊',
@@ -1423,7 +1428,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                   // Favorite button
                   Consumer<ClientDataProvider>(
                     builder: (context, provider, _) {
-                      final idB = int.tryParse(idBusiness) ?? 0;
+                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
                       final isFav = provider.isFavorite(idB);
                       return GestureDetector(
                         onTap: () {

@@ -45,6 +45,10 @@ class BusinessDataProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  int get unreadNotificationsCount {
+    return notifications.where((n) => n['est_lu'] == false).length;
+  }
+
   Future<void> markAsRead(String id) async {
     final success = await apiService.markNotificationAsRead(id);
     if (success) {
@@ -57,6 +61,16 @@ class BusinessDataProvider extends ChangeNotifier {
     if (success) {
       await fetchNotifications();
     }
+  }
+
+  Future<bool> updateOrderStatus(String orderId, String status) async {
+    _setLoading(true);
+    final success = await apiService.updateOrderStatus(orderId, status);
+    if (success) {
+      await fetchDashboardStats(); // Refresh stats/recent orders
+    }
+    _setLoading(false);
+    return success;
   }
 
   Future<void> fetchAll() async {

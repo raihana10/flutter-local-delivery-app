@@ -13,13 +13,14 @@ class ClientOrdersController {
       final payload = await request.readAsString();
       final data = jsonDecode(payload) as Map<String, dynamic>;
 
-      // Get id_client from user
+      // Get id_client and name from user
       final clientRecord = await SupabaseConfig.client
           .from('client')
-          .select('id_client')
+          .select('id_client, app_user:id_user(nom)')
           .eq('id_user', userId)
           .single();
       final idClient = clientRecord['id_client'];
+      final clientNom = clientRecord['app_user']?['nom'] ?? 'Client';
 
       // Basic fields
       final idAdresse = data['id_adresse'];
@@ -54,6 +55,24 @@ class ClientOrdersController {
         });
       }
 
+      // Extract optional delivery info
+      final distanceKm = data['distance_km'] != null ? double.tryParse(data['distance_km'].toString()) : null;
+      double fraisLivraison = 1.5;
+      if (distanceKm != null && distanceKm > 0) {
+        double baseFee = distanceKm * 1.5;
+        double integerPart = baseFee.truncateToDouble();
+        double fraction = baseFee - integerPart;
+        
+        if (fraction == 0) {
+          fraisLivraison = baseFee;
+        } else if (fraction <= 0.5) {
+          fraisLivraison = integerPart + 0.5;
+        } else {
+          fraisLivraison = integerPart + 1.0;
+        }
+      }
+      final totalAvecLivraison = prixTotal + fraisLivraison;
+
       // 2. Insert Commande
       final commande = await SupabaseConfig.client
           .from('commande')
@@ -62,8 +81,10 @@ class ClientOrdersController {
             'id_adresse': idAdresse,
             'type_commande': typeCommande,
             'statut_commande': 'confirmee',
-            'prix_total': prixTotal,
-            'prix_donne': prixTotal,
+            'prix_total': double.parse(totalAvecLivraison.toStringAsFixed(2)),
+            'prix_donne': data['prix_donne'] ?? double.parse(totalAvecLivraison.toStringAsFixed(2)),
+            if (distanceKm != null) 'distance_km': double.parse(distanceKm.toStringAsFixed(2)),
+            'frais_livraison': double.parse(fraisLivraison.toStringAsFixed(2)),
           })
           .select()
           .single();
@@ -90,7 +111,7 @@ class ClientOrdersController {
 
       // 5. Notifications
       // Notify Client
-      await _createNotification(userId, 'Commande Confirmée', 'Votre commande N°$idCommande a été confirmée avec succès.', 'commande');
+      await _createNotification(int.parse(userId), 'Commande Confirmée', 'Votre commande N°$idCommande a été confirmée. Montant: ${totalAvecLivraison.toStringAsFixed(2)} DH (dont ${fraisLivraison.toStringAsFixed(2)} DH de livraison).', 'commande');
 
       // Notify Businesses
       try {
@@ -109,8 +130,17 @@ class ClientOrdersController {
             }
           }
           
+          final itemsSummary = lignesAInserer.map((l) => '${l['quantite']}x ${l['nom_snapshot']}').join(', ');
+          
+          // Get address details for notification
+          String adresseMsg = "";
+          try {
+             final adr = await SupabaseConfig.client.from('adresse').select('ville, details').eq('id_adresse', idAdresse).single();
+             adresseMsg = "\n📍 Adresse: ${adr['ville']}, ${adr['details']}";
+          } catch(e) { /* ignore */ }
+
           for (var bId in businessUserIds) {
-            await _createNotification(bId, 'Nouvelle Commande', 'Vous avez reçu une nouvelle commande (N°$idCommande).', 'commande');
+            await _createNotification(bId, '🛒 Nouvelle Commande N°$idCommande', 'Client: $clientNom\nArticles: $itemsSummary\nTotal: ${totalAvecLivraison.toStringAsFixed(2)} DH$adresseMsg', 'commande');
           }
         }
       } catch (e) {

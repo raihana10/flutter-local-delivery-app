@@ -31,21 +31,25 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
 
     setState(() => _isUploadingPhoto = true);
     try {
-      final bytes = await File(picked.path).readAsBytes();
-      final ext = picked.path.split('.').last;
+      final bytes = await picked.readAsBytes();
+      // Use picked.name to get the proper file name/extension (avoids blob:// path on web)
+      final name = picked.name;
+      final dotIdx = name.lastIndexOf('.');
+      final ext = dotIdx >= 0 ? name.substring(dotIdx + 1).toLowerCase() : 'jpg';
+      final mimeMap = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'webp': 'image/webp', 'gif': 'image/gif'};
+      final mimeType = mimeMap[ext] ?? 'image/jpeg';
       final businessId = provider.profile['id_user']?.toString() ?? 'unknown';
       final fileName = 'logo_${businessId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-      final storagePath = fileName;
 
       await Supabase.instance.client.storage
           .from('alae')
-          .uploadBinary(storagePath, bytes, fileOptions: FileOptions(upsert: true, contentType: 'image/$ext'));
+          .uploadBinary(fileName, bytes, fileOptions: FileOptions(upsert: true, contentType: mimeType));
 
       final publicUrl = Supabase.instance.client.storage
           .from('alae')
-          .getPublicUrl(storagePath);
+          .getPublicUrl(fileName);
 
-      await provider.updateProfile({'logo_url': publicUrl});
+      await provider.updateProfile({'pdp': publicUrl});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -77,7 +81,7 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
     final isOpen = profile['is_open'] == true;
     final horairesRaw = profile['opening_hours'];
     final timePrep = profile['temps_preparation']?.toString() ?? '15';
-    final logoUrl = profile['logo_url']?.toString() ?? 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200&h=200&fit=crop';
+    final logoUrl = profile['pdp']?.toString() ?? 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=200&h=200&fit=crop';
     final coverUrl = profile['cover_url']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=300&fit=crop';
 
     // Build address display string
@@ -223,23 +227,12 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                     _buildActionTile(LucideIcons.clock, 'Horaires d\'ouverture', _formatHoraires(horairesRaw), onTap: () {}),
                     _buildActionTile(LucideIcons.timer, 'Temps de préparation moyen', '$timePrep mins', onTap: () {}),
                     _buildActionTile(LucideIcons.mapPin, 'Adresse', addressDisplay, onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) {
-                          return AddAddressBottomSheet(
-                            onSave: (data) async {
-                              final success = await provider.apiService.addAddress(data);
-                              if (success) {
-                                // Reload profile to show the newly added address
-                                await provider.fetchProfile();
-                              }
-                              return success;
-                            },
-                          );
-                        },
-                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BusinessAddressesScreen(provider: provider),
+                        ),
+                      ).then((_) => provider.fetchProfile());
                     }),
                   ],
                 ),
@@ -288,17 +281,26 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
 
   String _formatHoraires(dynamic raw) {
     if (raw == null) return 'Non défini';
-    if (raw is List) {
-      return (raw as List).join(', ');
+    try {
+      final decoded = raw is String ? jsonDecode(raw) : raw;
+      if (decoded is Map) {
+        final mode = decoded['mode'];
+        final data = decoded['data'] as Map;
+        List<String> parts = [];
+        data.forEach((key, value) {
+          if (value is List && value.isNotEmpty) {
+            parts.add('$key: ${value.join(", ")}');
+          }
+        });
+        return parts.isEmpty ? 'Non défini' : parts.join(' | ');
+      }
+      if (decoded is List) {
+        return decoded.join(', ');
+      }
+      return decoded.toString();
+    } catch (_) {
+      return raw.toString();
     }
-    if (raw is String) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is List) return (decoded as List).join(', ');
-      } catch (_) {}
-      return raw;
-    }
-    return 'Voir les horaires';
   }
 
   Widget _buildActionTile(IconData icon, String title, String subtitle,
@@ -339,20 +341,35 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
     final descController = TextEditingController(text: currentDesc);
     final prepController = TextEditingController(text: currentTimePrep);
 
-    // Parse opening hours into a list of slots
-    List<String> timeSlots = [];
-    if (horairesRaw is List) {
-      timeSlots = horairesRaw.map((e) => e.toString()).toList();
-    } else if (horairesRaw is String) {
+    // Opening hours state
+    String hoursMode = 'all'; // 'all', 'split', 'custom'
+    Map<String, List<String>> schedule = {
+      'Tous les jours': [],
+      'Lundi-Vendredi': [],
+      'Samedi-Dimanche': [],
+      'Lundi': [], 'Mardi': [], 'Mercredi': [], 'Jeudi': [], 'Vendredi': [], 'Samedi': [], 'Dimanche': []
+    };
+
+    // Attempt to parse existing data
+    if (horairesRaw != null) {
       try {
-        final decoded = jsonDecode(horairesRaw);
-        if (decoded is List) {
-          timeSlots = decoded.map((e) => e.toString()).toList();
-        } else {
-          timeSlots = [horairesRaw];
+        final decoded = horairesRaw is String ? jsonDecode(horairesRaw) : horairesRaw;
+        if (decoded is Map) {
+          hoursMode = decoded['mode'] ?? 'all';
+          final data = decoded['data'] as Map;
+          data.forEach((key, value) {
+            if (schedule.containsKey(key)) {
+              schedule[key] = List<String>.from(value);
+            }
+          });
+        } else if (decoded is List) {
+          schedule['Tous les jours'] = decoded.map((e) => e.toString()).toList();
+          hoursMode = 'all';
         }
       } catch (_) {
-        if (horairesRaw.trim().isNotEmpty) timeSlots = [horairesRaw];
+        if (horairesRaw is String && horairesRaw.isNotEmpty) {
+           schedule['Tous les jours'] = [horairesRaw];
+        }
       }
     }
 
@@ -363,6 +380,11 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
+          List<String> activeKeys = [];
+          if (hoursMode == 'all') activeKeys = ['Tous les jours'];
+          else if (hoursMode == 'split') activeKeys = ['Lundi-Vendredi', 'Samedi-Dimanche'];
+          else activeKeys = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
           return Padding(
             padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
             child: SingleChildScrollView(
@@ -370,6 +392,8 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                   Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 16),
                   const Text('Modifier les informations', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.forest)),
                   const SizedBox(height: 24),
                   _buildEditField('Description', descController, maxLines: 3),
@@ -377,51 +401,74 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                   _buildEditField('Temps de préparation (mins)', prepController, isNumber: true),
                   const SizedBox(height: 24),
 
-                  // Opening hours slots
-                  const Text('Horaires d\'ouverture', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  const Text('Ex: 08:00-12:00 (ajoutez plusieurs créneaux)', style: TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
-                  const SizedBox(height: 8),
-                  if (timeSlots.isEmpty)
-                    const Text('Aucun créneau défini', style: TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
-                  ...timeSlots.asMap().entries.map((e) {
-                    final i = e.key;
-                    final slot = e.value;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.warmWhite,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.forest.withOpacity(0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(LucideIcons.clock, size: 16, color: AppColors.forest),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(slot, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.forest))),
-                          GestureDetector(
-                            onTap: () => setModalState(() => timeSlots.removeAt(i)),
-                            child: const Icon(LucideIcons.trash2, size: 16, color: Colors.red),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final startTime = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 8, minute: 0));
-                      if (!context.mounted || startTime == null) return;
-                      final endTime = await showTimePicker(context: context, initialTime: TimeOfDay(hour: startTime.hour + 4, minute: 0));
-                      if (endTime == null) return;
-                      final fmt = (TimeOfDay t) => '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
-                      setModalState(() => timeSlots.add('${fmt(startTime)}-${fmt(endTime)}'));
-                    },
-                    icon: const Icon(LucideIcons.plus, color: AppColors.forest),
-                    label: const Text('Ajouter un créneau', style: TextStyle(color: AppColors.forest)),
+                  const Text('Configuration des horaires', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _hoursModeChip('Tous les jours', 'all', hoursMode, (val) => setModalState(() => hoursMode = val)),
+                        _hoursModeChip('Semaine/Weekend', 'split', hoursMode, (val) => setModalState(() => hoursMode = val)),
+                        _hoursModeChip('Par jour', 'custom', hoursMode, (val) => setModalState(() => hoursMode = val)),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 20),
 
-                  const SizedBox(height: 32),
+                  ...activeKeys.map((dayKey) {
+                    final slots = schedule[dayKey]!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(dayKey, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 13)),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () async {
+                                final start = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 8, minute: 0));
+                                if (start == null) return;
+                                final end = await showTimePicker(context: context, initialTime: TimeOfDay(hour: start.hour + 8, minute: 0));
+                                if (end == null) return;
+                                final fmt = (TimeOfDay t) => '${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}';
+                                setModalState(() => schedule[dayKey]!.add('${fmt(start)}-${fmt(end)}'));
+                              },
+                              child: const Text('+ Ajouter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        if (slots.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text('Aucun horaire défini', style: TextStyle(color: AppColors.mutedForeground, fontSize: 11, fontStyle: FontStyle.italic)),
+                          ),
+                        ...slots.asMap().entries.map((e) {
+                          final i = e.key;
+                          final s = e.value;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(color: AppColors.warmWhite, borderRadius: BorderRadius.circular(8)),
+                            child: Row(
+                              children: [
+                                const Icon(LucideIcons.clock, size: 14, color: AppColors.forest),
+                                const SizedBox(width: 8),
+                                Text(s, style: const TextStyle(fontSize: 12, color: AppColors.forest)),
+                                const Spacer(),
+                                GestureDetector(
+                                  onTap: () => setModalState(() => schedule[dayKey]!.removeAt(i)),
+                                  child: const Icon(LucideIcons.x, size: 14, color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const Divider(height: 24),
+                      ],
+                    );
+                  }).toList(),
+
+                  const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -430,10 +477,17 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
                       onPressed: () async {
                         Navigator.pop(context);
                         setState(() => _isSwitching = true);
+                        
+                        // Clean up schedule based on mode
+                        Map<String, List<String>> finalData = {};
+                        for (var key in activeKeys) {
+                          finalData[key] = schedule[key]!;
+                        }
+
                         await provider.updateProfile({
                           'description': descController.text.trim(),
                           'temps_preparation': int.tryParse(prepController.text.trim()) ?? 15,
-                          'opening_hours': jsonEncode(timeSlots),
+                          'opening_hours': jsonEncode({'mode': hoursMode, 'data': finalData}),
                         });
                         setState(() => _isSwitching = false);
                       },
@@ -447,6 +501,23 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
           );
         });
       },
+    );
+  }
+
+  Widget _hoursModeChip(String label, String value, String current, Function(String) onSelect) {
+    final isSelected = current == value;
+    return GestureDetector(
+      onTap: () => onSelect(value),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.forest : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? AppColors.forest : AppColors.border),
+        ),
+        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : AppColors.forest, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 12)),
+      ),
     );
   }
 
@@ -468,6 +539,146 @@ class _BusinessProfileViewState extends State<BusinessProfileView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// ─── Business Addresses Screen ──────────────────────────────────────────────
+class BusinessAddressesScreen extends StatefulWidget {
+  final BusinessDataProvider provider;
+  const BusinessAddressesScreen({super.key, required this.provider});
+
+  @override
+  State<BusinessAddressesScreen> createState() => _BusinessAddressesScreenState();
+}
+
+class _BusinessAddressesScreenState extends State<BusinessAddressesScreen> {
+  List<dynamic> _addresses = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAddresses();
+  }
+
+  Future<void> _loadAddresses() async {
+    setState(() => _isLoading = true);
+    final addrs = await widget.provider.apiService.getAddresses();
+    if (mounted) setState(() { _addresses = addrs; _isLoading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Adresse du Business', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.card,
+        foregroundColor: AppColors.forest,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.forest))
+          : _addresses.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.location_off, size: 60, color: AppColors.mutedForeground),
+                      const SizedBox(height: 16),
+                      const Text('Aucune adresse', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      const SizedBox(height: 8),
+                      const Text('Ajoutez l\'adresse de votre établissement', style: TextStyle(color: AppColors.mutedForeground)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: _addresses.length,
+                  itemBuilder: (context, index) => _buildAddressTile(_addresses[index]),
+                ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.forest,
+        icon: const Icon(Icons.add_location_alt, color: Colors.white),
+        label: const Text('Ajouter', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        onPressed: () => _showAddSheet(),
+      ),
+    );
+  }
+
+  Widget _buildAddressTile(Map<String, dynamic> rel) {
+    final isDefault = rel['is_default'] == true;
+    final adr = rel['adresse'] ?? {};
+    final title = rel['titre'] ?? (isDefault ? 'Adresse Principale' : 'Adresse');
+    final details = adr['details']?.toString().isNotEmpty == true ? adr['details'] : adr['ville'] ?? 'Inconnue';
+    final idAddress = rel['id_adresse'].toString();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDefault ? AppColors.forest : AppColors.border, width: isDefault ? 2 : 1),
+        boxShadow: isDefault ? [BoxShadow(color: AppColors.forest.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))] : [],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: isDefault ? AppColors.forest.withOpacity(0.1) : AppColors.background, shape: BoxShape.circle),
+          child: Icon(isDefault ? Icons.store : Icons.location_on, color: isDefault ? AppColors.forest : AppColors.mutedForeground),
+        ),
+        title: Row(
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            if (isDefault) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.forest, borderRadius: BorderRadius.circular(4)),
+                child: const Text('Principale', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(details, style: const TextStyle(color: AppColors.mutedForeground, height: 1.4)),
+        ),
+        trailing: PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: AppColors.mutedForeground),
+          onSelected: (value) async {
+            if (value == 'default') {
+              final ok = await widget.provider.apiService.updateAddress(idAddress, {'is_default': true});
+              if (ok) await _loadAddresses();
+            } else if (value == 'delete') {
+              final ok = await widget.provider.apiService.deleteAddress(idAddress);
+              if (ok) await _loadAddresses();
+            }
+          },
+          itemBuilder: (ctx) => [
+            if (!isDefault) const PopupMenuItem(value: 'default', child: Text('Définir par défaut')),
+            const PopupMenuItem(value: 'delete', child: Text('Supprimer', style: TextStyle(color: AppColors.destructive))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => AddAddressBottomSheet(
+        onSave: (data) async {
+          final ok = await widget.provider.apiService.addAddress(data);
+          if (ok) await _loadAddresses();
+          return ok;
+        },
+      ),
     );
   }
 }

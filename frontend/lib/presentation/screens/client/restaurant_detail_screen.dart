@@ -48,6 +48,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
         _businessInfo = details;
         _isLoadingDetails = false;
       });
+      provider.setCurrentBusiness(details);
     }
   }
 
@@ -412,8 +413,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             ),
           ],
         ),
-        child: Row(
-          children: [
+        child: Opacity(
+          opacity: (_businessInfo?['is_open'] == true) ? 1.0 : 0.6,
+          child: Row(
+            children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,8 +475,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showProductOptions(Map<String, dynamic> item) {
     int quantity = 1;
@@ -626,7 +630,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
+                          onPressed: (_businessInfo?['is_open'] == true) ? () {
                             context.read<ClientDataProvider>().addToCart({
                               'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
                               'name': item['name'],
@@ -657,9 +661,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                                 ),
                               ),
                             );
-                          },
+                          } : null,
                           child: Text(
-                            'Ajouter - $totalPrice DH',
+                            (_businessInfo?['is_open'] == true) ? 'Ajouter - $totalPrice DH' : 'Fermé actuellement',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

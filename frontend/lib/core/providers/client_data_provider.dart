@@ -74,7 +74,13 @@ class ClientDataProvider extends ChangeNotifier {
 
   void setCurrentBusiness(Map<String, dynamic>? business) {
     _currentCartBusiness = business;
+    notifyListeners();
   }
+
+  bool get isCurrentBusinessOpen {
+    return _currentCartBusiness?['is_open'] == true;
+  }
+
 
   /// Returns the primary address map {latitude, longitude} of the business in the cart, or null.
   Map<String, dynamic>? get businessAddress {
@@ -201,6 +207,10 @@ class ClientDataProvider extends ChangeNotifier {
   Future<void> fetchNotifications() async {
     notifications = await apiService.getNotifications();
     notifyListeners();
+  }
+
+  int get unreadNotificationsCount {
+    return notifications.where((n) => n['est_lu'] == false).length;
   }
 
   Future<void> fetchPaymentMethods() async {

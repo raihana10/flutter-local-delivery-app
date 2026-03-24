@@ -297,16 +297,21 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                   child: Row(
                                                     key: ValueKey(user?.nom),
                                                     children: [
-                                                      Text(
-                                                        'Bonjour, ${user?.nom ?? 'Client'}',
-                                                        style: const TextStyle(
-                                                          fontSize: 28,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: AppColors
-                                                              .textWhite,
-                                                          height: 1.2,
-                                                          letterSpacing: -0.5,
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
@@ -399,7 +404,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -1301,14 +1306,14 @@ class _MarketListScreenState extends State<MarketListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: marketInfo['pdp'] != null 
+                        image: (marketInfo['pdp'] != null && marketInfo['pdp'].toString().startsWith('http'))
                             ? DecorationImage(
-                                image: NetworkImage(marketInfo['pdp']),
+                                image: NetworkImage(marketInfo['pdp'].toString()),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: marketInfo['pdp'] == null 
+                      child: (marketInfo['pdp'] == null || !marketInfo['pdp'].toString().startsWith('http'))
                           ? Center(
                               child: Text(
                                 '🛒',

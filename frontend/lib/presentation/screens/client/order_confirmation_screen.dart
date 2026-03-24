@@ -26,7 +26,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     // Initialize payment method based on client's default
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializePaymentMethod();
+      _initializeInitialDistance();
     });
+  }
+
+  void _initializeInitialDistance() {
+    final clientData = context.read<ClientDataProvider>();
+    if (clientData.addresses.isNotEmpty) {
+      setState(() {
+        _distanceKm = _calcDistance(clientData.addresses, 0, clientData);
+      });
+    }
   }
 
   void _initializePaymentMethod() {
@@ -105,10 +115,19 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
 
   double _calculateDeliveryFee(double? distanceKm) {
     if (distanceKm == null || distanceKm <= 0) {
-      return 1.5; // Minimum fee or something, maybe 1.5 for basic
+      return 1.5;
     }
-    // Calculate fee: 1.5 DH per km
-    return (distanceKm * 1.5);
+    double baseFee = distanceKm * 1.5;
+    
+    // Custom rounding:
+    // If decimal is between 0 and 0.5 -> 0.5
+    // If decimal > 0.5 -> round up to next integer
+    double integerPart = baseFee.truncateToDouble();
+    double fraction = baseFee - integerPart;
+    
+    if (fraction == 0) return baseFee;
+    if (fraction <= 0.5) return integerPart + 0.5;
+    return integerPart + 1.0;
   }
 
   /// Check if the current cart contains items from multiple businesses
@@ -506,17 +525,35 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   setState(() {
                     _isSubmitting = true;
                   });
-
                   final clientData = context.read<ClientDataProvider>();
                   final cartItems = clientData.cartItems;
                   final isHybrid = _isHybridOrder(cartItems);
+
+                  // Sanitization for prix_donne
+                  double? prixDonne;
+                  if (_selectedPaymentMethod == 0) {
+                    final raw = _monnaieController.text.trim().replaceAll(RegExp(r'[^0-9.]'), '');
+                    if (raw.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Veuillez indiquer le montant que vous donnerez au livreur')));
+                      setState(() => _isSubmitting = false);
+                      return;
+                    }
+                    prixDonne = double.tryParse(raw);
+                    if (prixDonne == null || prixDonne < total) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Le montant doit être supérieur ou égal au total (${total.toStringAsFixed(2)} DH)')));
+                      setState(() => _isSubmitting = false);
+                      return;
+                    }
+                  }
 
                   final payload = {
                     'id_adresse': selectedAddress['id_adresse'] ?? selectedAddress['adresse']?['id_adresse'],
                     'type_commande': isHybrid ? 'hybride' : 'food_delivery',
                     'mode_paiement': _selectedPaymentMethod == 0 ? 'cash' : 'card',
-                    if (_selectedPaymentMethod == 0 && _monnaieController.text.trim().isNotEmpty)
-                      'prix_donne': double.tryParse(_monnaieController.text.trim()),
+                    if (_selectedPaymentMethod == 0)
+                      'prix_donne': prixDonne,
                     if (_distanceKm != null)
                       'distance_km': double.parse(_distanceKm!.toStringAsFixed(2)),
                     'items': cartItems.map((item) {
@@ -538,6 +575,8 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     });
                     if (success != null) {
                       clientData.clearCart();
+                      // Fetch notifications immediately to show the confirmation badge/notif
+                      clientData.fetchNotifications();
                       _showSuccessDialog();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
