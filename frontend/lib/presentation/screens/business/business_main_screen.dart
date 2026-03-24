@@ -1119,6 +1119,8 @@ class _AddProductViewState extends State<_AddProductView> {
                 _buildField('Prix (MAD)', '0.00',
                     keyboardType: TextInputType.number,
                     controller: _priceController),
+                const SizedBox(height: 16),
+                _buildCategorySelector(_category, (v) => setState(() => _category = v)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1219,6 +1221,39 @@ class _AddProductViewState extends State<_AddProductView> {
       ],
     );
   }
+
+  Widget _buildCategorySelector(String current, Function(String) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Catégorie de produit',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.forest)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: current,
+          items: const [
+            DropdownMenuItem(value: 'meal', child: Text('Restaurant (Plat)')),
+            DropdownMenuItem(
+                value: 'grocery', child: Text('Supermarché (Courses)')),
+            DropdownMenuItem(
+                value: 'pharmacy', child: Text('Pharmacie (Médicament)')),
+          ],
+          onChanged: (v) => onChanged(v ?? 'meal'),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.warmWhite,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ============ EDIT PRODUCT VIEW ============
@@ -1236,6 +1271,7 @@ class _EditProductViewState extends State<_EditProductView> {
   late TextEditingController _descController;
   late TextEditingController _priceController;
   late bool _isDispo;
+  late String _category;
 
   @override
   void initState() {
@@ -1245,6 +1281,7 @@ class _EditProductViewState extends State<_EditProductView> {
     _descController = TextEditingController(text: p.description);
     _priceController = TextEditingController(text: p.prix.toString());
     _isDispo = true;
+    _category = p.type ?? 'meal';
   }
 
   @override
@@ -1291,6 +1328,8 @@ class _EditProductViewState extends State<_EditProductView> {
                 _buildField('Prix (MAD)', '0.00',
                     keyboardType: TextInputType.number,
                     controller: _priceController),
+                const SizedBox(height: 16),
+                _buildCategorySelector(_category, (v) => setState(() => _category = v)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1317,13 +1356,13 @@ class _EditProductViewState extends State<_EditProductView> {
                       nom: _nameController.text,
                       description: _descController.text,
                       prix: double.tryParse(_priceController.text) ?? 0.0,
-                      type: old.type,
+                      type: _category,
                       image: old.image,
                     );
                     await provider.updateProduct(p);
                     widget.onNavigate(BusinessScreen.catalog);
                   },
-                  child: const Text('Mettre à jour'),
+                  child: const Text('Enregistrer les modifications'),
                 ),
               ],
             ),
@@ -1362,6 +1401,39 @@ class _EditProductViewState extends State<_EditProductView> {
                 borderSide: BorderSide.none),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategorySelector(String current, Function(String) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Catégorie de produit',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.forest)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: current,
+          items: const [
+            DropdownMenuItem(value: 'meal', child: Text('Restaurant (Plat)')),
+            DropdownMenuItem(
+                value: 'grocery', child: Text('Supermarché (Courses)')),
+            DropdownMenuItem(
+                value: 'pharmacy', child: Text('Pharmacie (Médicament)')),
+          ],
+          onChanged: (v) => onChanged(v ?? 'meal'),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.warmWhite,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           ),
         ),
       ],

@@ -1026,13 +1026,13 @@ class _MarketListScreenState extends State<MarketListScreen>
             const SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
-                'Suivi',
-                Icons.local_shipping_outlined,
+                'Favoris',
+                Icons.favorite,
                 AppColors.destructive,
                 () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const OrderTrackingScreen())),
+                        builder: (_) => const ClientFavoritesScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -1310,6 +1310,24 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ),
                               ),
                             ),
+                            Consumer<ClientDataProvider>(
+                                builder: (context, clientData, _) {
+                              final id = marketInfo['id_business']
+                                      ?.toString() ??
+                                  '0';
+                              final isFav = clientData.isFavoriteBusiness(id);
+                              return IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  isFav ? Icons.favorite : Icons.favorite_border,
+                                  color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                                  size: 22,
+                                ),
+                                onPressed: () => clientData.toggleFavorite(id),
+                              );
+                            }),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -1459,30 +1477,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                   ),
 
                   const SizedBox(width: 8),
-
-                  Consumer<ClientDataProvider>(
-                    builder: (context, provider, _) {
-                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
-                      final isFav = provider.isFavorite(idB);
-                      return GestureDetector(
-                        onTap: () {
-                          if (idB > 0) provider.toggleFavorite(idB);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isFav ? Icons.favorite : Icons.favorite_border,
-                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
-                            size: 22,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
                 ],
               ),
             ),

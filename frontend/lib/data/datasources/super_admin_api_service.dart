@@ -50,14 +50,15 @@ class SuperAdminApiService {
     }
   }
 
-  Future<List<dynamic>> getChartData() async {
+  Future<Map<String, dynamic>> getChartData() async {
     try {
       final options = await _getAuthOptions();
       final response =
           await _dio.get('$baseUrl/admin/dashboard/chart', options: options);
-      return response.data['data'] as List<dynamic>;
+      return response.data as Map<String, dynamic> ;
     } catch (e) {
-      return [];
+      print('❌ getChartData ERROR: $e');
+      return {'weeklyRevenue': [], 'ordersByStatus': []};
     }
   }
 
@@ -181,6 +182,29 @@ class SuperAdminApiService {
           await _dio.get('$baseUrl/admin/stats/revenus', options: options);
       return response.data;
     } catch (e) {
+      print('❌ getRevenus ERROR: $e');
+      return {};
+    }
+  }
+
+  Future<Map<String, dynamic>> getLivreurStats() async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get('$baseUrl/admin/stats/livreurs', options: options);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ getLivreurStats ERROR: $e');
+      return {};
+    }
+  }
+
+  Future<Map<String, dynamic>> getAllBusinessStats() async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get('$baseUrl/admin/stats/businesses', options: options);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ getAllBusinessStats ERROR: $e');
       return {};
     }
   }
@@ -194,6 +218,21 @@ class SuperAdminApiService {
       return response.data['data'] as List<dynamic>;
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<bool> sendNotification(Map<String, dynamic> notificationData) async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.post(
+        '$baseUrl/admin/notifications',
+        data: notificationData,
+        options: options,
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ sendNotification ERROR: $e');
+      return false;
     }
   }
 

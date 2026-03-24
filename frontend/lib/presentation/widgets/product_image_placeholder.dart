@@ -24,22 +24,27 @@ class ProductImagePlaceholder extends StatelessWidget {
 
     switch (type) {
       case 'pharmacy':
+      case 'pharmacie':
         icon = LucideIcons.pill;
-        color = Colors.blue;
-        gradient = [Colors.blue.shade100, Colors.blue.shade200];
+        color = Colors.teal;
         break;
       case 'grocery':
+      case 'super-marche':
+      case 'supermarche':
         icon = LucideIcons.shoppingBasket;
-        color = Colors.green;
-        gradient = [Colors.green.shade100, Colors.green.shade200];
+        color = Colors.orange;
         break;
       case 'meal':
+      case 'restaurant':
+        icon = LucideIcons.utensils;
+        color = Colors.redAccent;
+        break;
       default:
-        icon = LucideIcons.soup;
-        color = Colors.orange;
-        gradient = [Colors.orange.shade100, Colors.orange.shade200];
+        icon = LucideIcons.package;
+        color = Colors.grey;
         break;
     }
+    gradient = [Colors.orange.shade100, Colors.orange.shade200];
 
     return Container(
       width: size,

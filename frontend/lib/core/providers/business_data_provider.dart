@@ -12,8 +12,10 @@ class BusinessDataProvider extends ChangeNotifier {
   Map<String, dynamic> profile = {};
   List<dynamic> notifications = [];
 
-  BusinessDataProvider({required this.authProvider}) {
-    apiService = BusinessApiService(authProvider);
+  final int? overrideBusinessId;
+
+  BusinessDataProvider({required this.authProvider, this.overrideBusinessId}) {
+    apiService = BusinessApiService(authProvider, overrideBusinessId: overrideBusinessId);
   }
 
   void _setLoading(bool value) {

@@ -97,8 +97,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (data != null && mounted) {
         setState(() {
           _orderData = data;
-          // Extract livreur from timeline relation
-          _livreurData = data!['timeline'] != null ? data!['timeline']['livreur'] : null;
+          
+          // Extract livreur from timeline relation (last event with a livreur)
+          final timeline = data!['timeline'] as List? ?? [];
+          final lastWithLivreur = timeline.lastWhere(
+            (e) => e['livreur'] != null,
+            orElse: () => null,
+          );
+          _livreurData = lastWithLivreur != null ? lastWithLivreur['livreur'] : null;
           
           final status = data!['statut_commande'] as String? ?? '';
           if (status == 'confirmee') {
@@ -113,6 +119,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           } else if (status == 'livree') {
             _currentStep = 3;
             _status = 'Commande livrée';
+          } else {
+            _currentStep = 0;
+            _status = 'Commande en attente';
           }
 
           // If tracking coordinates exist, update them (mocking for now with static)

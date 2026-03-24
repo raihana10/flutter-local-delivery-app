@@ -1006,13 +1006,13 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
             const SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
-                'Suivi',
-                Icons.local_shipping_outlined,
+                'Favoris',
+                Icons.favorite,
                 AppColors.destructive,
                 () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const OrderTrackingScreen())),
+                        builder: (_) => const ClientFavoritesScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -1453,6 +1453,24 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                 ),
                               ),
                             ),
+                            Consumer<ClientDataProvider>(
+                                builder: (context, clientData, _) {
+                              final id = restaurantInfo['id_business']
+                                      ?.toString() ??
+                                  '0';
+                              final isFav = clientData.isFavoriteBusiness(id);
+                              return IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  isFav ? Icons.favorite : Icons.favorite_border,
+                                  color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                                  size: 22,
+                                ),
+                                onPressed: () => clientData.toggleFavorite(id),
+                              );
+                            }),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),

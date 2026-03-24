@@ -5,11 +5,13 @@ class BusinessApiService {
   static const String baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
   final Dio _dio = Dio();
   final AuthProvider authProvider;
+  final int? overrideBusinessId;
 
-  BusinessApiService(this.authProvider);
+  BusinessApiService(this.authProvider, {this.overrideBusinessId});
 
   Options _getAuthOptions() {
-    final userId = authProvider.user?.id;
+    // We use the app_user ID (which is authProvider.user?.id) or override
+    final userId = overrideBusinessId ?? authProvider.user?.id;
     return Options(headers: {
       if (userId != null) 'x-business-id': userId.toString(),
       'Content-Type': 'application/json',

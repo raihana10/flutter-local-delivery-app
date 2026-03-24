@@ -319,7 +319,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     children: [
                       Container(
-                          width: 12, height: 12, color: Color(status['color'] ?? 0xFF000000)),
+                          width: 12, height: 12, color: status['color'] is String 
+                            ? Color(int.parse((status['color'] as String).replaceFirst('#', '0xFF')))
+                            : Color(status['color'] as int? ?? 0xFF000000)),
                       const SizedBox(width: 8),
                       Text(status['status'] ?? 'Inconnu'),
                     ],

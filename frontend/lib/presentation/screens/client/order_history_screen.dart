@@ -1,9 +1,14 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import '../../../core/providers/order_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/order_provider.dart';
+
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -249,21 +254,89 @@ class _OrderDetailsSheet extends StatelessWidget {
   final Map<String, dynamic> order;
   const _OrderDetailsSheet({required this.order});
 
+  Future<Uint8List> _generatePdf(Map<String, dynamic> order, List<dynamic> lines) async {
+    final pdf = pw.Document();
+    final businessName = order['business']?['app_user']?['nom'] ?? 'Établissement';
+    
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Text('LIVRAPP', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.Center(
+                child: pw.Text('REÇU DE COMMANDE', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text('Établissement: $businessName'),
+              pw.Text('Commande #${order['id_commande']}'),
+              pw.Text('Date: ${order['created_at'].toString().split('T')[0]}'),
+              pw.Divider(),
+              ...lines.map((l) {
+                 final qty = l['quantite'];
+                 final price = l['prix_snapshot'];
+                 final prodName = l['nom_snapshot'] ?? 'Produit';
+                 return pw.Row(
+                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                   children: [
+                     pw.Expanded(child: pw.Text('$qty x $prodName', style: const pw.TextStyle(fontSize: 9))),
+                     pw.Text('${(double.parse(price.toString()) * (qty as int)).toStringAsFixed(2)} MAD', style: const pw.TextStyle(fontSize: 9)),
+                   ],
+                 );
+              }).toList(),
+              pw.Divider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TOTAL', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                  pw.Text('${order['prix_total']} MAD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                ]
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(child: pw.Text('Merci pour votre confiance !', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8))),
+            ]
+          );
+        }
+      )
+    );
+
+    return pdf.save();
+  }
+
+  void _showReceiptPreview(BuildContext context, Map<String, dynamic> order, List<dynamic> lines) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Mon Reçu'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: PdfPreview(
+          build: (format) => _generatePdf(order, lines),
+          allowSharing: true,
+          allowPrinting: true,
+          canChangeOrientation: false,
+          canChangePageFormat: false,
+        ),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = order['ligne_commande'] as List? ?? [];
-    final createdAt = DateTime.tryParse(order['created_at'].toString()) ?? DateTime.now();
-    final String dateStr = "${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year} à ${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}";
-    
-    String businessName = "LIVRAPP";
-    if (items.isNotEmpty && items[0]['produit'] != null) {
-      businessName = items[0]['produit']['business']?['app_user']?['nom'] ?? "Commerce";
-    }
+    final items = order['ligne_commande'] as List<dynamic>? ?? [];
+    final businessName = order['business']?['app_user']?['nom'] ?? 'Établissement';
+    final createdAt = DateTime.parse(order['created_at']);
+    final dateStr = "${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}";
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
       ),
       child: Column(
@@ -278,73 +351,108 @@ class _OrderDetailsSheet extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Facture #${order['id_commande']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.forest)),
-                    Text(dateStr, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                    const Text('Détails de la commande', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text('Facturé le $dateStr', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
                   ],
                 ),
                 _StatusBadge(status: order['statut_commande']),
               ],
             ),
           ),
-          const Divider(height: 1),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(24),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Padding(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              children: [
+                // Business Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.store, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text('Articles', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
+                ...items.map((item) => Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text('${item['quantite']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        child: Text('${item['quantite']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 12)),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item['nom_snapshot'] ?? 'Produit', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text(businessName, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11)),
-                          ],
-                        ),
+                        child: Text(item['nom_snapshot'] ?? 'Produit', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
                       ),
                       Text('${(double.parse(item['prix_snapshot'].toString()) * (item['quantite'] as int)).toStringAsFixed(2)} MAD', 
-                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                           style: const TextStyle(fontWeight: FontWeight.w600)),
                     ],
                   ),
-                );
-              },
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
-            ),
-            child: Column(
-              children: [
+                )).toList(),
+                const Divider(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total de la commande', style: TextStyle(color: AppColors.mutedForeground)),
-                    Text('${order['prix_total']} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary)),
+                    const Text('Sous-total', style: TextStyle(color: AppColors.mutedForeground)),
+                    Text('${order['prix_total']} MAD', style: const TextStyle(fontWeight: FontWeight.w500)),
                   ],
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                    child: const Text('Fermer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Frais de livraison', style: TextStyle(color: AppColors.mutedForeground)),
+                    Text('0.00 MAD', style: TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                const Divider(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text('${order['prix_total']} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary)),
+                  ],
+                ),
+                const SizedBox(height: 40),
+                // Actions
+                OutlinedButton.icon(
+                  onPressed: () => _showReceiptPreview(context, order, items),
+                  icon: const Icon(LucideIcons.fileText, size: 18),
+                  label: const Text('Voir le reçu (PDF)'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
                   ),
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: const Text('Retour', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
             ),
           ),
         ],

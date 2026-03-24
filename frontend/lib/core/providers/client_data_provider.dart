@@ -241,15 +241,20 @@ class ClientDataProvider extends ChangeNotifier {
     return favorites.any((f) => f['id_business'].toString() == idBusiness.toString());
   }
 
-  Future<void> toggleFavorite(int idBusiness) async {
-    if (isFavorite(idBusiness)) {
-      final success = await apiService.removeFavorite(idBusiness);
+  bool isFavoriteBusiness(String id) => isFavorite(int.tryParse(id) ?? 0);
+
+  Future<void> toggleFavorite(dynamic idBusiness) async {
+    final idStr = idBusiness.toString();
+    final idInt = int.tryParse(idStr) ?? 0;
+    
+    if (isFavorite(idInt)) {
+      final success = await apiService.removeFavorite(idInt);
       if (success) {
-        favorites.removeWhere((f) => f['id_business'].toString() == idBusiness.toString());
+        favorites.removeWhere((f) => f['id_business'].toString() == idStr);
         notifyListeners();
       }
     } else {
-      final success = await apiService.addFavorite(idBusiness);
+      final success = await apiService.addFavorite(idInt);
       if (success) {
         await fetchFavorites(); // re-fetch to get full object map
       }

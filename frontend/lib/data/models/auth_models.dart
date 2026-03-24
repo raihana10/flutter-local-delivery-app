@@ -1,3 +1,5 @@
+import 'package:image_picker/image_picker.dart';
+
 enum UserRole {
   client('client'),
   livreur('livreur'),
@@ -24,6 +26,7 @@ class User {
   final bool estActif;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? pdp;
 
   const User({
     required this.id,
@@ -34,23 +37,20 @@ class User {
     required this.estActif,
     required this.createdAt,
     required this.updatedAt,
+    this.pdp,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    int safeInt(dynamic v, [int fallback = 0]) {
-      if (v is int) return v;
-      if (v is String) return int.tryParse(v) ?? fallback;
-      return fallback;
-    }
     return User(
-      id: safeInt(json['id_user'] ?? json['id']),
-      email: (json['email'] ?? '').toString(),
-      nom: (json['nom'] ?? '').toString(),
-      numTl: json['num_tl']?.toString(),
-      role: UserRole.fromString(json['role']?.toString() ?? 'client'),
-      estActif: json['est_actif'] == true || json['est_actif'] == 1,
+      id: json['id_user'] ?? json['id'] ?? 0,
+      email: json['email'] ?? '',
+      nom: json['nom'] ?? '',
+      numTl: json['num_tl'],
+      role: UserRole.fromString(json['role'] ?? 'client'),
+      estActif: json['est_actif'] == true || json['est_actif'] == 1 || json['est_actif'] == null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'].toString()) : DateTime.now(),
+      pdp: json['pdp'],
     );
   }
 
@@ -64,6 +64,7 @@ class User {
       'est_actif': estActif,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'pdp': pdp,
     };
   }
 
@@ -76,6 +77,7 @@ class User {
     bool? estActif,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? pdp,
   }) {
     return User(
       id: id ?? this.id,
@@ -86,6 +88,7 @@ class User {
       estActif: estActif ?? this.estActif,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      pdp: pdp ?? this.pdp,
     );
   }
 }
@@ -121,7 +124,7 @@ class Client {
           json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(
           json['updated_at'] ?? DateTime.now().toIso8601String()),
-      user: json['user'] is Map<String, dynamic> ? User.fromJson(json['user']) : null,
+      user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
 
@@ -162,12 +165,17 @@ class RegisterRequest {
   final UserRole role;
   final String? sexe;
   final DateTime? dateNaissance;
-  // Additional fields for role-specific data
-  final String? cni; // For livreur
-  final String? businessType; // For business
-  final String? businessDescription; // For business
-  final String? vehicleType; // For livreur
-  final List<String>? documents; // For livreur
+  final String? cni;
+  final String? businessType;
+  final String? businessDescription;
+  final String? profileImageUrl;
+  final String? licenseImageUrl;
+  final String? idCardFrontUrl;
+  final String? idCardBackUrl;
+  final String? documentsValidation;
+  final double? latitude;
+  final double? longitude;
+  final String? ville;
 
   const RegisterRequest({
     required this.email,
@@ -180,27 +188,37 @@ class RegisterRequest {
     this.cni,
     this.businessType,
     this.businessDescription,
-    this.vehicleType,
-    this.documents,
+    this.profileImageUrl,
+    this.licenseImageUrl,
+    this.idCardFrontUrl,
+    this.idCardBackUrl,
+    this.documentsValidation,
+    this.latitude,
+    this.longitude,
+    this.ville,
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'email': email,
-      'password': password,
-      'nom': nom,
-      'num_tl': numTl,
-      'role': role.value,
-      'sexe': sexe,
-      'date_naissance':
-          dateNaissance?.toIso8601String().split('T')[0], // Format YYYY-MM-DD
-      'cni': cni,
-      'business_type': businessType,
-      'business_description': businessDescription,
-      'vehicle_type': vehicleType,
-      'documents': documents,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'email': email,
+    'password': password,
+    'nom': nom,
+    'num_tl': numTl,
+    'role': role.value,
+    'sexe': sexe,
+    'date_naissance': dateNaissance?.toIso8601String(),
+    'cni': cni,
+    'business_type': businessType,
+    'business_description': businessDescription,
+    'business_pdp': profileImageUrl,
+    'profile_image_url': profileImageUrl,
+    'license_image': licenseImageUrl,
+    'id_card_front': idCardFrontUrl,
+    'id_card_back': idCardBackUrl,
+    'documents_validation': documentsValidation,
+    'latitude': latitude,
+    'longitude': longitude,
+    'ville': ville,
+  };
 }
 
 class Livreur {
