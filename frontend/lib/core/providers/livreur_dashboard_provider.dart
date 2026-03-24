@@ -1,0 +1,334 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:app/data/models/commande_supabase_model.dart';
+import 'package:app/core/providers/auth_provider.dart';
+import 'package:geolocator/geolocator.dart';
+
+class LivreurDashboardProvider extends ChangeNotifier {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final AuthProvider _authProvider;
+
+  bool _isOnline = false;
+  bool _isOnMission = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  List<CommandeSupabaseModel> _availableCommandes = [];
+  CommandeSupabaseModel? _activeCommande;
+  StreamSubscription? _commandesSubscription;
+  StreamSubscription<Position>? _positionSubscription;
+  Position? _currentPosition;
+  final Set<int> _ignoredCommandes = {};
+
+  LivreurDashboardProvider(this._authProvider) {
+    // If the user logs out, clean up
+    _authProvider.addListener(_onAuthChanged);
+  }
+
+  bool get isOnline => _isOnline;
+  bool get isOnMission => _isOnMission;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  List<CommandeSupabaseModel> get availableCommandes => _availableCommandes;
+  CommandeSupabaseModel? get activeCommande => _activeCommande;
+  Position? get currentPosition => _currentPosition;
+
+
+  void _onAuthChanged() {
+    if (!_authProvider.isAuthenticated) {
+      _isOnline = false;
+      _isOnMission = false;
+      _activeCommande = null;
+      _stopListeningToCommandes();
+      notifyListeners();
+    }
+  }
+
+  void toggleOnlineStatus() {
+    _isOnline = !_isOnline;
+    if (_isOnline) {
+      _startListeningToCommandes();
+      _startTrackingPosition();
+    } else {
+      _stopListeningToCommandes();
+      _stopTrackingPosition();
+    }
+    notifyListeners();
+  }
+
+  void ignorerCommande(int idCommande) {
+    _ignoredCommandes.add(idCommande);
+    _availableCommandes.removeWhere((c) => c.idCommande == idCommande);
+    notifyListeners();
+  }
+
+  void _startListeningToCommandes() async {
+    _stopListeningToCommandes();
+
+    Position? pos;
+    try {
+      pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    } catch (_) {}
+
+    // Listen to commandes that are confirmed or prepared
+    _commandesSubscription = _supabase
+        .from('commande')
+        .stream(primaryKey: ['id_commande'])
+        .inFilter('statut_commande', const ['confirmee', 'preparee'])
+        .listen((data) async {
+          if (!_isOnline || _isOnMission) return;
+
+          _availableCommandes.clear();
+
+          for (var item in data) {
+            if (_ignoredCommandes.contains(item['id_commande'])) continue;
+
+            // Need to fetch joined data (adresse, client phone)
+            try {
+              final response = await _supabase.from('commande').select('''
+                    *,
+                    adresse (*),
+                    client (
+                      app_user (num_tl)
+                    ),
+                    ligne_commande (
+                      quantite,
+                      nom_snapshot,
+                      prix_snapshot,
+                      produit (
+                        business (
+                          app_user (
+                            nom,
+                            user_adresse (
+                              adresse (latitude, longitude)
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ''').eq('id_commande', item['id_commande']).single();
+
+              _availableCommandes.add(CommandeSupabaseModel.fromJson(response, driverLat: pos?.latitude, driverLng: pos?.longitude));
+            } catch (e) {
+              debugPrint(
+                  'Error fetching joined data for order ${item['id_commande']}: $e');
+            }
+          }
+          
+          _availableCommandes.sort((a, b) => a.distance.compareTo(b.distance));
+          notifyListeners();
+        });
+  }
+
+  void _stopListeningToCommandes() {
+    _commandesSubscription?.cancel();
+    _commandesSubscription = null;
+    _availableCommandes.clear();
+  }
+
+  void _startTrackingPosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    
+    if (permission == LocationPermission.deniedForever) return;
+
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) async {
+      _currentPosition = position;
+      notifyListeners();
+      
+      final livreurId = _authProvider.roleId;
+      if (livreurId != null && _isOnline) {
+        try {
+          // Update position in livreur table
+          await _supabase.from('livreur').update({
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('id_livreur', livreurId);
+        } catch (e) {
+          debugPrint('Error updating livreur position: $e');
+        }
+      }
+    });
+  }
+
+  void _stopTrackingPosition() {
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
+  }
+
+  Future<bool> accepterCommande(CommandeSupabaseModel commande) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final int? idLivreur = _authProvider.roleId;
+      if (idLivreur == null) throw Exception("Livreur non identifié");
+
+      // 2. Try to assign the order in the timeline
+      // Using upsert or insert depending on if timeline exists
+      final timelineRes = await _supabase
+          .from('timeline')
+          .select('id_timeline')
+          .eq('id_commande', commande.idCommande)
+          .maybeSingle();
+
+      if (timelineRes == null) {
+        await _supabase.from('timeline').insert({
+          'id_commande': commande.idCommande,
+          'id_livreur': idLivreur,
+          'statut_tmlne': 'en_livraison'
+        });
+      } else {
+        // If a timeline exists, check if it already has a livreur
+        final existingTimeline = await _supabase
+            .from('timeline')
+            .select('id_livreur')
+            .eq('id_commande', commande.idCommande)
+            .single();
+        if (existingTimeline['id_livreur'] != null) {
+          throw Exception("Commande déjà acceptée par un autre livreur");
+        }
+
+        await _supabase.from('timeline').update({
+          'id_livreur': idLivreur,
+          'statut_tmlne': 'en_livraison'
+        }).eq('id_commande', commande.idCommande);
+      }
+
+      // 3. Update the commande status
+      await _supabase
+          .from('commande')
+          .update({'statut_commande': 'en_livraison'}).eq(
+              'id_commande', commande.idCommande);
+
+      _activeCommande = commande;
+      _isOnMission = true;
+      _stopListeningToCommandes();
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> terminerLivraison() async {
+    _setLoading(true);
+    _clearError();
+
+    if (_activeCommande == null) {
+      _setLoading(false);
+      return false;
+    }
+
+    try {
+      // Update commande
+      await _supabase.from('commande').update({'statut_commande': 'livree'}).eq(
+          'id_commande', _activeCommande!.idCommande);
+
+      // Update timeline
+      await _supabase.from('timeline').update({'statut_tmlne': 'livree'}).eq(
+          'id_commande', _activeCommande!.idCommande);
+
+      _activeCommande = null;
+      _isOnMission = false;
+      if (_isOnline) {
+        _startListeningToCommandes();
+      }
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<List<CommandeSupabaseModel>> fetchHistorique() async {
+    try {
+      final int? idLivreur = _authProvider.roleId;
+      if (idLivreur == null) return [];
+
+      // Fetch livree commandes for this livreur
+      final response = await _supabase
+          .from('commande')
+          .select('''
+            *,
+            adresse (*),
+            client (
+              app_user (num_tl)
+            ),
+            ligne_commande (
+              quantite,
+              nom_snapshot,
+              prix_snapshot,
+              produit (
+                business (
+                  app_user (
+                    nom,
+                    user_adresse (
+                      adresse (latitude, longitude)
+                    )
+                  )
+                )
+              )
+            ),
+            timeline!inner (
+              id_livreur,
+              statut_tmlne
+            )
+          ''')
+          .eq('statut_commande', 'livree')
+          .eq('timeline.id_livreur', idLivreur)
+          .order('updated_at', ascending: false);
+
+      return (response as List)
+          .map((e) => CommandeSupabaseModel.fromJson(e))
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching historique: $e');
+      return [];
+    }
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void _setError(String msg) {
+    _errorMessage = msg;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _stopListeningToCommandes();
+    _authProvider.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+}

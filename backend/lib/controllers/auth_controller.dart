@@ -8,13 +8,18 @@ class AuthController {
     try {
       final payload = await request.readAsString();
       final body = jsonDecode(payload);
-      
+
       final email = body['email'];
       final password = body['password'];
 
       if (email == null || password == null) {
-        return Response(400, body: jsonEncode({'success': false, 'error': 'Email and password are required'}),
-          headers: {'content-type': 'application/json'}
+        return Response(
+          400,
+          body: jsonEncode({
+            'success': false,
+            'error': 'Email and password are required',
+          }),
+          headers: {'content-type': 'application/json'},
         );
       }
 
@@ -27,8 +32,10 @@ class AuthController {
           .maybeSingle();
 
       if (response == null) {
-        return Response(403, body: jsonEncode({'success': false, 'error': 'Invalid credentials'}),
-          headers: {'content-type': 'application/json'}
+        return Response(
+          403,
+          body: jsonEncode({'success': false, 'error': 'Invalid credentials'}),
+          headers: {'content-type': 'application/json'},
         );
       }
 
@@ -37,25 +44,28 @@ class AuthController {
       final isMatch = BCrypt.checkpw(password, hash);
 
       if (!isMatch) {
-         return Response(403, body: jsonEncode({'success': false, 'error': 'Invalid credentials'}),
-          headers: {'content-type': 'application/json'}
+        return Response(
+          403,
+          body: jsonEncode({'success': false, 'error': 'Invalid credentials'}),
+          headers: {'content-type': 'application/json'},
         );
       }
 
       return Response.ok(
         jsonEncode({
-          'success': true, 
-          'id_admin': response['id_admin'], 
+          'success': true,
+          'id_admin': response['id_admin'],
           'email': response['email'],
           // For simple memory flag simulation without JWT, we return the admin ID to be used as x-admin-id header by the client
         }),
-        headers: {'content-type': 'application/json'}
+        headers: {'content-type': 'application/json'},
       );
-
     } catch (e) {
       print('LOGIN ERROR: $e');
-      return Response(500, body: jsonEncode({'success': false, 'error': 'Internal server error'}),
-        headers: {'content-type': 'application/json'}
+      return Response(
+        500,
+        body: jsonEncode({'success': false, 'error': 'Internal server error'}),
+        headers: {'content-type': 'application/json'},
       );
     }
   }

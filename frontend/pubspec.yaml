@@ -1,0 +1,66 @@
+name: app
+description: Application livreur - frontend Flutter
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Carte interactive
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # Géolocalisation
+  geolocator: ^14.0.2
+
+  # Graphiques (Mes Gains)
+  fl_chart: ^0.68.0
+
+  # Requêtes HTTP (pour plus tard avec le backend)
+  dio: ^5.4.0
+
+  # State management
+  provider: ^6.1.5+1
+
+  # Stockage local pour l'authentification
+  shared_preferences: ^2.2.2
+
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+
+  # Cached Network Images
+  cached_network_image: ^3.3.1
+
+  # File Picker for document import
+  file_picker: ^10.3.10
+  image_picker: ^1.0.4
+
+  # Icons
+  cupertino_icons: ^1.0.2
+  google_fonts: ^8.0.2
+  lucide_icons_flutter: ^3.1.10
+  flutter_svg: ^2.2.4
+  csv: ^6.0.0
+  excel: ^4.0.6
+  path_provider: ^2.1.5
+  supabase_flutter: ^2.12.0
+  flutter_dotenv: ^6.0.0
+  crypto: ^3.0.7
+  url_launcher: ^6.3.2
+  pdf: ^3.12.0
+  printing: ^5.14.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env

@@ -3,11 +3,13 @@ import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 
 class CommandesController {
-  
   Future<Response> getCommandes(Request request) async {
     try {
       final params = request.url.queryParameters;
-      var query = SupabaseConfig.client.from('commande').select().isFilter('deleted_at', null);
+      var query = SupabaseConfig.client
+          .from('commande')
+          .select()
+          .isFilter('deleted_at', null);
 
       if (params.containsKey('statut')) {
         query = query.eq('statut_commande', params['statut']!);
@@ -23,9 +25,16 @@ class CommandesController {
       }
 
       final commandes = await query;
-      return Response.ok(jsonEncode({'data': commandes}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': commandes}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -43,9 +52,16 @@ class CommandesController {
         return Response.notFound(jsonEncode({'error': 'Commande not found'}));
       }
 
-      return Response.ok(jsonEncode({'data': commande}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({'data': commande}),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 
@@ -58,9 +74,20 @@ class CommandesController {
           .isFilter('deleted_at', null)
           .select();
 
-      return Response.ok(jsonEncode({'success': true, 'message': 'Remboursement efféctué', 'data': updatedCommande}), headers: {'content-type': 'application/json'});
+      return Response.ok(
+        jsonEncode({
+          'success': true,
+          'message': 'Remboursement efféctué',
+          'data': updatedCommande,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
     } catch (e) {
-      return Response(500, body: jsonEncode({'error': e.toString()}), headers: {'content-type': 'application/json'});
+      return Response(
+        500,
+        body: jsonEncode({'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
     }
   }
 }
