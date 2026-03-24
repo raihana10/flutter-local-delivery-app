@@ -18,14 +18,20 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final MapController _mapController = MapController();
-  LatLng _restaurantPos = const LatLng(35.5711, -5.3694); // Fallback
-  LatLng _clientPos = const LatLng(35.5750, -5.3720); // Fallback
-  LatLng _riderPos = const LatLng(35.5720, -5.3700); // Fallback
+
+  // Positions — null jusqu'à ce qu'elles soient résolues depuis la BDD
+  LatLng? _businessPos;    // coords réelles du business
+  LatLng? _clientPos;      // coords réelles du client (depuis commande.adresse)
+  LatLng? _riderPos;       // coords réelles du livreur (depuis timeline.position_order)
+  LatLng? _gpsPos;         // position GPS live du téléphone (fallback)
+
+  // Nom du business pour l'affichage
+  String _businessName = 'Commerce';
 
   bool _isLoading = true;
   String _status = 'Recherche de la commande...';
-  int _currentStep = 1; // 1: Preparation, 2: Picking up, 3: Delivery
-  
+  int _currentStep = 1;
+
   Map<String, dynamic>? _orderData;
   Map<String, dynamic>? _livreurData;
   RealtimeChannel? _livreurChannel;
@@ -33,8 +39,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchLocation();
-    _fetchOrderData();
+    _fetchGpsLocation(); // GPS en parallèle (fallback)
+    _fetchOrderData();   // Coords réelles depuis la BDD
   }
 
   @override
@@ -43,7 +49,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchLocation() async {
+  /// Récupère la position GPS du téléphone comme fallback
+  Future<void> _fetchGpsLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
@@ -53,17 +60,49 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
-      
       if (permission == LocationPermission.deniedForever) return;
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       if (mounted) {
         setState(() {
-          _clientPos = LatLng(position.latitude, position.longitude);
-           _mapController.move(_clientPos, 15.0);
+          _gpsPos = LatLng(position.latitude, position.longitude);
+          // Si pas encore de position client depuis la BDD, utiliser le GPS
+          _clientPos ??= _gpsPos;
         });
+        _fitBounds();
       }
     } catch (_) {}
+  }
+
+  /// Centre la carte pour montrer les deux marqueurs (client + business)
+  void _fitBounds() {
+    final client = _clientPos;
+    final biz    = _businessPos;
+    if (client == null) return;
+
+    if (biz == null) {
+      // Seulement le client — zoom standard
+      _mapController.move(client, 15.0);
+      return;
+    }
+
+    // Calculer le centre des deux points
+    final centerLat = (client.latitude  + biz.latitude)  / 2;
+    final centerLng = (client.longitude + biz.longitude) / 2;
+
+    // Distance → zoom adaptatif
+    final distance = const Distance().as(LengthUnit.Kilometer, client, biz);
+    double zoom;
+    if (distance < 0.5)       zoom = 16.0;
+    else if (distance < 1.5)  zoom = 15.0;
+    else if (distance < 3)    zoom = 14.0;
+    else if (distance < 8)    zoom = 13.0;
+    else if (distance < 20)   zoom = 12.0;
+    else                      zoom = 11.0;
+
+    _mapController.move(LatLng(centerLat, centerLng), zoom);
   }
 
   Future<void> _fetchOrderData() async {
@@ -74,74 +113,180 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
       Map<String, dynamic>? data;
 
+      // ─── Requête principale : commande + adresse client + timeline ───────
+      const selectQuery = '''
+        *,
+        adresse(id_adresse, latitude, longitude, ville),
+        timeline(*, livreur(*, app_user(*)))
+      ''';
+
       if (widget.orderId != null) {
         data = await supabase
             .from('commande')
-            .select('*, timeline(*, livreur(*, app_user(*)))')
+            .select(selectQuery)
             .eq('id_commande', widget.orderId!)
             .maybeSingle();
       } else if (clientId != null) {
-        // Find most recent active order
         final response = await supabase
             .from('commande')
-            .select('*, timeline(*, livreur(*, app_user(*)))')
+            .select(selectQuery)
             .eq('id_client', clientId)
-            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison'])
+            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison', 'livree'])
             .order('created_at', ascending: false)
             .limit(1);
-        if (response.isNotEmpty) {
-          data = response.first;
-        }
+        if (response.isNotEmpty) data = response.first;
       }
 
       if (data != null && mounted) {
-        setState(() {
-          _orderData = data;
-          
-          // Extract livreur from timeline relation (last event with a livreur)
-          final timeline = data!['timeline'] as List? ?? [];
-          final lastWithLivreur = timeline.lastWhere(
-            (e) => e['livreur'] != null,
-            orElse: () => null,
-          );
-          _livreurData = lastWithLivreur != null ? lastWithLivreur['livreur'] : null;
-          
-          final status = data!['statut_commande'] as String? ?? '';
-          if (status == 'confirmee') {
-            _currentStep = 1;
-            _status = 'Commande confirmée';
-          } else if (status == 'preparee') {
-            _currentStep = 2;
-            _status = 'Le commerçant prépare votre commande';
-          } else if (status == 'en_livraison') {
-            _currentStep = 3;
-            _status = 'Le livreur est en route !';
-          } else if (status == 'livree') {
-            _currentStep = 3;
-            _status = 'Commande livrée';
-          } else {
-            _currentStep = 0;
-            _status = 'Commande en attente';
+        final orderId = data['id_commande'];
+
+        // ── 1. Coordonnées du CLIENT depuis commande.adresse ──────────────
+        LatLng? clientLatLng;
+        final adresseData = data['adresse'];
+        if (adresseData is Map) {
+          final lat = double.tryParse(adresseData['latitude']?.toString() ?? '');
+          final lng = double.tryParse(adresseData['longitude']?.toString() ?? '');
+          if (lat != null && lng != null) clientLatLng = LatLng(lat, lng);
+        }
+
+        // ── 2. Coordonnées du BUSINESS via ligne_commande → produit → business
+        //       → app_user → user_adresse → adresse ─────────────────────────
+        LatLng? businessLatLng;
+        String businessName = 'Commerce';
+        try {
+          // Stratégie A : id_business direct sur la commande (si colonne existe)
+          int? bizId;
+          if (data['id_business'] != null) {
+            bizId = int.tryParse(data['id_business'].toString());
           }
 
-          // If tracking coordinates exist, update them (mocking for now with static)
-          _isLoading = false;
-        });
+          // Stratégie B : via ligne_commande → produit
+          if (bizId == null) {
+            final lines = await supabase
+                .from('ligne_commande')
+                .select('id_produit, produit(id_business)')
+                .eq('id_commande', orderId)
+                .limit(1);
+            if (lines.isNotEmpty) {
+              final produit = lines.first['produit'];
+              if (produit is Map) {
+                bizId = int.tryParse(produit['id_business']?.toString() ?? '');
+              }
+            }
+          }
+
+          // Récupère le business avec son adresse
+          if (bizId != null) {
+            final bizResp = await supabase
+                .from('business')
+                .select('''
+                  id_business,
+                  app_user(
+                    nom,
+                    user_adresse(
+                      is_default,
+                      adresse(latitude, longitude, ville)
+                    )
+                  )
+                ''')
+                .eq('id_business', bizId)
+                .maybeSingle();
+
+            if (bizResp != null) {
+              final appUser = bizResp['app_user'];
+              if (appUser is Map) {
+                businessName = appUser['nom']?.toString() ?? 'Commerce';
+                final userAdresses = appUser['user_adresse'] as List? ?? [];
+                Map<String, dynamic>? bestAdresse;
+                for (final ua in userAdresses) {
+                  if (ua is Map) {
+                    if (ua['is_default'] == true) {
+                      bestAdresse = ua['adresse'] as Map<String, dynamic>?;
+                      break;
+                    }
+                    bestAdresse ??= ua['adresse'] as Map<String, dynamic>?;
+                  }
+                }
+                if (bestAdresse != null) {
+                  final lat = double.tryParse(bestAdresse['latitude']?.toString() ?? '');
+                  final lng = double.tryParse(bestAdresse['longitude']?.toString() ?? '');
+                  if (lat != null && lng != null) {
+                    businessLatLng = LatLng(lat, lng);
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Business coords fetch error: $e');
+        }
+
+        // ── 3. Position du LIVREUR depuis timeline.position_order ─────────
+        LatLng? riderLatLng;
+        final rawTimeline = data['timeline'];
+        final timeline = (rawTimeline is List) ? rawTimeline : [];
+        Map<String, dynamic>? livreurData;
+        Map<String, dynamic>? lastTimeline;
+        for (final t in timeline.reversed) {
+          if (t is Map<String, dynamic>) {
+            lastTimeline ??= t;
+            if (t['livreur'] != null && livreurData == null) {
+              livreurData = t['livreur'] as Map<String, dynamic>?;
+            }
+          }
+        }
+        if (lastTimeline != null) {
+          final posOrder = lastTimeline['position_order'];
+          if (posOrder is Map) {
+            final lat = double.tryParse(
+                posOrder['latitude']?.toString() ?? posOrder['lat']?.toString() ?? '');
+            final lng = double.tryParse(
+                posOrder['longitude']?.toString() ?? posOrder['lng']?.toString() ?? '');
+            if (lat != null && lng != null) riderLatLng = LatLng(lat, lng);
+          }
+        }
+
+        // ── 4. Statut ──────────────────────────────────────────────────────
+        final status = data['statut_commande'] as String? ?? '';
+        int step = 1;
+        String statusText = 'Commande en attente';
+        if (status == 'confirmee')         { step = 1; statusText = 'Commande confirmée'; }
+        else if (status == 'preparee')     { step = 2; statusText = 'Le commerçant prépare votre commande'; }
+        else if (status == 'en_livraison') { step = 3; statusText = 'Le livreur est en route !'; }
+        else if (status == 'livree')       { step = 3; statusText = 'Votre commande est arrivée ! Merci de nous avoir choisis.'; }
+
+        if (mounted) {
+          setState(() {
+            _orderData    = data;
+            _livreurData  = livreurData;
+            _clientPos    = clientLatLng ?? _gpsPos;
+            _businessPos  = businessLatLng;
+            _riderPos     = riderLatLng;
+            _businessName = businessName;
+            _currentStep  = step;
+            _status       = statusText;
+            _isLoading    = false;
+          });
+          _fitBounds();
+        }
+
       } else if (mounted) {
         setState(() {
-          _status = "Aucune commande active trouvée";
+          _status    = 'Aucune commande active trouvée';
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint('_fetchOrderData error: $e');
       if (mounted) {
         setState(() {
-          _status = "Erreur de chargement";
+          _status    = 'Erreur de chargement';
           _isLoading = false;
         });
       }
     }
   }
+
 
   Future<void> _callLivreur() async {
     if (_livreurData == null || _livreurData!['app_user'] == null) return;
@@ -201,74 +346,127 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Widget _buildMap() {
+    final clientPos  = _clientPos;
+    final businessPos = _businessPos;
+    final riderPos   = _riderPos;
+
+    // Centre initial : client ou Tétouan par défaut
+    final initialCenter = clientPos ?? const LatLng(35.5750, -5.3720);
+
+    // Polyligne dashed entre client et business
+    final polylinePoints = [
+      if (clientPos != null)   clientPos,
+      if (businessPos != null) businessPos,
+    ];
+
     return ExcludeSemantics(
       child: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: _clientPos,
-        initialZoom: 15.0,
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.livraison.app.frontend',
+          initialCenter: initialCenter,
+          initialZoom: 14.0,
         ),
-        MarkerLayer(
-          markers: [
-            Marker(
-              point: _clientPos,
-              width: 45,
-              height: 45,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.livraison.app.frontend',
+          ),
+
+          // ── Polyligne client ↔ business ──────────────────────────────────
+          if (polylinePoints.length == 2)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: polylinePoints,
+                  strokeWidth: 3.0,
+                  color: AppColors.primary.withOpacity(0.4),
+                  // strokeCap: StrokeCap.round, // uncomment if flutter_map supports it
                 ),
-                child: const Icon(Icons.person, color: Colors.white, size: 22),
-              ),
+              ],
             ),
-            if (_orderData != null)
-              Marker(
-                point: _restaurantPos,
-                width: 45,
-                height: 45,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                  child: const Icon(Icons.restaurant, color: Colors.white, size: 22),
-                ),
-              ),
-            if (_livreurData != null && _orderData != null)
-              Marker(
-                point: _riderPos,
-                width: 55,
-                height: 55,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                     Container(
-                      width: 45,
-                      height: 45,
+
+          MarkerLayer(
+            markers: [
+              // ── Marqueur CLIENT ─────────────────────────────────────────
+              if (clientPos != null)
+                Marker(
+                  point: clientPos,
+                  width: 50,
+                  height: 50,
+                  child: Tooltip(
+                    message: 'Votre position',
+                    child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.accent,
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primary, width: 2),
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)],
                       ),
-                      child: const Icon(Icons.delivery_dining, color: AppColors.primary, size: 28),
+                      child: const Icon(Icons.person, color: Colors.white, size: 24),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
+
+              // ── Marqueur BUSINESS ────────────────────────────────────────
+              if (businessPos != null)
+                Marker(
+                  point: businessPos,
+                  width: 80,
+                  height: 80,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade700,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          _businessName.length > 12 ? '${_businessName.substring(0, 10)}…' : _businessName,
+                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade600,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)],
+                        ),
+                        child: const Icon(Icons.store, color: Colors.white, size: 20),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // ── Marqueur LIVREUR ─────────────────────────────────────────
+              if (riderPos != null && _livreurData != null)
+                Marker(
+                  point: riderPos,
+                  width: 55,
+                  height: 55,
+                  child: Container(
+                    width: 45,
+                    height: 45,
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primary, width: 2),
+                      boxShadow: [BoxShadow(color: AppColors.accent.withOpacity(0.5), blurRadius: 8, spreadRadius: 2)],
+                    ),
+                    child: const Icon(Icons.delivery_dining, color: AppColors.primary, size: 28),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildEmptyStateCard() {
     return Positioned(
@@ -339,101 +537,125 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      _currentStep == 3 && _status.contains('arrivée') 
+                        ? Icons.check_circle_outline 
+                        : Icons.timer, 
+                      color: AppColors.primary, 
+                      size: 28
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _status,
+                          style: const TextStyle(
+                            fontSize: 16, // Légèrement réduit pour éviter l'overflow
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        if (_orderData != null && _currentStep < 3)
+                          const Text(
+                            'Arrivée prévue dans environ 15 min',
+                            style: TextStyle(
+                                color: AppColors.mutedForeground, fontSize: 12),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (_orderData != null) ...[
+                const SizedBox(height: 16),
+                _buildStatusTimeline(),
+              ],
+              const SizedBox(height: 12),
+              // On affiche l'info de chargement seulement si on n'a pas encore de livreur
+              if (_livreurData == null)
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: AppColors.primary.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.timer, color: AppColors.primary, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: const Row(
                     children: [
-                      Text(
-                        _status,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      if (_orderData != null)
-                        const Text(
-                          'Arrivée prévue dans environ 15 min',
-                          style: TextStyle(
-                              color: AppColors.mutedForeground, fontSize: 13),
-                        ),
+                       Icon(Icons.info_outline, size: 16, color: AppColors.primary),
+                       SizedBox(width: 8),
+                       Expanded(
+                         child: Text(
+                           'Dès que le commerçant prépare votre colis, un livreur est assigné.',
+                           style: TextStyle(fontSize: 11, color: AppColors.primary),
+                         ),
+                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            if (_orderData != null) ...[
-              const SizedBox(height: 20),
-              _buildStatusTimeline(),
-            ],
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Row(
+              const SizedBox(height: 16),
+              Row(
                 children: [
-                   Icon(Icons.info_outline, size: 16, color: AppColors.primary),
-                   SizedBox(width: 8),
-                   Expanded(
-                     child: Text(
-                       'Suivi en direct : Votre commande est gérée en temps réel. '
-                       'Dès que le commerçant prépare votre colis, un livreur est assigné. '
-                       'Vous recevrez des notifications à chaque changement de statut.',
-                       style: TextStyle(fontSize: 11, color: AppColors.primary),
-                     ),
-                   ),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.secondary,
+                    child: Text(_livreurData != null ? '🛵' : '👤'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          livreurName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        Text(
+                          livreurRating,
+                          style: const TextStyle(
+                              color: AppColors.mutedForeground, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_livreurData != null)
+                    _ContactAction(icon: Icons.phone_outlined, onTap: _callLivreur),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.secondary,
-                  child: Text('👨‍💼'),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        livreurName,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(
-                        livreurRating,
-                        style: const TextStyle(
-                            color: AppColors.mutedForeground, fontSize: 13),
-                      ),
-                    ],
+              if (_orderData?['statut_commande'] == 'livree') ...[
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.forest,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Fermer le suivi', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
-                if (_livreurData != null)
-                  _ContactAction(icon: Icons.phone_outlined, onTap: _callLivreur),
               ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
