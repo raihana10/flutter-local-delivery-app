@@ -223,7 +223,12 @@ class _OrderCard extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () {
-                  // Navigate to tracking/details if needed
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => _OrderDetailsSheet(order: order),
+                  );
                 },
                 style: OutlinedButton.styleFrom(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -232,6 +237,114 @@ class _OrderCard extends StatelessWidget {
                 ),
                 child: const Text('Détails de la commande', style: TextStyle(color: AppColors.forest, fontWeight: FontWeight.bold)),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderDetailsSheet extends StatelessWidget {
+  final Map<String, dynamic> order;
+  const _OrderDetailsSheet({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = order['ligne_commande'] as List? ?? [];
+    final createdAt = DateTime.tryParse(order['created_at'].toString()) ?? DateTime.now();
+    final String dateStr = "${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year} à ${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}";
+    
+    String businessName = "LIVRAPP";
+    if (items.isNotEmpty && items[0]['produit'] != null) {
+      businessName = items[0]['produit']['business']?['app_user']?['nom'] ?? "Commerce";
+    }
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Facture #${order['id_commande']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.forest)),
+                    Text(dateStr, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                  ],
+                ),
+                _StatusBadge(status: order['statut_commande']),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(24),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: Text('${item['quantite']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['nom_snapshot'] ?? 'Produit', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(businessName, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      Text('${(double.parse(item['prix_snapshot'].toString()) * (item['quantite'] as int)).toStringAsFixed(2)} MAD', 
+                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total de la commande', style: TextStyle(color: AppColors.mutedForeground)),
+                    Text('${order['prix_total']} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                    child: const Text('Fermer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

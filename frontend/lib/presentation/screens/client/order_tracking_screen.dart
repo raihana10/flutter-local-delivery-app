@@ -77,16 +77,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (widget.orderId != null) {
         data = await supabase
             .from('commande')
-            .select('*, livreur(*, app_user(*))')
-            .eq('id', widget.orderId!)
+            .select('*, timeline(*, livreur(*, app_user(*)))')
+            .eq('id_commande', widget.orderId!)
             .maybeSingle();
       } else if (clientId != null) {
         // Find most recent active order
         final response = await supabase
             .from('commande')
-            .select('*, livreur(*, app_user(*))')
+            .select('*, timeline(*, livreur(*, app_user(*)))')
             .eq('id_client', clientId)
-            .inFilter('statut_commande', ['nouvelle', 'confirmee', 'en_preparation', 'prete', 'en_route', 'en_cours'])
+            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison'])
             .order('created_at', ascending: false)
             .limit(1);
         if (response.isNotEmpty) {
@@ -97,16 +97,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (data != null && mounted) {
         setState(() {
           _orderData = data;
-          _livreurData = data!['livreur'];
+          // Extract livreur from timeline relation
+          _livreurData = data!['timeline'] != null ? data!['timeline']['livreur'] : null;
           
           final status = data!['statut_commande'] as String? ?? '';
-          if (status == 'en_preparation' || status == 'nouvelle' || status == 'confirmee') {
+          if (status == 'confirmee') {
             _currentStep = 1;
-            _status = 'En cours de préparation';
-          } else if (status == 'prete') {
+            _status = 'Commande confirmée';
+          } else if (status == 'preparee') {
             _currentStep = 2;
-            _status = 'Le livreur récupère votre commande';
-          } else if (status == 'en_route' || status == 'en_cours') {
+            _status = 'Le commerçant prépare votre commande';
+          } else if (status == 'en_livraison') {
             _currentStep = 3;
             _status = 'Le livreur est en route !';
           } else if (status == 'livree') {
