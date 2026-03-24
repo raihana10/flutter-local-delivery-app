@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
@@ -48,25 +49,41 @@ class AuthProvider extends ChangeNotifier {
       if (response != null) {
         _user = User.fromJson(response);
         
-        // Fetch role-specific ID
+        // Fetch role-specific ID and est_actif status
         final role = _user!.role.value;
-        if (role != 'super_admin') {
-           final table = role == 'super_admin' ? null : role;
-           if (table != null) {
-             final roleData = await _supabase
-                 .from(table)
-                 .select()
-                 .eq('id_user', _user!.id)
-                 .maybeSingle();
-             
-             if (roleData != null) {
-               // Determine ID column name based on role
-               final idCol = 'id_$role';
-               _roleId = roleData[idCol];
-               debugPrint("AuthProvider: Logged in as $role with ID: $_roleId");
-             }
-           }
+        Map<String, dynamic> userData = _user!.toJson();
+        
+        if (role == 'livreur') {
+          final roleData = await _supabase
+              .from('livreur')
+              .select()
+              .eq('id_user', _user!.id)
+              .maybeSingle();
+          if (roleData != null) {
+            _roleId = roleData['id_livreur'];
+            _user = _user!.copyWith(estActif: roleData['est_actif'] == true || roleData['est_actif'] == 1);
+          }
+        } else if (role == 'business') {
+          final roleData = await _supabase
+              .from('business')
+              .select()
+              .eq('id_user', _user!.id)
+              .maybeSingle();
+          if (roleData != null) {
+            _roleId = roleData['id_business'];
+            _user = _user!.copyWith(estActif: roleData['est_actif'] == true || roleData['est_actif'] == 1);
+          }
+        } else if (role == 'client') {
+          final roleData = await _supabase
+              .from('client')
+              .select()
+              .eq('id_user', _user!.id)
+              .maybeSingle();
+          if (roleData != null) {
+            _roleId = roleData['id_client'];
+          }
         }
+        debugPrint("AuthProvider: Logged in as $role with roleId: $_roleId, active: ${_user!.estActif}");
       } else {
         // Fallback if user is in auth but not in public schema yet
         _user = User(
@@ -100,6 +117,34 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _setError('Erreur lors de la mise à jour: \${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateProfilePicture(dynamic image) async {
+    if (_user == null || _user!.role != UserRole.livreur) return false;
+    _setLoading(true);
+    _clearError();
+    try {
+      final fileBytes = await (image is String ? File(image).readAsBytes() : (image as dynamic).readAsBytes());
+      final String fileName = image is String ? image.split('/').last : (image as dynamic).name; 
+      final ext = fileName.split('.').last;
+      final path = '${_user!.id}_pdp_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      
+      await _supabase.storage.from('livreur_documents').uploadBinary(
+        path, 
+        fileBytes, 
+        fileOptions: const supa.FileOptions(upsert: true)
+      );
+      
+      await _supabase.from('livreur').update({'pdp': path}).eq('id_user', _user!.id);
+      
+      await _fetchUserDetails(_user!.email);
+      return true;
+    } catch (e) {
+      _setError('Erreur lors de la mise à jour de la photo: $e');
       return false;
     } finally {
       _setLoading(false);
