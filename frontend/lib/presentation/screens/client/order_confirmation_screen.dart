@@ -557,13 +557,10 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       'prix_donne': prixDonne,
                     if (_distanceKm != null)
                       'distance_km': double.parse(_distanceKm!.toStringAsFixed(2)),
-                    'id_adresse': selectedAddress['id_adresse'],
                     'id_business': cartItems.first['id_business'],
-                    'type_commande': 'food_delivery',
                     'items': cartItems.map((item) {
                       return {
                         'quantite': item['quantity'],
-                        'id_produit': item['id'],
                         'id_produit': item['id_produit'] ?? item['id'],
                         'prix_snapshot': item['price'],
                         'nom_snapshot': item['name']
@@ -582,7 +579,6 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       clientData.clearCart();
                       // Fetch notifications immediately to show the confirmation badge/notif
                       clientData.fetchNotifications();
-                      _showSuccessDialog();
                       final orderId = response['id_commande'].toString();
                       _showSuccessDialog(orderId);
                     } else {

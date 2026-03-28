@@ -9,6 +9,7 @@ import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/product_provider.dart';
 import 'package:app/data/models/business_model.dart';
 import 'package:app/core/providers/business_data_provider.dart';
+import 'package:app/core/providers/business_order_provider.dart';
 import '../../widgets/product_image_placeholder.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
@@ -54,6 +55,7 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<BusinessDataProvider>().fetchAll();
+      context.read<BusinessOrderProvider>().fetchOrders();
       final auth = context.read<AuthProvider>();
       if (auth.roleId != null) {
         context.read<ProductProvider>().fetchProductsByBusiness(auth.roleId!);
@@ -170,14 +172,26 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
   }
 }
 
+// ============ UTILS ============
+String _formatTimeAgo(DateTime? date) {
+  if (date == null) return '';
+  final diff = DateTime.now().difference(date);
+  if (diff.inMinutes < 60) {
+    return '${diff.inMinutes} min';
+  } else if (diff.inHours < 24) {
+    return '${diff.inHours} h';
+  } else {
+    return '${diff.inDays} j';
+  }
+}
+
 // ============ DASHBOARD VIEW ============
-class _DashboardView extends StatelessWidget {
-  final bool isOpen;
-  final VoidCallback onToggleOpen;
-  final Function(BusinessScreen, {int? index}) onNavigate;
+class _DashboardView extends StatefulWidget {
+  final Function(BusinessScreen, {int? index, int? orderId}) onNavigate;
 
   const _DashboardView({
     required this.onNavigate,
+    super.key,
   });
 
   @override
@@ -189,18 +203,30 @@ class _DashboardViewState extends State<_DashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<BusinessDataProvider>();
-    final stats = provider.stats;
-    final profile = provider.profile;
-    final orders = stats['recent_orders'] as List<dynamic>? ?? [];
-    final nomBusiness = (profile['app_user'] != null && profile['app_user']['nom'] != null)
-        ? profile['app_user']['nom']
-        : 'Chargement...';
-    // Mettre la première lettre en majuscule
-    final typeBusiness = (profile['type_business'] ?? 'Business').toString();
-    final typeFormatted = typeBusiness.isNotEmpty 
-        ? '${typeBusiness[0].toUpperCase()}${typeBusiness.substring(1)}'
-        : typeBusiness;
+    final businessData = context.watch<BusinessDataProvider>();
+    final orderData = context.watch<BusinessOrderProvider>();
+    
+    final stats = businessData.stats;
+    final profile = businessData.profile;
+    
+    // Filter orders: last 24h & not delivered
+    final now = DateTime.now();
+    final ordersList = orderData.orders.where((o) {
+      final createdAt = DateTime.tryParse(o['created_at'].toString());
+      final statut = o['statut_commande'] as String? ?? '';
+      if (createdAt == null) return false;
+      final diff = now.difference(createdAt);
+      return diff.inHours < 24 && statut != 'livree';
+    }).toList();
+
+    final businessName = profile['app_user']?['nom'] ?? 'Business Name';
+    final businessType = profile['type_business'] ?? 'Type de Business';
+
+    final revenus = stats['revenus_totaux']?.toString() ?? '0';
+    final nbCommandes = orderData.orders.length.toString();
+    final rating = stats['note_moyenne']?.toString() ?? '4.8';
+    
+    final bool isOpen = profile['is_open'] == true;
 
     return Stack(
       children: [
@@ -254,7 +280,14 @@ class _DashboardViewState extends State<_DashboardView> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: onToggleOpen,
+                      onTap: _isSwitching ? null : () async {
+                        setState(() => _isSwitching = true);
+                        final success = await businessData.updateProfile({'is_open': !isOpen});
+                        setState(() => _isSwitching = false);
+                        if (!success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la mise à jour.')));
+                        }
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -290,7 +323,7 @@ class _DashboardViewState extends State<_DashboardView> {
                           children: [
                             const Icon(LucideIcons.bell,
                                 color: Colors.white, size: 20),
-                            if (provider.unreadNotificationsCount > 0)
+                            if (businessData.unreadNotificationsCount > 0)
                               Positioned(
                                 top: -6,
                                 right: -6,
@@ -302,7 +335,7 @@ class _DashboardViewState extends State<_DashboardView> {
                                   ),
                                   constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                                   child: Text(
-                                    '${provider.unreadNotificationsCount}',
+                                    '${businessData.unreadNotificationsCount}',
                                     style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                                     textAlign: TextAlign.center,
                                   ),
@@ -316,7 +349,7 @@ class _DashboardViewState extends State<_DashboardView> {
                     PopupMenuButton<String>(
                       onSelected: (value) async {
                         if (value == 'profile') {
-                          onNavigate(BusinessScreen.profile);
+                          widget.onNavigate(BusinessScreen.profile);
                         } else if (value == 'logout') {
                           await context.read<AuthProvider>().logout();
                           if (context.mounted) {
@@ -375,36 +408,28 @@ class _DashboardViewState extends State<_DashboardView> {
                     _buildKPI('Note', '$rating ⭐', LucideIcons.star),
                   ],
                 ),
-              ),
-
-              // New Orders Header
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Nouvelles commandes',
-                      style: TextStyle(
-                          color: AppColors.forest, fontWeight: FontWeight.bold),
+              ),              // Orders List
+              if (ordersList.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Center(
+                    child: Text(
+                      "Aucune commande active.",
+                      style: TextStyle(color: AppColors.mutedForeground),
                     ),
-                    const SizedBox(width: 8),
-                    _PulseIndicator(),
-                  ],
+                  ),
+                )
+              else
+                ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: ordersList.length,
+                  itemBuilder: (context, index) {
+                    final o = ordersList[index];
+                    return _buildOrderCard(o);
+                  },
                 ),
-              ),
-
-              // Orders List
-              ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: orders.length,
-                itemBuilder: (context, index) {
-                  final o = orders[index];
-                  return _buildOrderCard(o);
-                },
-              ),
             ],
           ),
         ),
@@ -417,65 +442,45 @@ class _DashboardViewState extends State<_DashboardView> {
           child: Row(
             children: [
               _buildNavButton(
-                  '📦 Catalogue', () => onNavigate(BusinessScreen.catalog)),
+                  '📦 Catalogue', () => widget.onNavigate(BusinessScreen.catalog)),
               const SizedBox(width: 12),
               _buildNavButton(
-                  '📈 Stats', () => onNavigate(BusinessScreen.stats)),
+                  '📈 Stats', () => widget.onNavigate(BusinessScreen.stats)),
               const SizedBox(width: 12),
               _buildNavButton(
-                  '⚙️ Profil', () => onNavigate(BusinessScreen.profile)),
+                  '⚙️ Profil', () => widget.onNavigate(BusinessScreen.profile)),
             ],
           ),
         ),
       ],
     );
   }
-}
 
-String _formatTimeAgo(DateTime? date) {
-  if (date == null) return '';
-  final diff = DateTime.now().difference(date);
-  if (diff.inMinutes < 60) {
-    return '${diff.inMinutes} min';
-  } else if (diff.inHours < 24) {
-    return '${diff.inHours} h';
-  } else {
-    return '${diff.inDays} j';
-  }
-}
-
-List<Widget> _buildStatusButtons(
-    BuildContext context, int commandeId, String statut) {
-  final provider = context.read<BusinessDataProvider>();
-  if (statut == 'confirmee') {
-    return [
-      _buildOrderButton('Commande prête (Préparée)', AppColors.forest, Colors.white, () {
-        provider.updateOrderStatus(commandeId, 'preparee');
-      }),
-    ];
-  } else if (statut == 'preparee') {
-    return [
-      _buildOrderButton('En attente du livreur', Colors.grey.shade200, Colors.grey.shade700, null),
-    ];
-  } else if (statut == 'en_livraison') {
-    return [
-      _buildOrderButton('En cours de livraison', AppColors.amber, Colors.white, null),
-    ];
-  } else if (statut == 'livree') {
-    return [
-      _buildOrderButton('Livrée', AppColors.sage, Colors.white, null),
-    ];
-  } else {
+  List<Widget> _buildStatusButtons(int commandeId, String statut) {
+    final provider = context.read<BusinessOrderProvider>();
+    if (statut == 'confirmee' || statut == 'en_preparation') {
+      return [
+        _buildOrderButton('Commande prête', AppColors.forest, Colors.white, () {
+          provider.updateOrderStatus(commandeId, 'preparee');
+        }),
+      ];
+    } else if (statut == 'preparee') {
+      return [
+        _buildOrderButton('Remettre au livreur', AppColors.amber, AppColors.forest, () {
+          provider.updateOrderStatus(commandeId, 'en_livraison');
+        }),
+      ];
+    }
     return [
       Expanded(
-          child: Text(statut.toUpperCase(),
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.mutedForeground,
-                  fontSize: 12))),
+        child: Text(statut.toUpperCase(),
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.mutedForeground,
+                fontSize: 12)),
+      ),
     ];
   }
-}
 
   Widget _buildKPI(String label, String value, IconData icon) {
     return Expanded(
@@ -490,37 +495,24 @@ List<Widget> _buildStatusButtons(
           children: [
             Icon(icon, color: AppColors.gold, size: 18),
             const SizedBox(height: 4),
-            Text(value,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppColors.forest)),
-            Text(label,
-                style: const TextStyle(
-                    color: AppColors.mutedForeground, fontSize: 10)),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.forest)),
+            Text(label, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 10)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildOrderButton(String text, Color bg, Color textCol) {
+  Widget _buildOrderButton(String text, Color bg, Color textCol, VoidCallback? onTap) {
     return Expanded(
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
           alignment: Alignment.center,
-          child: Text(
-            text,
-            style: TextStyle(
-                color: textCol, fontWeight: FontWeight.bold, fontSize: 12),
-          ),
+          child: Text(text, style: TextStyle(color: textCol, fontWeight: FontWeight.bold, fontSize: 12)),
         ),
       ),
     );
@@ -533,75 +525,47 @@ List<Widget> _buildStatusButtons(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: AppColors.cardShadow,
-          ),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: AppColors.cardShadow),
           alignment: Alignment.center,
-          child: Text(
-            text,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: AppColors.forest),
-          ),
+          child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
         ),
       ),
     );
   }
-Widget _buildOrderCard(dynamic o) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text('#${o['id'] ?? 'N/A'}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.forest)),
-                  const SizedBox(width: 8),
-                  Text('${o['client_name'] ?? 'Client'}',
-                      style: const TextStyle(
-                          color: AppColors.mutedForeground,
-                          fontSize: 12)),
-                ],
-              ),
-              Text('${o['created_at'] ?? 'Maintenant'}',
-                  style: const TextStyle(
-                      color: AppColors.gold,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text('${o['items_count'] ?? 0} articles',
-              style: const TextStyle(
-                  color: AppColors.mutedForeground,
-                  fontSize: 12)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildOrderButton(
-                  'Accepter', AppColors.forest, Colors.white),
-              const SizedBox(width: 8),
-              _buildOrderButton(
-                  'Préparer', AppColors.sage, Colors.white),
-              const SizedBox(width: 8),
-              _buildOrderButton(
-                  'Prêt', AppColors.amber, AppColors.forest),
-            ],
-          ),
-        ],
+
+  Widget _buildOrderCard(dynamic o) {
+    final commandeId = o['id_commande'];
+    final statut = o['statut_commande'] as String? ?? '';
+    final timeAgo = _formatTimeAgo(DateTime.tryParse(o['created_at'].toString()));
+    
+    return GestureDetector(
+      onTap: () => widget.onNavigate(BusinessScreen.orderDetail, orderId: commandeId),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: AppColors.cardShadow),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text('#$commandeId', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
+                    const SizedBox(width: 8),
+                    Text('${o['client_name']}', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                  ],
+                ),
+                Text(timeAgo, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${o['items']} articles • ${o['total']} MAD', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+            const SizedBox(height: 12),
+            Row(children: _buildStatusButtons(commandeId, statut)),
+          ],
+        ),
       ),
     );
   }
@@ -1524,7 +1488,7 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
       return;
     }
     final data = await context
-        .read<BusinessDataProvider>()
+        .read<BusinessOrderProvider>()
         .fetchOrderDetails(widget.orderId!);
     setState(() {
       _orderData = data;
@@ -1535,7 +1499,7 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
   Future<void> _updateStatus(String newStatus) async {
     if (widget.orderId != null) {
       await context
-          .read<BusinessDataProvider>()
+          .read<BusinessOrderProvider>()
           .updateOrderStatus(widget.orderId!, newStatus);
       _fetchDetails();
     }
@@ -1948,8 +1912,8 @@ class _HistoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final businessData = context.watch<BusinessDataProvider>();
-    final ordersList = businessData.orders;
+    final orderData = context.watch<BusinessOrderProvider>();
+    final ordersList = orderData.orders;
 
     return Column(
       children: [
