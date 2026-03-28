@@ -355,7 +355,8 @@ class _DashboardViewState extends State<_DashboardView> {
   }
 
   Widget _buildKPI(String label, String value, IconData icon) {
-    return Expanded(
+    return Flexible(
+      fit: FlexFit.loose,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -382,7 +383,8 @@ class _DashboardViewState extends State<_DashboardView> {
   }
 
   Widget _buildOrderButton(String text, Color bg, Color textCol, VoidCallback onTap) {
-    return Expanded(
+    return Flexible(
+      fit: FlexFit.loose,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -404,7 +406,8 @@ class _DashboardViewState extends State<_DashboardView> {
   }
 
   Widget _buildNavButton(String text, VoidCallback onTap) {
-    return Expanded(
+    return Flexible(
+      fit: FlexFit.loose,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
@@ -443,22 +446,24 @@ class _DashboardViewState extends State<_DashboardView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text('#$orderId',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.forest)),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text('${o['client_name'] ?? 'Client'}',
+              Flexible(
+                child: Row(
+                  children: [
+                    Text('#$orderId',
                         style: const TextStyle(
-                            color: AppColors.mutedForeground,
-                            fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1),
-                  ),
-                ],
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.forest)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text('${o['client_name'] ?? 'Client'}',
+                          style: const TextStyle(
+                              color: AppColors.mutedForeground,
+                              fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1),
+                    ),
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
