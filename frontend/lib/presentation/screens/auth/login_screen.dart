@@ -15,12 +15,47 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _showPassword = false;
+  bool _isLoadingGoogle = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoadingGoogle = true);
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final ok = await authProvider.signInWithGoogle();
+      if (!mounted) return;
+      if (ok) {
+        final role = authProvider.user?.role.value;
+        switch (role) {
+          case 'client':
+            Navigator.of(context).pushReplacementNamed('/client/home');
+            break;
+          case 'livreur':
+            Navigator.of(context).pushReplacementNamed('/livreur/dashboard');
+            break;
+          case 'business':
+            Navigator.of(context).pushReplacementNamed('/business/dashboard');
+            break;
+          case 'super_admin':
+            Navigator.of(context).pushReplacementNamed('/super-admin');
+            break;
+          default:
+            Navigator.of(context).pushReplacementNamed('/client/home');
+        }
+      } else if (authProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage!)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingGoogle = false);
+    }
   }
 
   Future<void> _handleLogin(BuildContext context) async {
@@ -346,6 +381,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             Expanded(child: Divider(color: AppColors.border)),
                           ],
+                        ),
+
+                        SizedBox(height: 16),
+
+                        OutlinedButton.icon(
+                          onPressed: _isLoadingGoogle ? null : _signInWithGoogle,
+                          icon: _isLoadingGoogle
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.login,
+                                  size: 20, color: AppColors.foreground),
+                          label: Text(
+                            'Continuer avec Google',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.foreground,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: AppColors.border),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
                         ),
 
                         SizedBox(height: 24),

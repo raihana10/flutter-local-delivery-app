@@ -3,11 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app/core/constants/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:csv/csv.dart';
+import 'package:app/core/utils/csv_export.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -584,18 +581,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
       final csv = const ListToCsvConverter().convert(csvData);
 
-      // Sauvegarder le fichier
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/statistiques_$_selectedPeriod.csv');
-      await file.writeAsString(csv);
+      final safePeriod =
+          _selectedPeriod.replaceAll(RegExp(r'[^\w\-]+'), '_');
+      await exportCsvFile(
+        'statistiques_$safePeriod.csv',
+        csv,
+        shareSubject: 'Statistiques LocalDelivery - $_selectedPeriod',
+      );
 
-      // ✅ Partager/télécharger via le système natif
-      await Share.shareXFiles([XFile(file.path)], text: 'Statistiques LocalDelivery - $_selectedPeriod');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Export CSV prêt (téléchargement ou partage).'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Erreur export: $e'),
+            content: Text('Erreur export: $e'),
             backgroundColor: Colors.red,
           ),
         );

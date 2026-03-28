@@ -8,6 +8,40 @@ import '../business/business_main_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/business_data_provider.dart';
+
+/// Construit l’URL publique Supabase Storage pour le bucket `alae`, ou renvoie l’URL déjà absolue.
+String _resolveAlaeDisplayUrl(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return '';
+  final lower = t.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    return t.split('?').first;
+  }
+  var path = t.replaceFirst(RegExp(r'^/+'), '');
+  try {
+    return Supabase.instance.client.storage.from('alae').getPublicUrl(path);
+  } catch (e) {
+    debugPrint('_resolveAlaeDisplayUrl: $e');
+    return '';
+  }
+}
+
+/// Chemin relatif au bucket à partir d’une entrée brute (pour URL signée).
+String _alaeStoragePath(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return '';
+  final lower = t.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    final marker = '/object/public/alae/';
+    final idx = lower.indexOf(marker);
+    if (idx >= 0) {
+      return t.substring(idx + marker.length).split('?').first;
+    }
+    return '';
+  }
+  return t.replaceFirst(RegExp(r'^/+'), '');
+}
+
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
 
@@ -188,8 +222,15 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
       docsValidStr = user['documents_validation']?.toString() ?? '';
     }
 
-    final urls = docsValidStr.isNotEmpty && docsValidStr != 'validated' && docsValidStr != 'false'
-        ? docsValidStr.split(',')
+    final urls = docsValidStr.isNotEmpty &&
+            docsValidStr != 'validated' &&
+            docsValidStr != 'false' &&
+            docsValidStr.toLowerCase() != 'null'
+        ? docsValidStr
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList()
         : <String>[];
 
     showDialog(
@@ -243,7 +284,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 16,
                                 crossAxisSpacing: 16,
-                                children: urls.map((url) => _buildDocumentTile(url)).toList(),
+                                // Hauteur suffisante pour image + bouton (évite overflow / comportements bizarres)
+                                childAspectRatio: 0.62,
+                                children: urls
+                                    .map((url) => _buildDocumentTile(url))
+                                    .toList(),
                               ),
                       );
                     },
@@ -255,48 +300,53 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
                     style: const TextStyle(fontSize: 12, color: AppColors.mutedForeground),
                   ),
                 const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Fermer',
-                        style: TextStyle(color: AppColors.mutedForeground),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.cancel, size: 16),
-                      label: const Text('Rejeter'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.destructive,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Documents rejetés. L\'utilisateur sera notifié.'),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.check_circle, size: 16),
-                      label: const Text('Approuver'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _validateDocuments(user['id_user']);
-                      },
-                    ),
-                  ],
-                ),
+              Row(
+  children: [
+    Expanded(
+      child: TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text(
+          'Fermer',
+          style: TextStyle(color: AppColors.mutedForeground),
+        ),
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.cancel, size: 16),
+        label: const Text('Rejeter'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.destructive,
+          foregroundColor: Colors.white,
+        ),
+        onPressed: () {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Documents rejetés. L\'utilisateur sera notifié.'),
+            ),
+          );
+        },
+      ),
+    ),
+    const SizedBox(width: 8),
+    Expanded(
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.check_circle, size: 16),
+        label: const Text('Approuver'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+        ),
+        onPressed: () {
+          Navigator.pop(context);
+          _validateDocuments(user['id_user']);
+        },
+      ),
+    ),
+  ],
+)
               ],
             ),
           ),
@@ -306,71 +356,34 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
   }
 
   Widget _buildDocumentTile(String url, {bool isMobile = false}) {
-    String currentUrl = url.trim();
-    if (!currentUrl.startsWith('http')) {
-      try {
-        currentUrl = Supabase.instance.client.storage.from('alae').getPublicUrl(currentUrl);
-      } catch (e) {
-        // Ignore if supabase is uninitialized
-      }
-    }
-
+    final resolved = _resolveAlaeDisplayUrl(url);
     return Container(
       margin: EdgeInsets.only(bottom: isMobile ? 16 : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
+          SizedBox(
+            height: isMobile ? 220 : 200,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                currentUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return const Center(child: CircularProgressIndicator());
-                },
-                errorBuilder: (context, error, stack) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.description, size: 48, color: AppColors.accent),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Document disponible',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        TextButton.icon(
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: const Text('Ouvrir le document'),
-                          onPressed: () async {
-                            final uri = Uri.parse(currentUrl);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
+              child: _DocumentImageViewer(
+                raw: url,
+                resolvedUrl: resolved,
               ),
             ),
           ),
           const SizedBox(height: 8),
           TextButton.icon(
             icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Voir en plein écran'),
+            label: const Text('Ouvrir le document'),
             onPressed: () async {
-              final uri = Uri.parse(currentUrl);
-              if (await canLaunchUrl(uri)) {
+              final open = resolved.isNotEmpty
+                  ? resolved
+                  : _resolveAlaeDisplayUrl(url);
+              if (open.isEmpty) return;
+              final uri = Uri.tryParse(open);
+              if (uri != null && await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
             },
@@ -668,6 +681,171 @@ var filteredUsers = users
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _DocumentImageViewer extends StatefulWidget {
+  /// Valeur brute en base (chemin ou URL).
+  final String raw;
+
+  /// URL d’affichage initiale ([getPublicUrl] ou URL absolue).
+  final String resolvedUrl;
+
+  const _DocumentImageViewer({
+    required this.raw,
+    required this.resolvedUrl,
+  });
+
+  @override
+  State<_DocumentImageViewer> createState() => _DocumentImageViewerState();
+}
+
+class _DocumentImageViewerState extends State<_DocumentImageViewer> {
+  late String _displayUrl;
+  bool _signedAttempted = false;
+  bool _resolvingSigned = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayUrl = widget.resolvedUrl;
+  }
+
+  @override
+  void didUpdateWidget(covariant _DocumentImageViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.raw != widget.raw ||
+        oldWidget.resolvedUrl != widget.resolvedUrl) {
+      _signedAttempted = false;
+      _resolvingSigned = false;
+      _displayUrl = widget.resolvedUrl;
+    }
+  }
+
+  Future<void> _trySignedUrl() async {
+    final path = _alaeStoragePath(widget.raw);
+    if (path.isEmpty || _signedAttempted || !mounted) return;
+    _signedAttempted = true;
+    setState(() => _resolvingSigned = true);
+    try {
+      final signed = await Supabase.instance.client.storage
+          .from('alae')
+          .createSignedUrl(path, 3600);
+      if (mounted) {
+        setState(() {
+          _displayUrl = signed;
+          _resolvingSigned = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('_DocumentImageViewer signed URL: $e');
+      if (mounted) {
+        setState(() => _resolvingSigned = false);
+      }
+    }
+  }
+
+  Widget _errorPlaceholder({required bool canRetrySigned}) {
+    final openUrl =
+        _displayUrl.isNotEmpty ? _displayUrl : _resolveAlaeDisplayUrl(widget.raw);
+    return ColoredBox(
+      color: AppColors.card,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.broken_image_outlined,
+                  size: 40, color: AppColors.mutedForeground),
+              const SizedBox(height: 8),
+              Text(
+                canRetrySigned
+                    ? 'Chargement d’une URL sécurisée…'
+                    : 'Impossible d’afficher l’aperçu (PDF, bucket privé ou fichier manquant)',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+              if (openUrl.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('Ouvrir'),
+                  onPressed: () async {
+                    final uri = Uri.tryParse(openUrl);
+                    if (uri != null && await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_displayUrl.isEmpty) {
+      return _errorPlaceholder(canRetrySigned: false);
+    }
+
+    if (_resolvingSigned && _signedAttempted) {
+      return const ColoredBox(
+        color: AppColors.card,
+        child: Center(
+          child: SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    return ColoredBox(
+      color: AppColors.card,
+      child: Image.network(
+        _displayUrl,
+        key: ValueKey<String>(_displayUrl),
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.low,
+        cacheWidth: 800,
+        cacheHeight: 800,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            return child;
+          }
+          final total = loadingProgress.expectedTotalBytes;
+          final loaded = loadingProgress.cumulativeBytesLoaded;
+          return Center(
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: total != null && total > 0 ? loaded / total : null,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          final path = _alaeStoragePath(widget.raw);
+          if (path.isNotEmpty && !_signedAttempted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _trySignedUrl();
+            });
+            return _errorPlaceholder(canRetrySigned: true);
+          }
+          return _errorPlaceholder(canRetrySigned: false);
+        },
       ),
     );
   }

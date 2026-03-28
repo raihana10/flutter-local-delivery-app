@@ -1,10 +1,19 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SuperAdminApiService {
-  static const String baseUrl =
-      String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+  /// Préfère `API_URL` dans `frontend/.env`, sinon `--dart-define=API_URL=...`.
+  static String get baseUrl {
+    final u = dotenv.env['API_URL'];
+    if (u != null && u.trim().isNotEmpty) return u.trim();
+    return const String.fromEnvironment(
+      'API_URL',
+      defaultValue: 'http://localhost:8084',
+    );
+  }
+
   final Dio _dio = Dio();
 
   Future<Options> _getAuthOptions() async {

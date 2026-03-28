@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:dotenv/dotenv.dart';
 import 'package:shelf/shelf.dart';
 import 'package:bcrypt/bcrypt.dart';
 import '../supabase/supabase_client.dart';
+import '../services/email_service.dart';
 
 class AuthController {
   Future<Response> login(Request request) async {
@@ -160,6 +162,54 @@ class AuthController {
       }), headers: {'content-type': 'application/json'});
     } catch (e) {
       print('REGISTER ERROR: $e');
+      return Response(
+        500,
+        body: jsonEncode({'success': false, 'error': e.toString()}),
+        headers: {'content-type': 'application/json'},
+      );
+    }
+  }
+
+  /// Appelé par l’app Flutter après inscription (secret [NOTIFY_SECRET]).
+  Future<Response> registerNotify(Request request) async {
+    try {
+      final env = DotEnv(includePlatformEnvironment: true)..load();
+      final expected = env['NOTIFY_SECRET'];
+      final secret = request.headers['x-notify-secret'];
+      if (expected == null ||
+          expected.isEmpty ||
+          secret == null ||
+          secret != expected) {
+        return Response(
+          403,
+          body: jsonEncode({'success': false, 'error': 'Forbidden'}),
+          headers: {'content-type': 'application/json'},
+        );
+      }
+
+      final payload = jsonDecode(await request.readAsString());
+      final email = payload['email']?.toString() ?? '';
+      final nom = payload['nom']?.toString() ?? '';
+      final role = payload['role']?.toString() ?? '';
+
+      final mail = EmailService.fromEnv();
+      await mail.notifyAdmins(
+        subject: 'Nouvelle inscription à traiter — LivrApp',
+        html:
+            '<p>Un nouvel utilisateur s’est inscrit.</p>'
+            '<ul>'
+            '<li><strong>Nom :</strong> ${nom.isEmpty ? '—' : nom}</li>'
+            '<li><strong>Email :</strong> $email</li>'
+            '<li><strong>Rôle :</strong> $role</li>'
+            '</ul>'
+            '<p>Connectez-vous à l’administration pour valider les documents si nécessaire.</p>',
+      );
+
+      return Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'content-type': 'application/json'},
+      );
+    } catch (e) {
       return Response(
         500,
         body: jsonEncode({'success': false, 'error': e.toString()}),

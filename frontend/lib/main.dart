@@ -13,6 +13,7 @@ import 'package:app/presentation/screens/client/client_home_screen.dart';
 import 'package:app/presentation/screens/business/business_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
+import 'package:app/presentation/screens/auth/pending_approval_screen.dart';
 import 'package:app/core/providers/product_provider.dart';
 import 'package:app/core/providers/order_provider.dart';
 import 'package:app/core/providers/client_data_provider.dart';
@@ -32,6 +33,9 @@ Future<void> main() async {
       await Supabase.initialize(
         url: dotenv.env['SUPABASE_URL']!,
         anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
       );
     }
   } catch (e) {
@@ -85,6 +89,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/pending-approval': (context) => const PendingApprovalScreen(),
         '/client/home': (context) => const ClientHomeScreen(),
         '/livreur/dashboard': (context) => const DashboardScreen(),
         '/business/dashboard': (context) => const BusinessMainScreen(),
@@ -108,10 +113,17 @@ class RoleRouter extends StatelessWidget {
         }
 
         final role = authProvider.user?.role.value;
+        final isActive = authProvider.user?.estActif ?? false;
+        
         if (role == null) {
           // Si le rôle n'est pas encore chargé (ou utilisateur non trouvé dans la base)
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
+        }
+
+        // ✅ Check if user is pending approval for livreur or business
+        if ((role == 'livreur' || role == 'business') && !isActive) {
+          return const PendingApprovalScreen();
         }
 
         switch (role) {

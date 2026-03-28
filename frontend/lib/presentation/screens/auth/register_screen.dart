@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app/data/models/auth_models.dart' as auth;
@@ -25,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   int _currentStep = 1;
   UserRole? _selectedRole;
   bool _showPassword = false;
+  bool _isLoadingGoogle = false;
 
   // Common fields
   final _fullNameController = TextEditingController();
@@ -112,11 +112,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           .from('alae')
           .uploadBinary(path, bytes, fileOptions: const FileOptions(upsert: true));
 
-      final url = Supabase.instance.client.storage
-          .from('alae')
-          .getPublicUrl(path);
-
-      return url;
+      // Stocker le chemin relatif (court) : plusieurs URLs complètes dépassent souvent VARCHAR(255).
+      return path;
     } catch (e) {
       print('UPLOAD ERROR: $e');
       throw e;
@@ -138,10 +135,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (pickedFile != null) {
         _showSuccessSnackBar('Fichier sélectionné, upload en cours...');
 
-        final url = await _uploadToSupabase(pickedFile, folder);
+        final storagePath = await _uploadToSupabase(pickedFile, folder);
 
-        if (url != null) {
-          onDone(pickedFile, url);
+        if (storagePath != null) {
+          onDone(pickedFile, storagePath);
           _showSuccessSnackBar('Fichier uploadé avec succès ✅');
         }
       }
@@ -195,6 +192,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Vélo et Piéton n'ont pas besoin de permis de conduire
     if (_vehicleType == null) return true; // Par défaut, on demande le permis
     return !['Vélo', 'Piéton'].contains(_vehicleType);
+  }
+
+  Future<void> _signInWithGoogleAsClient() async {
+    setState(() => _isLoadingGoogle = true);
+    try {
+      final auth = context.read<AuthProvider>();
+      final ok = await auth.signInWithGoogle();
+      if (!mounted) return;
+      if (ok) {
+        Navigator.of(context).pushReplacementNamed('/client/home');
+      } else if (auth.errorMessage != null) {
+        _showErrorSnackBar(auth.errorMessage!);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingGoogle = false);
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -252,6 +265,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_selectedRole == UserRole.business) {
       if (_businessCategory == null) {
         _showErrorSnackBar('Veuillez sélectionner une catégorie');
+        return;
+      }
+      if (_commerceRegistrationUrl == null) {
+        _showErrorSnackBar('Veuillez joindre le justificatif du registre de commerce');
         return;
       }
     }
@@ -437,6 +454,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         label: 'Commerce',
                         icon: LucideIcons.store,
                         description: 'Gérer mon restaurant / commerce',
+                      ),
+                      SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: AppColors.border)),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'ou',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: AppColors.border)),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed:
+                            _isLoadingGoogle ? null : _signInWithGoogleAsClient,
+                        icon: _isLoadingGoogle
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(Icons.login, size: 20, color: AppColors.foreground),
+                        label: Text(
+                          'Continuer avec Google (compte client)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.foreground,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
                       ),
                     ],
                   ),

@@ -1,7 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../../data/models/auth_models.dart';
 
@@ -252,22 +257,52 @@ class AuthProvider extends ChangeNotifier {
           await _supabase.from('livreur').insert({
             'id_user': userId,
             'sexe': request.sexe,
+            'date_naissance': request.dateNaissance != null
+                ? request.dateNaissance!.toIso8601String().split('T').first
+                : null,
             'cni': request.cni,
+            'documents_validation': request.documentsValidation,
+            'est_actif': false,
           });
         } else if (request.role == UserRole.business) {
           String bt = 'restaurant';
           if (request.businessType != null) {
             final lowerBt = request.businessType!.toLowerCase();
-            if (lowerBt.contains('super'))
+            if (lowerBt.contains('super')) {
               bt = 'super-marche';
-            else if (lowerBt.contains('pharmacie')) bt = 'pharmacie';
+            } else if (lowerBt.contains('pharmacie')) {
+              bt = 'pharmacie';
+            }
           }
           await _supabase.from('business').insert({
             'id_user': userId,
             'type_business': bt,
             'description': request.businessDescription,
+            'pdp': request.profileImageUrl,
+            'documents_validation': request.documentsValidation,
+            'est_actif': false,
+            'is_open': false,
           });
         }
+
+        if (request.latitude != null && request.longitude != null) {
+          final adresse = await _supabase.from('adresse').insert({
+            'ville': request.ville ?? 'Localisation GPS',
+            'latitude': request.latitude,
+            'longitude': request.longitude,
+          }).select().single();
+          await _supabase.from('user_adresse').insert({
+            'id_user': userId,
+            'id_adresse': adresse['id_adresse'],
+            'is_default': true,
+          });
+        }
+
+        await _notifyBackendNewRegistration(
+          email: request.email,
+          nom: request.nom,
+          role: request.role.value,
+        );
 
         // Fetch details synchronously before returning true so the UI has the role
         await _fetchUserDetails(request.email);
@@ -283,6 +318,127 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> _notifyBackendNewRegistration({
+    required String email,
+    required String nom,
+    required String role,
+  }) async {
+    final secret = dotenv.env['NOTIFY_SECRET'];
+    if (secret == null || secret.isEmpty) return;
+    final base =
+        dotenv.env['API_URL'] ?? const String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+    try {
+      await Dio().post(
+        '$base/auth/register-notify',
+        data: {'email': email, 'nom': nom, 'role': role},
+        options: Options(
+          headers: {'X-Notify-Secret': secret, 'Content-Type': 'application/json'},
+          sendTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+    } catch (_) {
+      // Ne bloque pas l'inscription si l'API mail est indisponible
+    }
+  }
+
+  /// Connexion / inscription via Google (compte [UserRole.client] si nouveau).
+  ///
+  /// - **Web** : [GoogleSignIn] requiert [clientId] (même valeur que l’ID client OAuth « Web »).
+  /// - **Android/iOS** : [serverClientId] = cet ID client Web pour obtenir un `id_token`.
+  Future<bool> signInWithGoogle() async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+      if (webClientId == null || webClientId.isEmpty) {
+        _setError(
+          'Ajoutez GOOGLE_WEB_CLIENT_ID dans .env (ID client OAuth de type « Application Web » dans Google Cloud Console).',
+        );
+        return false;
+      }
+
+      final GoogleSignIn googleSignIn = kIsWeb
+          ? GoogleSignIn(
+              scopes: const ['email', 'profile'],
+              clientId: webClientId,
+            )
+          : GoogleSignIn(
+              scopes: const ['email', 'profile'],
+              serverClientId: webClientId,
+            );
+
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        return false;
+      }
+      final googleAuth = await account.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        _setError(
+          kIsWeb
+              ? 'Jeton Google indisponible. Vérifiez GOOGLE_WEB_CLIENT_ID et les origines JS autorisées dans Google Cloud.'
+              : 'Jeton Google indisponible. Utilisez l’ID client OAuth « Web » comme GOOGLE_WEB_CLIENT_ID et vérifiez le SHA-1 Android.',
+        );
+        return false;
+      }
+      await _supabase.auth.signInWithIdToken(
+        provider: supa.OAuthProvider.google,
+        idToken: idToken,
+        accessToken: googleAuth.accessToken,
+      );
+      final email = account.email;
+      if (email.isEmpty) {
+        _setError('Email Google introuvable');
+        return false;
+      }
+      final isNew = await _ensureAppUserFromGoogle(
+        email: email,
+        nom: account.displayName ?? email.split('@').first,
+      );
+      if (isNew) {
+        await _notifyBackendNewRegistration(
+          email: email,
+          nom: account.displayName ?? email.split('@').first,
+          role: 'client',
+        );
+      }
+      await _fetchUserDetails(email);
+      return true;
+    } catch (e) {
+      _setError('Connexion Google: ${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Retourne true si un nouvel [app_user] a été créé.
+  Future<bool> _ensureAppUserFromGoogle({
+    required String email,
+    required String nom,
+  }) async {
+    final existing = await _supabase
+        .from('app_user')
+        .select('id_user')
+        .eq('email', email)
+        .maybeSingle();
+    if (existing != null) return false;
+
+    final hash = sha256
+        .convert(utf8.encode('google:${email}:${Random.secure().nextInt(1 << 30)}'))
+        .toString();
+    final responseUser = await _supabase.from('app_user').insert({
+      'email': email,
+      'password': hash,
+      'nom': nom,
+      'role': 'client',
+    }).select().single();
+    final userId = responseUser['id_user'] as int;
+    await _supabase.from('client').insert({'id_user': userId});
+    return true;
   }
 
   Future<void> logout() async {
