@@ -18,6 +18,7 @@ import 'package:app/core/providers/product_provider.dart';
 import 'package:app/core/providers/order_provider.dart';
 import 'package:app/core/providers/client_data_provider.dart';
 import 'package:app/core/providers/business_data_provider.dart';
+import 'package:app/core/providers/business_order_provider.dart';
 import 'package:app/core/providers/livreur_dashboard_provider.dart';
 
 Future<void> main() async {
@@ -65,6 +66,10 @@ Future<void> main() async {
         ChangeNotifierProxyProvider<AuthProvider, BusinessDataProvider>(
           create: (context) => BusinessDataProvider(authProvider: context.read<AuthProvider>()),
           update: (context, auth, previous) => previous ?? BusinessDataProvider(authProvider: auth),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, BusinessOrderProvider>(
+          create: (context) => BusinessOrderProvider(authProvider: context.read<AuthProvider>()),
+          update: (context, auth, previous) => previous ?? BusinessOrderProvider(authProvider: auth),
         ),
       ],
       child: const MyApp(),
