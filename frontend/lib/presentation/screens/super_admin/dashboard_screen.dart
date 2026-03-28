@@ -5,7 +5,11 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:app/data/datasources/super_admin_api_service.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  /// Callback appelé quand l'admin clique sur "Voir tous" dans la section
+  /// inscriptions en attente — permet de naviguer vers l'onglet Utilisateurs.
+  final VoidCallback? onNavigateToUsers;
+
+  const DashboardScreen({super.key, this.onNavigateToUsers});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -19,6 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> _liveDrivers = [];
   List<dynamic> _chartData = [];
   List<dynamic> _ordersStatus = [];
+  List<dynamic> _pendingUsers = [];
 
   @override
   void initState() {
@@ -31,10 +36,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       print('🔍 Loading dashboard data...');
       final stats = await _apiService.getKPIs();
       print('📊 KPIs: $stats');
-      
+
       final chartData = await _apiService.getChartData();
       print('📈 Chart Data: $chartData');
-      
+
       final alerts = await _apiService.getAlerts();
       final driversResponse = await _apiService.getLiveDrivers();
 
@@ -43,18 +48,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _stats = stats;
           _chartData = (chartData['weeklyRevenue'] as List<dynamic>?) ?? [];
           _ordersStatus = (chartData['ordersByStatus'] as List<dynamic>?) ?? [];
-          
+
           // Limiter à 7 jours maximum pour éviter les bâtonnets infinis
           if (_chartData.length > 7) {
             _chartData = _chartData.take(7).toList();
           }
-          
+
           print('✅ Chart Data Length: ${_chartData.length}');
           print('✅ Orders Status Length: ${_ordersStatus.length}');
-          
+
           _liveDrivers = driversResponse is List
               ? driversResponse
               : ((driversResponse as Map<String, dynamic>)['data'] as List<dynamic>? ?? []);
+
+          // Inscriptions en attente
+          _pendingUsers = (alerts['pending_validations'] as List<dynamic>?) ?? [];
+          print('⏳ Pending users: ${_pendingUsers.length}');
+
           _isLoading = false;
         });
       }
@@ -83,6 +93,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 24),
           _buildKPIGrid(context),
+          if (_pendingUsers.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _buildPendingRegistrationsSection(context),
+          ],
           const SizedBox(height: 32),
           _buildChartsSection(context),
         ],
@@ -170,6 +184,172 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ─── Section : Inscriptions en attente ───────────────────────────────────────
+
+  Widget _buildPendingRegistrationsSection(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 800;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFCA28), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFCA28).withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // En-tête avec badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFCA28).withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(LucideIcons.userCheck,
+                    color: Color(0xFFF57F17), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Inscriptions en attente',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF57F17),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF57F17),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${_pendingUsers.length}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Ces comptes nécessitent votre validation avant activation.',
+                      style: TextStyle(
+                          fontSize: 12, color: Color(0xFF795548)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Liste des utilisateurs en attente
+          ...(_pendingUsers.take(isDesktop ? 5 : 3).map((user) {
+            final role = user['role']?.toString() ?? '';
+            final nom = user['nom']?.toString() ?? 'Sans nom';
+            final isLivreur = role == 'livreur';
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: (isLivreur ? Colors.blue : Colors.deepPurple)
+                          .withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isLivreur ? LucideIcons.bike : LucideIcons.store,
+                      size: 16,
+                      color: isLivreur ? Colors.blue : Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      nom,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF4E342E)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (isLivreur ? Colors.blue : Colors.deepPurple)
+                          .withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isLivreur ? 'Livreur' : 'Commerce',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isLivreur ? Colors.blue : Colors.deepPurple,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          })).toList(),
+          if (_pendingUsers.length > (isDesktop ? 5 : 3)) ...[
+            const SizedBox(height: 4),
+            Text(
+              '+ ${_pendingUsers.length - (isDesktop ? 5 : 3)} autre(s)…',
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF795548)),
+            ),
+          ],
+          const SizedBox(height: 16),
+          // Bouton de navigation
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(LucideIcons.arrowRight, size: 16),
+              label: const Text('Voir tous les utilisateurs en attente'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF57F17),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: widget.onNavigateToUsers,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Graphiques ──────────────────────────────────────────────────────────────
+
   Widget _buildChartsSection(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= 800;
@@ -212,7 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: 1000, // Échelle réduite à 1k
+                  maxY: 1000,
                   barTouchData: BarTouchData(enabled: false),
                   titlesData: FlTitlesData(
                     show: true,
@@ -292,11 +472,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     int colorValue;
                     if (status['color'] is String) {
                       String colorHex = status['color'] as String;
-                      colorValue = int.parse(colorHex.replaceFirst('#', '0xFF'));
+                      colorValue =
+                          int.parse(colorHex.replaceFirst('#', '0xFF'));
                     } else {
                       colorValue = status['color'] as int? ?? 0xFF000000;
                     }
-                    
+
                     return PieChartSectionData(
                       color: Color(colorValue),
                       value: (status['count'] ?? 0).toDouble(),
@@ -319,9 +500,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     children: [
                       Container(
-                          width: 12, height: 12, color: status['color'] is String 
-                            ? Color(int.parse((status['color'] as String).replaceFirst('#', '0xFF')))
-                            : Color(status['color'] as int? ?? 0xFF000000)),
+                          width: 12,
+                          height: 12,
+                          color: status['color'] is String
+                              ? Color(int.parse((status['color'] as String)
+                                  .replaceFirst('#', '0xFF')))
+                              : Color(status['color'] as int? ?? 0xFF000000)),
                       const SizedBox(width: 8),
                       Text(status['status'] ?? 'Inconnu'),
                     ],

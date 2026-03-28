@@ -613,6 +613,13 @@ var filteredUsers = users
       // Implementation logic for date filtering if necessary
     }
 
+    // Tri par date d'inscription décroissante (les plus récents en premier)
+    filteredUsers.sort((a, b) {
+      final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
+      final bDate = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
+      return bDate.compareTo(aDate);
+    });
+
     List<DataColumn> columns = [
       const DataColumn(
           label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),

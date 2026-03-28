@@ -19,8 +19,8 @@ class SuperAdminMainScreen extends StatefulWidget {
 class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
+  List<Widget> get _screens => [
+    DashboardScreen(onNavigateToUsers: () => _onItemTapped(1)),
     const UsersManagementScreen(),
     const OrdersManagementScreen(),
     const PaymentsScreen(),
