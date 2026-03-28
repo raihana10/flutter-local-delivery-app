@@ -47,11 +47,9 @@ class User {
       nom: json['nom'] ?? '',
       numTl: json['num_tl'],
       role: UserRole.fromString(json['role'] ?? 'client'),
-      estActif: json['est_actif'] ?? true,
-      createdAt: DateTime.parse(
-          json['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(
-          json['updated_at'] ?? DateTime.now().toIso8601String()),
+      estActif: json['est_actif'] == true || json['est_actif'] == 1 || json['est_actif'] == null,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'].toString()) : DateTime.now(),
       pdp: json['pdp'],
     );
   }
@@ -177,7 +175,7 @@ class RegisterRequest {
   final String? documentsValidation;
   final double? latitude;
   final double? longitude;
-  final String? ville; // ← AJOUTER
+  final String? ville;
 
   const RegisterRequest({
     required this.email,
@@ -197,7 +195,7 @@ class RegisterRequest {
     this.documentsValidation,
     this.latitude,
     this.longitude,
-    this.ville, // ← AJOUTER
+    this.ville,
   });
 
   Map<String, dynamic> toJson() => {
@@ -219,7 +217,7 @@ class RegisterRequest {
     'documents_validation': documentsValidation,
     'latitude': latitude,
     'longitude': longitude,
-    'ville': ville, // ← AJOUTER
+    'ville': ville,
   };
 }
 

@@ -138,11 +138,41 @@ class DashboardController {
 
   Future<Response> getAlerts(Request request) async {
     try {
-      final pendingDocs = await SupabaseConfig.client
+      // Livreurs en attente de validation (est_actif=false) avec infos user
+      final pendingLivreurs = await SupabaseConfig.client
           .from('livreur')
-          .select('id_user, cni')
+          .select('id_user, app_user:id_user(nom, email)')
           .eq('est_actif', false)
           .isFilter('deleted_at', null);
+
+      // Businesses en attente de validation (est_actif=false) avec infos user
+      final pendingBusinesses = await SupabaseConfig.client
+          .from('business')
+          .select('id_user, app_user:id_user(nom, email)')
+          .eq('est_actif', false)
+          .isFilter('deleted_at', null);
+
+      // Normaliser : ajouter role et aplatir les infos app_user
+      final formattedPending = [
+        ...(pendingLivreurs as List).map((item) {
+          final userInfo = item['app_user'];
+          return {
+            'id_user': item['id_user'],
+            'nom': userInfo != null ? (userInfo['nom'] ?? 'Sans nom') : 'Sans nom',
+            'email': userInfo != null ? (userInfo['email'] ?? '') : '',
+            'role': 'livreur',
+          };
+        }),
+        ...(pendingBusinesses as List).map((item) {
+          final userInfo = item['app_user'];
+          return {
+            'id_user': item['id_user'],
+            'nom': userInfo != null ? (userInfo['nom'] ?? 'Sans nom') : 'Sans nom',
+            'email': userInfo != null ? (userInfo['email'] ?? '') : '',
+            'role': 'business',
+          };
+        }),
+      ];
 
       final thirtyMinsAgo = DateTime.now()
           .subtract(const Duration(minutes: 30))
@@ -167,7 +197,7 @@ class DashboardController {
 
       return Response.ok(
         jsonEncode({
-          'pending_validations': pendingDocs,
+          'pending_validations': formattedPending,
           'blocked_orders': formattedBlocked,
         }),
         headers: _headers,

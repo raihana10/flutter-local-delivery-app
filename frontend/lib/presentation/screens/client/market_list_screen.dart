@@ -1,17 +1,29 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/business_model.dart';
+import 'order_history_screen.dart';
+import 'order_tracking_screen.dart';
+import 'support_screen.dart';
 import 'restaurant_detail_screen.dart';
+import 'generic_vertical_list_screen.dart';
 import 'cart_screen.dart';
 import 'client_profile_screen.dart';
 import 'client_notifications_screen.dart';
 import 'client_favorites_screen.dart';
 import '../../../core/providers/client_data_provider.dart';
+import '../../widgets/promotions_banner.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class MarketListScreen extends StatefulWidget {
-  const MarketListScreen({super.key});
+  final int initialNavIndex;
+  const MarketListScreen({super.key, this.initialNavIndex = 1});
 
   @override
   State<MarketListScreen> createState() => _MarketListScreenState();
@@ -19,11 +31,17 @@ class MarketListScreen extends StatefulWidget {
 
 class _MarketListScreenState extends State<MarketListScreen>
     with TickerProviderStateMixin {
-  int _currentIndex = 0;
+  int _currentIndex = 1; // default to 'Rechercher'
   final TextEditingController _searchTextController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final PageController _promoPageController = PageController();
 
+  bool _isMapViewOpen = false;
+  double _maxDistance = 10.0;
+  RangeValues _priceRange = const RangeValues(0, 500);
+  final MapController _mapController = MapController();
+  final LatLng _userLocation =
+      const LatLng(35.5740, -5.3680); // Mock user location
   late AnimationController _headerController;
   late Animation<double> _headerAnimation;
   late AnimationController _searchAnimationController;
@@ -44,7 +62,13 @@ class _MarketListScreenState extends State<MarketListScreen>
   @override
   void initState() {
     super.initState();
-    // Removed local mock init since data comes from provider now
+    _currentIndex = widget.initialNavIndex;
+    _initializeMockData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ProductProvider>().fetchPromotions();
+      }
+    });
 
     _headerController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -85,12 +109,52 @@ class _MarketListScreenState extends State<MarketListScreen>
     _headerController.forward();
     _fabController.forward();
 
+    // Fetch real data from Supabase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
+
     _searchAnimationController.addListener(() {
       setState(() {});
     });
 
     // Auto-scroll promos
     _startPromoAutoScroll();
+  }
+
+  Future<void> _fetchData() async {
+    await context.read<ProductProvider>().fetchBusinesses('super-marche');
+    _mapBusinessesToMarkets();
+  }
+
+  void _mapBusinessesToMarkets() {
+    final businesses = context.read<ProductProvider>().businesses;
+    setState(() {
+      _allRestaurants = businesses.map<Map<String, dynamic>>((b) {
+        final biz = b as Business;
+        return {
+          'id': biz.id,
+          'id_business': biz.id,
+          'name': biz.user?.nom ?? 'Supermarché',
+          'rating': 4.5,
+          'time': '30-45 min',
+          'image': Icons.shopping_cart,
+          'pdp': biz.pdp,
+          'distance': '1.5 km',
+          'isOpen': biz.isOpen,
+          'is_open': biz.isOpen,
+          'category': 'all',
+          'deliveryFee': '20 DH',
+          'minOrder': '100 DH',
+          'description': biz.description ?? 'Épicerie et produits frais',
+          'cuisine': biz.description ?? 'Épicerie et produits frais',
+          'app_user': {
+            'nom': biz.user?.nom ?? 'Supermarché',
+          }
+        };
+      }).toList();
+      _filteredRestaurants = List.from(_allRestaurants);
+    });
   }
 
   void _initializeMockData() {
@@ -119,9 +183,133 @@ class _MarketListScreenState extends State<MarketListScreen>
   }
 
   void _applyFilters() {
-    // Rely on build method filtering or provider changes instead of setting state directly here on _filteredRestaurants.
-    // Call setState to rebuild UI with current query and category
-    setState(() {});
+    setState(() {
+      _filteredRestaurants = _allRestaurants.where((restaurant) {
+        bool matchesCategory = _selectedCategory == 'all' ||
+            restaurant['category'] == _selectedCategory;
+        bool matchesSearch = _searchQuery.isEmpty ||
+            restaurant['name']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()) ||
+            restaurant['cuisine']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase());
+
+        // Filter by distance
+        double dist =
+            double.parse(restaurant['distance'].toString().split(' ')[0]);
+        bool matchesDistance = dist <= _maxDistance;
+
+        // Filter by price (mocking minOrder as a proxy for price level)
+        double price =
+            double.parse(restaurant['minOrder'].toString().split(' ')[0]);
+        bool matchesPrice =
+            price >= _priceRange.start && price <= _priceRange.end;
+
+        return matchesCategory &&
+            matchesSearch &&
+            matchesDistance &&
+            matchesPrice;
+      }).toList();
+    });
+  }
+
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Filtres',
+                          style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary)),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            _maxDistance = 10.0;
+                            _priceRange = const RangeValues(0, 500);
+                          });
+                          _applyFilters();
+                        },
+                        child: const Text('Réinitialiser'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Distance Max (km)',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Slider(
+                    value: _maxDistance,
+                    min: 0.5,
+                    max: 20,
+                    divisions: 19,
+                    label: '${_maxDistance.toStringAsFixed(1)} km',
+                    activeColor: AppColors.primary,
+                    inactiveColor: AppColors.secondary.withOpacity(0.2),
+                    onChanged: (value) {
+                      setModalState(() => _maxDistance = value);
+                      _applyFilters();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Budget Min (MAD)',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  RangeSlider(
+                    values: _priceRange,
+                    min: 0,
+                    max: 500,
+                    divisions: 10,
+                    labels: RangeLabels('${_priceRange.start.round()} MAD',
+                        '${_priceRange.end.round()} MAD'),
+                    activeColor: AppColors.accent,
+                    inactiveColor: AppColors.secondary.withOpacity(0.2),
+                    onChanged: (values) {
+                      setModalState(() => _priceRange = values);
+                      _applyFilters();
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('Appliquer',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _performSearch() {
@@ -220,10 +408,13 @@ class _MarketListScreenState extends State<MarketListScreen>
     final baseMarkets = _showAll ? clientData.allSuperMarkets : clientData.filteredSuperMarkets;
     
     _filteredRestaurants = baseMarkets.where((market) {
-      final businessUser = market['app_user'] ?? {};
-      final nameStr = (businessUser['nom'] ?? '').toString().toLowerCase();
-      // Category filtering bypassed here because we would need backend mapping.
-      bool matchesSearch = _searchQuery.isEmpty || nameStr.contains(_searchQuery.toLowerCase());
+      final nameStr = (market['name'] ?? '').toString().toLowerCase();
+      final cuisineStr = (market['cuisine'] ?? '').toString().toLowerCase();
+      
+      bool matchesSearch = _searchQuery.isEmpty || 
+          nameStr.contains(_searchQuery.toLowerCase()) ||
+          cuisineStr.contains(_searchQuery.toLowerCase());
+          
       return matchesSearch;
     }).toList();
 
@@ -498,90 +689,72 @@ class _MarketListScreenState extends State<MarketListScreen>
                                           ),
                                         ],
                                       ),
-                                      child: TextField(
-                                        controller: _searchTextController,
-                                        onTap: () {
-                                          setState(() {
-                                            _isSearching = true;
-                                          });
-                                          _searchAnimationController.forward();
-                                        },
-                                        onSubmitted: (value) {
-                                          _performSearch();
-                                        },
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _searchQuery = value;
-                                          });
-                                        },
-                                        decoration: InputDecoration(
-                                          hintText: _isSearching
-                                              ? 'Rechercher un produit, une marque...'
-                                              : 'Qu\'allez-vous cuisiner aujourd\'hui ?',
-                                          hintStyle: TextStyle(
-                                            color: AppColors.mutedForeground
-                                                .withOpacity(0.7),
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          prefixIcon: Container(
-                                            padding: const EdgeInsets.all(12),
-                                            child: Icon(
-                                              Icons.search,
-                                              color: _isSearching
-                                                  ? AppColors.primary
-                                                  : AppColors.mutedForeground,
-                                              size: 22,
+                                      child: Row(
+                                        children: [
+                                          const SizedBox(width: 16),
+                                          const Icon(Icons.search,
+                                              color: AppColors.mutedForeground,
+                                              size: 22),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _searchTextController,
+                                              onTap: () {
+                                                setState(() {
+                                                  _isSearching = true;
+                                                });
+                                                _searchAnimationController
+                                                    .forward();
+                                              },
+                                              onSubmitted: (value) {
+                                                _performSearch();
+                                              },
+                                              onChanged: (val) => setState(() {
+                                                _searchQuery = val;
+                                                _applyFilters();
+                                              }),
+                                              decoration: InputDecoration(
+                                                hintText: _isSearching
+                                                    ? 'Rechercher un produit...'
+                                                    : 'Rechercher...',
+                                                border: InputBorder.none,
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12),
+                                              ),
                                             ),
                                           ),
-                                          suffixIcon: _searchAnimation.value >
-                                                  0.5
-                                              ? Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: Icon(
-                                                        Icons.search,
-                                                        color:
-                                                            AppColors.primary,
-                                                        size: 22,
-                                                      ),
-                                                      onPressed: _performSearch,
-                                                    ),
-                                                    IconButton(
-                                                      icon: Icon(
-                                                        Icons.clear,
-                                                        color: AppColors
-                                                            .mutedForeground,
-                                                        size: 20,
-                                                      ),
-                                                      onPressed: () {
-                                                        _searchTextController
-                                                            .clear();
-                                                        setState(() {
-                                                          _isSearching = false;
-                                                          _searchQuery = '';
-                                                        });
-                                                        _applyFilters();
-                                                        _searchAnimationController
-                                                            .reverse();
-                                                      },
-                                                    ),
-                                                  ],
-                                                )
-                                              : null,
-                                          border: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                            borderSide: BorderSide.none,
+                                          if (_isSearching)
+                                            IconButton(
+                                              icon: const Icon(Icons.clear,
+                                                  color: AppColors
+                                                      .mutedForeground),
+                                              onPressed: () {
+                                                _searchTextController.clear();
+                                                setState(() {
+                                                  _isSearching = false;
+                                                  _searchQuery = '';
+                                                });
+                                                _applyFilters();
+                                                _searchAnimationController
+                                                    .reverse();
+                                              },
+                                            ),
+                                          IconButton(
+                                            icon: const Icon(Icons.tune,
+                                                color: AppColors.primary),
+                                            onPressed: _showFilterSheet,
                                           ),
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 16,
+                                          IconButton(
+                                            icon: Icon(
+                                                _isMapViewOpen
+                                                    ? Icons.list
+                                                    : Icons.map_outlined,
+                                                color: AppColors.primary),
+                                            onPressed: () => setState(() =>
+                                                _isMapViewOpen =
+                                                    !_isMapViewOpen),
                                           ),
-                                        ),
+                                        ],
                                       ),
                                     );
                                   },
@@ -634,78 +807,65 @@ class _MarketListScreenState extends State<MarketListScreen>
 
                 // Main Content
                 Expanded(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Promotional Banner
-                        _buildPromotionalBanner(),
+                  child: _isMapViewOpen
+                      ? _buildMapView()
+                      : SingleChildScrollView(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Promotional Banner
+                              _buildPromotionalBanner(),
 
-                        const SizedBox(height: 24),
+                              const SizedBox(height: 24),
 
-                        // Quick Actions
-                        _buildQuickActions(),
+                              // Quick Actions
+                              _buildQuickActions(),
 
-                        const SizedBox(height: 24),
+                              const SizedBox(height: 24),
 
-                        // Promotions Section
-                        _buildSectionTitle(
-                            'Promos du jour', 'Voir tout', () {}),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 180,
-                          child: PageView.builder(
-                            controller: _promoPageController,
-                            onPageChanged: (page) {
-                              _setCurrentPromoPage(page);
-                            },
-                            itemCount: 3,
-                            itemBuilder: (context, index) {
-                              return _buildPromoCard(index);
-                            },
-                          ),
-                        ),
-
-                        // Page Indicator
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            3,
-                            (index) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: _currentPromoPage == index ? 20 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _currentPromoPage == index
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                                borderRadius: BorderRadius.circular(4),
+                              // Promotions Section
+                              Consumer<ProductProvider>(
+                                builder: (context, provider, _) => _buildSectionTitle(
+                                  'Promos du jour', 
+                                  'Voir tout', 
+                                  () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => GenericVerticalListScreen(
+                                        title: 'Promotions',
+                                        items: provider.promotions,
+                                        category: 'promos',
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
+                              const SizedBox(height: 12),
+                              const PromotionsBanner(),
 
-                        const SizedBox(height: 24),
+                              const SizedBox(height: 24),
 
-                        // Results count
-                        if (_searchQuery.isNotEmpty ||
-                            _selectedCategory != 'all')
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              '${_filteredRestaurants.length} magasin${_filteredRestaurants.length > 1 ? 's' : ''} trouvé${_filteredRestaurants.length > 1 ? 's' : ''}',
-                              style: TextStyle(
-                                color: AppColors.mutedForeground,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
+                              // Results count
+                              if (_searchQuery.isNotEmpty ||
+                                  _selectedCategory != 'all')
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    '${_filteredRestaurants.length} magasin${_filteredRestaurants.length > 1 ? 's' : ''} trouvé${_filteredRestaurants.length > 1 ? 's' : ''}',
+                                    style: TextStyle(
+                                      color: AppColors.mutedForeground,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
 
+                              // Nearby Restaurants Section
+                              _buildSectionTitle(
+                                  'Magasins proches', 'Voir tout', () {}),
+                              const SizedBox(height: 12),
                         // Nearby Restaurants Section
                         _buildSectionTitle(
                             'Magasins proches', _showAll ? 'Voir moins' : 'Voir tout', () {
@@ -715,74 +875,75 @@ class _MarketListScreenState extends State<MarketListScreen>
                             }),
                         const SizedBox(height: 12),
 
-                        // Display message if no restaurants found
-                        if (_filteredRestaurants.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.restaurant_menu,
-                                  size: 64,
-                                  color: AppColors.mutedForeground
-                                      .withOpacity(0.3),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Aucun magasin trouvé',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.foreground,
+                              // Display message if no restaurants found
+                              if (_filteredRestaurants.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.restaurant_menu,
+                                        size: 64,
+                                        color: AppColors.mutedForeground
+                                            .withOpacity(0.3),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Aucun magasin trouvé',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.foreground,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Essayez de modifier vos filtres ou votre recherche',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.mutedForeground,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedCategory = 'all';
+                                            _searchQuery = '';
+                                            _searchTextController.clear();
+                                            _applyFilters();
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: AppColors.textWhite,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                            'Réinitialiser les filtres'),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Essayez de modifier vos filtres ou votre recherche',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.mutedForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedCategory = 'all';
-                                      _searchQuery = '';
-                                      _searchTextController.clear();
-                                      _applyFilters();
-                                    });
+                                )
+                              else
+                                ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: _filteredRestaurants.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildRestaurantCard(
+                                        _filteredRestaurants[index], index);
                                   },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: AppColors.textWhite,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child:
-                                      const Text('Réinitialiser les filtres'),
                                 ),
-                              ],
-                            ),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
-                            itemBuilder: (context, index) {
-                              return _buildRestaurantCard(
-                                  _filteredRestaurants[index], index);
-                            },
-                          ),
 
-                        const SizedBox(height: 120), // Bottom nav padding
-                      ],
-                    ),
-                  ),
+                              const SizedBox(height: 120), // Bottom nav padding
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -882,7 +1043,10 @@ class _MarketListScreenState extends State<MarketListScreen>
                 'Historique',
                 Icons.history,
                 AppColors.primary,
-                () {},
+                () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const OrderHistoryScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -891,12 +1055,10 @@ class _MarketListScreenState extends State<MarketListScreen>
                 'Favoris',
                 Icons.favorite,
                 AppColors.destructive,
-                () {
-                  Navigator.push(
+                () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ClientFavoritesScreen()),
-                  );
-                },
+                    MaterialPageRoute(
+                        builder: (_) => const ClientFavoritesScreen())),
               ),
             ),
             const SizedBox(width: 12),
@@ -905,7 +1067,8 @@ class _MarketListScreenState extends State<MarketListScreen>
                 'Support',
                 Icons.support_agent,
                 AppColors.secondary,
-                () {},
+                () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const SupportScreen())),
               ),
             ),
           ],
@@ -1075,169 +1238,7 @@ class _MarketListScreenState extends State<MarketListScreen>
     );
   }
 
-  Widget _buildPromoCard(int index) {
-    final promos = [
-      {
-        'title': 'Fruits -30%',
-        'subtitle': 'Panier Fraîcheur',
-        'color': Colors.green,
-        'icon': Icons.shopping_basket
-      },
-      {
-        'title': 'Bio -15%',
-        'subtitle': 'Marché Bio',
-        'color': Colors.lightGreen,
-        'icon': Icons.eco
-      },
-      {
-        'title': 'Epicerie 2+1',
-        'subtitle': 'Super Market',
-        'color': AppColors.primary,
-        'icon': Icons.storefront
-      },
-    ];
 
-    final promo = promos[index % promos.length];
-
-    return Container(
-      margin: const EdgeInsets.only(right: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            // Navigate to promo details
-          },
-          borderRadius: BorderRadius.circular(20),
-          splashColor: Colors.white.withOpacity(0.2),
-          highlightColor: Colors.white.withOpacity(0.1),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Background gradient
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            promo['color'] as Color,
-                            (promo['color'] as Color).withOpacity(0.7),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              promo['icon'] as IconData,
-                              color: promo['color'] as Color,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              promo['title'] as String,
-                              style: TextStyle(
-                                color: promo['color'] as Color,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        promo['subtitle'] as String,
-                        style: const TextStyle(
-                          color: AppColors.card,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.card.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Valable jusqu\'au 31 Mars',
-                          style: TextStyle(
-                            color: AppColors.card.withOpacity(0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   String _calculateRating(Map<String, dynamic> business) {
     final reviews = business['store_review'] as List<dynamic>? ?? [];
@@ -1345,6 +1346,24 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ),
                               ),
                             ),
+                            Consumer<ClientDataProvider>(
+                                builder: (context, clientData, _) {
+                              final id = marketInfo['id_business']
+                                      ?.toString() ??
+                                  '0';
+                              final isFav = clientData.isFavoriteBusiness(id);
+                              return IconButton(
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  isFav ? Icons.favorite : Icons.favorite_border,
+                                  color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                                  size: 22,
+                                ),
+                                onPressed: () => clientData.toggleFavorite(id),
+                              );
+                            }),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -1441,30 +1460,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                   ),
 
                   const SizedBox(width: 8),
-
-                  Consumer<ClientDataProvider>(
-                    builder: (context, provider, _) {
-                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
-                      final isFav = provider.isFavorite(idB);
-                      return GestureDetector(
-                        onTap: () {
-                          if (idB > 0) provider.toggleFavorite(idB);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isFav ? Icons.favorite : Icons.favorite_border,
-                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
-                            size: 22,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
                 ],
               ),
             ),
@@ -1493,9 +1488,8 @@ class _MarketListScreenState extends State<MarketListScreen>
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(Icons.home, 'Accueil', 0),
-          _buildNavItem(Icons.search, 'Rechercher', 1),
-          _buildNavItem(Icons.shopping_cart, 'Panier', 2),
-          _buildNavItem(Icons.person, 'Profil', 3),
+          _buildNavItem(Icons.shopping_cart, 'Panier', 1),
+          _buildNavItem(Icons.person, 'Profil', 2),
         ],
       ),
     );
@@ -1517,10 +1511,10 @@ class _MarketListScreenState extends State<MarketListScreen>
 
         Widget? targetScreen;
         switch (index) {
-          case 2:
+          case 1:
             targetScreen = const CartScreen();
             break;
-          case 3:
+          case 2:
             targetScreen = const ClientProfileScreen();
             break;
         }
@@ -1556,7 +1550,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                   color: isActive ? AppColors.accent : AppColors.secondary,
                   size: 24,
                 ),
-                if (index == 2) // Cart icon with badge
+                if (index == 1) // Cart icon with badge
                   Positioned(
                     top: -4,
                     right: -4,
@@ -1598,6 +1592,69 @@ class _MarketListScreenState extends State<MarketListScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMapView() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: FlutterMap(
+        mapController: _mapController,
+        options: MapOptions(
+          initialCenter: _userLocation,
+          initialZoom: 13.0,
+        ),
+        children: [
+          TileLayer(
+            urlTemplate:
+                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.livraison.app.frontend',
+          ),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: _userLocation,
+                width: 40,
+                height: 40,
+                child: Container(
+                  decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2)),
+                  child: const Icon(Icons.person_pin_circle,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+              ..._filteredRestaurants.map((res) {
+                double lat = _userLocation.latitude +
+                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                double lng = _userLocation.longitude +
+                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                return Marker(
+                  point: LatLng(lat, lng),
+                  width: 50,
+                  height: 50,
+                  child: GestureDetector(
+                    onTap: () => ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(res['name']))),
+                    child: Container(
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: Colors.black26, blurRadius: 4)
+                          ]),
+                      child: Center(
+                          child: Icon(res['image'] as IconData,
+                              color: AppColors.primary, size: 24)),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ],
       ),
     );
   }

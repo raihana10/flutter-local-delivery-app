@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/providers/client_data_provider.dart';
+import 'package:app/core/providers/client_data_provider.dart';
+import '../../widgets/product_image_placeholder.dart';
+import '../../../core/providers/product_provider.dart';
+import '../../../data/models/business_model.dart';
 import 'cart_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
@@ -54,25 +57,44 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
 
   Future<void> _fetchReviews() async {
     setState(() => _isLoadingReviews = true);
-    final provider = context.read<ClientDataProvider>();
-    final reviews = await provider.getBusinessReviews(widget.businessId);
-    if (mounted) {
-      print('Fetched ${reviews.length} reviews for ${widget.businessId}');
-      setState(() {
-        _reviews = reviews;
-        _isLoadingReviews = false;
-      });
+    try {
+      final provider = context.read<ClientDataProvider>();
+      final reviews = await provider.getBusinessReviews(widget.businessId);
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+          _isLoadingReviews = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingReviews = false);
     }
   }
 
   Future<void> _fetchProducts() async {
-    final provider = context.read<ClientDataProvider>();
-    final products = await provider.getBusinessProducts(widget.businessId);
-    if (mounted) {
-      setState(() {
-        _products = products;
-        _isLoadingProducts = false;
-      });
+    setState(() => _isLoadingProducts = true);
+    try {
+      final bizId = int.tryParse(widget.businessId) ?? 0;
+      final productProvider = context.read<ProductProvider>();
+      await productProvider.fetchProductsByBusiness(bizId);
+      
+      if (mounted) {
+        setState(() {
+          // Map BusinessModel.Produit to expected map format for UI
+          _products = productProvider.businessProducts.map((p) => {
+            'id_produit': p.id,
+            'nom_produit': p.nom,
+            'description': p.description,
+            'prix_unitaire': p.prix,
+            'image': p.image,
+            'type_produit': p.type,
+            'deleted_at': p.deletedAt,
+          }).toList();
+          _isLoadingProducts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingProducts = false);
     }
   }
 
@@ -305,7 +327,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                             'name': p['nom_produit'] ?? 'Produit',
                             'desc': p['description'] ?? '',
                             'price': p['prix_unitaire'] ?? 0,
-                            'image': p['image'] ?? '🍽️',
+                            'image': p['image'],
+                            'type': p['type_produit'] ?? 'meal',
                           });
                         },
                       ),
@@ -633,6 +656,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                           onPressed: (_businessInfo?['is_open'] == true) ? () {
                             context.read<ClientDataProvider>().addToCart({
                               'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
+                              'id_produit': item['id'],
+                              'id_business': widget.businessId,
                               'name': item['name'],
                               'options': '', // Removed options tracking
                               'price': basePrice,

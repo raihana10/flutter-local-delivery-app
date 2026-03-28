@@ -10,8 +10,8 @@ class BusinessApiService {
   BusinessApiService(this.authProvider, {this.overrideBusinessId});
 
   Options _getAuthOptions() {
+    // We use the app_user ID (which is authProvider.user?.id) or override
     final userId = overrideBusinessId ?? authProvider.user?.id;
-    print('📡 x-business-id: $userId (override: $overrideBusinessId, user: ${authProvider.user?.id})');
     return Options(headers: {
       if (userId != null) 'x-business-id': userId.toString(),
       'Content-Type': 'application/json',

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../core/providers/auth_provider.dart';
 
@@ -23,9 +24,10 @@ class ClientApiService {
     try {
       final response = await _dio.get('$baseUrl/client/profile-address/profile',
           options: _getAuthOptions());
-      return response.data['data'] as Map<String, dynamic>;
+      final data = response.data['data'];
+      return data is Map<String, dynamic> ? data : {};
     } catch (e) {
-      print('getProfile Error: $e');
+      _handleError('getProfile', e);
       return {};
     }
   }
@@ -48,7 +50,8 @@ class ClientApiService {
       final response = await _dio.get(
           '$baseUrl/client/profile-address/addresses',
           options: _getAuthOptions());
-      return response.data['data'] as List<dynamic>;
+      final data = response.data['data'];
+      return data is List<dynamic> ? data : [];
     } catch (e) {
       print('getAddresses Error: $e');
       return [];
@@ -100,9 +103,10 @@ class ClientApiService {
     try {
       final response = await _dio.get('$baseUrl/client/businesses?type=$type',
           options: _getAuthOptions());
-      return response.data['data'] as List<dynamic>;
+      final data = response.data['data'];
+      return data is List<dynamic> ? data : [];
     } catch (e) {
-      print('getBusinesses Error for $type: $e');
+      _handleError('getBusinesses', e);
       return [];
     }
   }
@@ -124,7 +128,7 @@ class ClientApiService {
           options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
-      print('getBusinessProducts Error: $e');
+      _handleError('getBusinessProducts', e);
       return [];
     }
   }
@@ -213,7 +217,7 @@ class ClientApiService {
           await _dio.get('$baseUrl/client/orders', options: _getAuthOptions());
       return response.data['data'] as List<dynamic>;
     } catch (e) {
-      print('getOrders Error: $e');
+      _handleError('getOrders', e);
       return [];
     }
   }
@@ -287,6 +291,15 @@ class ClientApiService {
     } catch (e) {
       print('setDefaultPaymentMethod Error: $e');
       return false;
+    }
+  }
+  void _handleError(String methodName, dynamic e) {
+    if (e is DioException && 
+        (e.error is SocketException || e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout)) {
+      // Quiet connection errors
+      print('DEBUG: $methodName failed - Service unreachable (port 8084 offline)');
+    } else {
+      print('$methodName Error: $e');
     }
   }
 }

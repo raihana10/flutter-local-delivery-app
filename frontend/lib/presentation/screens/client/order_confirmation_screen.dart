@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/client_data_provider.dart';
 import 'client_addresses_screen.dart';
+import 'order_tracking_screen.dart';
 
 class OrderConfirmationScreen extends StatefulWidget {
   const OrderConfirmationScreen({super.key});
@@ -556,28 +557,34 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                       'prix_donne': prixDonne,
                     if (_distanceKm != null)
                       'distance_km': double.parse(_distanceKm!.toStringAsFixed(2)),
+                    'id_adresse': selectedAddress['id_adresse'],
+                    'id_business': cartItems.first['id_business'],
+                    'type_commande': 'food_delivery',
                     'items': cartItems.map((item) {
                       return {
                         'quantite': item['quantity'],
                         'id_produit': item['id'],
+                        'id_produit': item['id_produit'] ?? item['id'],
                         'prix_snapshot': item['price'],
                         'nom_snapshot': item['name']
                       };
                     }).toList(),
                   };
 
-                  final success =
-                      await clientData.apiService.createOrder(payload);
+                  final response =
+                      await clientData.createOrderSupabase(payload);
 
                   if (mounted) {
                     setState(() {
                       _isSubmitting = false;
                     });
-                    if (success != null) {
+                    if (response != null) {
                       clientData.clearCart();
                       // Fetch notifications immediately to show the confirmation badge/notif
                       clientData.fetchNotifications();
                       _showSuccessDialog();
+                      final orderId = response['id_commande'].toString();
+                      _showSuccessDialog(orderId);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text(
@@ -600,7 +607,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog(String orderId) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -643,11 +650,22 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {
-                // Navigate back to home (pop everything)
+                // Navigate to tracking
+                Navigator.of(context).pop(); // pop dialog
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => OrderTrackingScreen(orderId: orderId)),
+                );
+              },
+              child: const Text('Suivre ma commande',
+                  style: TextStyle(color: AppColors.card)),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: const Text('Retour à l\'accueil',
-                  style: TextStyle(color: AppColors.card)),
+                  style: TextStyle(color: AppColors.mutedForeground)),
             ),
           ],
         ),

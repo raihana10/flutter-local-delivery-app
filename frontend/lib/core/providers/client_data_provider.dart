@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/client_api_service.dart';
 import 'auth_provider.dart';
 
@@ -148,19 +149,19 @@ class ClientDataProvider extends ChangeNotifier {
 
   Future<void> _fetchRestaurants() async {
     final res = await apiService.getBusinesses('restaurant');
-    restaurants = res.map((e) => e as Map<String, dynamic>).toList();
+    restaurants = res.whereType<Map<String, dynamic>>().toList();
     notifyListeners();
   }
 
   Future<void> _fetchPharmacies() async {
     final res = await apiService.getBusinesses('pharmacie');
-    pharmacies = res.map((e) => e as Map<String, dynamic>).toList();
+    pharmacies = res.whereType<Map<String, dynamic>>().toList();
     notifyListeners();
   }
 
   Future<void> _fetchSuperMarkets() async {
     final res = await apiService.getBusinesses('super-marche');
-    superMarkets = res.map((e) => e as Map<String, dynamic>).toList();
+    superMarkets = res.whereType<Map<String, dynamic>>().toList();
     notifyListeners();
   }
 
@@ -274,15 +275,20 @@ class ClientDataProvider extends ChangeNotifier {
     return favorites.any((f) => f['id_business'].toString() == idBusiness.toString());
   }
 
-  Future<void> toggleFavorite(int idBusiness) async {
-    if (isFavorite(idBusiness)) {
-      final success = await apiService.removeFavorite(idBusiness);
+  bool isFavoriteBusiness(String id) => isFavorite(int.tryParse(id) ?? 0);
+
+  Future<void> toggleFavorite(dynamic idBusiness) async {
+    final idStr = idBusiness.toString();
+    final idInt = int.tryParse(idStr) ?? 0;
+    
+    if (isFavorite(idInt)) {
+      final success = await apiService.removeFavorite(idInt);
       if (success) {
-        favorites.removeWhere((f) => f['id_business'].toString() == idBusiness.toString());
+        favorites.removeWhere((f) => f['id_business'].toString() == idStr);
         notifyListeners();
       }
     } else {
-      final success = await apiService.addFavorite(idBusiness);
+      final success = await apiService.addFavorite(idInt);
       if (success) {
         await fetchFavorites(); // re-fetch to get full object map
       }
@@ -292,5 +298,50 @@ class ClientDataProvider extends ChangeNotifier {
   void _setLoading(bool val) {
     isLoading = val;
     notifyListeners();
+  }
+  Future<Map<String, dynamic>?> createOrderSupabase(Map<String, dynamic> checkoutData) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final clientId = authProvider.roleId;
+      if (clientId == null) return null;
+
+      final cartItems = checkoutData['items'] as List<dynamic>;
+      // Get business ID from checkout data or from first cart item
+      final businessId = checkoutData['id_business'] ?? cartItems.first['id_business'];
+      
+      if (businessId == null) {
+        print('createOrderSupabase Error: businessId is null');
+        return null;
+      }
+
+      final commandeData = {
+        'id_client': clientId,
+        'id_business': int.parse(businessId.toString()),
+        'id_adresse': checkoutData['id_adresse'],
+        'statut_commande': 'confirmee', // Direct confirmation for now to match user expectation
+        'type_commande': checkoutData['type_commande'] ?? 'food_delivery',
+        'prix_total': cartItems.fold(0.0, (sum, item) => sum + (double.parse(item['prix_snapshot'].toString()) * (item['quantite'] as int))),
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      final response = await supabase.from('commande').insert(commandeData).select().single();
+      final orderId = response['id_commande'];
+
+      // 2. Create Ligne Commande
+      final lines = cartItems.map((item) => {
+        'id_commande': orderId,
+        'id_produit': int.parse(item['id_produit'].toString()),
+        'quantite': item['quantite'],
+        'prix_snapshot': item['prix_snapshot'],
+        'nom_snapshot': item['nom_snapshot'],
+      }).toList();
+
+      await supabase.from('ligne_commande').insert(lines);
+
+      return response;
+    } catch (e) {
+      print('createOrderSupabase Error: $e');
+      return null;
+    }
   }
 }

@@ -1,27 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import '../../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
-import '../../../../models/business_product.dart';
-import '../../../../providers/product_provider.dart';
-import '../../../../core/providers/business_data_provider.dart';
+import 'package:app/core/providers/product_provider.dart';
+import 'package:app/data/models/business_model.dart';
+import 'package:app/core/providers/business_data_provider.dart';
+import '../../widgets/product_image_placeholder.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:typed_data';
+
 import 'views/business_stats_view.dart';
 import 'views/business_notifications_view.dart';
 import 'views/business_profile_view.dart';
+import '../shared/in_app_call_screen.dart';
 
 enum BusinessScreen {
   dashboard,
   catalog,
+  history,
   addProduct,
   importSheet,
   orderDetail,
   editProduct,
   stats,
   notifications,
-  profile
+  profile,
+  promotions,
+  addPromotion
 }
 
 class BusinessMainScreen extends StatefulWidget {
@@ -34,32 +46,95 @@ class BusinessMainScreen extends StatefulWidget {
 
 class _BusinessMainScreenState extends State<BusinessMainScreen> {
   BusinessScreen _currentScreen = BusinessScreen.dashboard;
-  bool _isOpen = true; // Temporary mock, wait for data
   int _editingIndex = -1;
+  int? _selectedOrderId;
 
   @override
   void initState() {
     super.initState();
-    print('BusinessMainScreen idBusiness: ${widget.idBusiness}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ✅ Le BusinessDataProvider injecté ci-dessus a déjà overrideBusinessId
       context.read<BusinessDataProvider>().fetchAll();
+      final auth = context.read<AuthProvider>();
+      if (auth.roleId != null) {
+        context.read<ProductProvider>().fetchProductsByBusiness(auth.roleId!);
+      }
     });
   }
 
-  void _setScreen(BusinessScreen screen, {int? index}) {
+  void _setScreen(BusinessScreen screen, {int? index, int? orderId}) {
     setState(() {
       _currentScreen = screen;
       if (index != null) _editingIndex = index;
+      if (orderId != null) _selectedOrderId = orderId;
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _buildScreen(),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _getNavIndex(),
+          onTap: (index) {
+            if (index == 0) _setScreen(BusinessScreen.dashboard);
+            if (index == 1) _setScreen(BusinessScreen.catalog);
+            if (index == 2) _setScreen(BusinessScreen.history);
+            if (index == 3) _setScreen(BusinessScreen.stats);
+            if (index == 4) _setScreen(BusinessScreen.profile);
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.mutedForeground,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard), label: 'Dashboard'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.inventory_2), label: 'Catalogue'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.history), label: 'Historique'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.bar_chart), label: 'Stats'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+          ],
+        ),
+      ),
     );
+  }
+
+  int _getNavIndex() {
+    switch (_currentScreen) {
+      case BusinessScreen.catalog:
+      case BusinessScreen.addProduct:
+      case BusinessScreen.importSheet:
+      case BusinessScreen.editProduct:
+      case BusinessScreen.promotions:
+      case BusinessScreen.addPromotion:
+        return 1;
+      case BusinessScreen.history:
+        return 2;
+      case BusinessScreen.stats:
+        return 3;
+      case BusinessScreen.profile:
+        return 4;
+      default:
+        return 0;
+    }
   }
 
   Widget _buildScreen() {
@@ -70,14 +145,21 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
         );
       case BusinessScreen.catalog:
         return _CatalogView(onNavigate: _setScreen);
+      case BusinessScreen.history:
+        return _HistoryView(onNavigate: _setScreen);
       case BusinessScreen.addProduct:
         return _AddProductView(onNavigate: _setScreen);
       case BusinessScreen.importSheet:
         return _ImportSheetView(onNavigate: _setScreen);
       case BusinessScreen.orderDetail:
-        return _OrderDetailView(onNavigate: _setScreen);
+        return _OrderDetailView(
+            onNavigate: _setScreen, orderId: _selectedOrderId);
       case BusinessScreen.editProduct:
         return _EditProductView(index: _editingIndex, onNavigate: _setScreen);
+      case BusinessScreen.promotions:
+        return _PromotionsView(onNavigate: _setScreen);
+      case BusinessScreen.addPromotion:
+        return _AddPromotionView(onNavigate: _setScreen);
       case BusinessScreen.stats:
         return BusinessStatsView(onNavigate: _setScreen);
       case BusinessScreen.notifications:
@@ -89,7 +171,9 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
 }
 
 // ============ DASHBOARD VIEW ============
-class _DashboardView extends StatefulWidget {
+class _DashboardView extends StatelessWidget {
+  final bool isOpen;
+  final VoidCallback onToggleOpen;
   final Function(BusinessScreen, {int? index}) onNavigate;
 
   const _DashboardView({
@@ -117,12 +201,11 @@ class _DashboardViewState extends State<_DashboardView> {
     final typeFormatted = typeBusiness.isNotEmpty 
         ? '${typeBusiness[0].toUpperCase()}${typeBusiness.substring(1)}'
         : typeBusiness;
-    final bool isOpen = profile['is_open'] == true;
 
     return Stack(
       children: [
         SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 120),
+          padding: const EdgeInsets.only(bottom: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -146,7 +229,7 @@ class _DashboardViewState extends State<_DashboardView> {
                         color: Colors.white.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(LucideIcons.utensils,
+                      child: const Icon(LucideIcons.store,
                           color: AppColors.amber, size: 20),
                     ),
                     const SizedBox(width: 12),
@@ -155,14 +238,14 @@ class _DashboardViewState extends State<_DashboardView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            nomBusiness,
+                            businessName,
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18),
                           ),
                           Text(
-                            typeFormatted,
+                            businessType,
                             style: TextStyle(
                                 color: Colors.white.withOpacity(0.6),
                                 fontSize: 12),
@@ -171,14 +254,7 @@ class _DashboardViewState extends State<_DashboardView> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: _isSwitching ? null : () async {
-                        setState(() => _isSwitching = true);
-                        final success = await provider.updateProfile({'is_open': !isOpen});
-                        setState(() => _isSwitching = false);
-                        if (!success && mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la mise à jour.')));
-                        }
-                      },
+                      onTap: onToggleOpen,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -240,7 +316,7 @@ class _DashboardViewState extends State<_DashboardView> {
                     PopupMenuButton<String>(
                       onSelected: (value) async {
                         if (value == 'profile') {
-                          widget.onNavigate(BusinessScreen.profile);
+                          onNavigate(BusinessScreen.profile);
                         } else if (value == 'logout') {
                           await context.read<AuthProvider>().logout();
                           if (context.mounted) {
@@ -291,11 +367,12 @@ class _DashboardViewState extends State<_DashboardView> {
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Row(
                   children: [
-                    _buildKPI('Commandes', '${stats['nb_commandes'] ?? 0}', LucideIcons.shoppingBag),
+                    _buildKPI(
+                        'Commandes', nbCommandes, LucideIcons.shoppingBag),
                     const SizedBox(width: 12),
-                    _buildKPI('CA (MAD)', '${stats['revenus_totaux'] ?? 0}', LucideIcons.trendingUp),
+                    _buildKPI('CA (MAD)', revenus, LucideIcons.trendingUp),
                     const SizedBox(width: 12),
-                    _buildKPI('Note', '${stats['note_moyenne'] ?? '-'} ⭐', LucideIcons.star),
+                    _buildKPI('Note', '$rating ⭐', LucideIcons.star),
                   ],
                 ),
               ),
@@ -340,23 +417,68 @@ class _DashboardViewState extends State<_DashboardView> {
           child: Row(
             children: [
               _buildNavButton(
-                  '📦 Catalogue', () => widget.onNavigate(BusinessScreen.catalog)),
+                  '📦 Catalogue', () => onNavigate(BusinessScreen.catalog)),
               const SizedBox(width: 12),
               _buildNavButton(
-                  '📈 Stats', () => widget.onNavigate(BusinessScreen.stats)),
+                  '📈 Stats', () => onNavigate(BusinessScreen.stats)),
               const SizedBox(width: 12),
               _buildNavButton(
-                  '⚙️ Profil', () => widget.onNavigate(BusinessScreen.profile)),
+                  '⚙️ Profil', () => onNavigate(BusinessScreen.profile)),
             ],
           ),
         ),
       ],
     );
   }
+}
+
+String _formatTimeAgo(DateTime? date) {
+  if (date == null) return '';
+  final diff = DateTime.now().difference(date);
+  if (diff.inMinutes < 60) {
+    return '${diff.inMinutes} min';
+  } else if (diff.inHours < 24) {
+    return '${diff.inHours} h';
+  } else {
+    return '${diff.inDays} j';
+  }
+}
+
+List<Widget> _buildStatusButtons(
+    BuildContext context, int commandeId, String statut) {
+  final provider = context.read<BusinessDataProvider>();
+  if (statut == 'confirmee') {
+    return [
+      _buildOrderButton('Commande prête (Préparée)', AppColors.forest, Colors.white, () {
+        provider.updateOrderStatus(commandeId, 'preparee');
+      }),
+    ];
+  } else if (statut == 'preparee') {
+    return [
+      _buildOrderButton('En attente du livreur', Colors.grey.shade200, Colors.grey.shade700, null),
+    ];
+  } else if (statut == 'en_livraison') {
+    return [
+      _buildOrderButton('En cours de livraison', AppColors.amber, Colors.white, null),
+    ];
+  } else if (statut == 'livree') {
+    return [
+      _buildOrderButton('Livrée', AppColors.sage, Colors.white, null),
+    ];
+  } else {
+    return [
+      Expanded(
+          child: Text(statut.toUpperCase(),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.mutedForeground,
+                  fontSize: 12))),
+    ];
+  }
+}
 
   Widget _buildKPI(String label, String value, IconData icon) {
-    return Flexible(
-      fit: FlexFit.loose,
+    return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -382,11 +504,10 @@ class _DashboardViewState extends State<_DashboardView> {
     );
   }
 
-  Widget _buildOrderButton(String text, Color bg, Color textCol, VoidCallback onTap) {
-    return Flexible(
-      fit: FlexFit.loose,
+  Widget _buildOrderButton(String text, Color bg, Color textCol) {
+    return Expanded(
       child: InkWell(
-        onTap: onTap,
+        onTap: () {},
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -427,11 +548,7 @@ class _DashboardViewState extends State<_DashboardView> {
       ),
     );
   }
-  Widget _buildOrderCard(dynamic o) {
-    final provider = context.read<BusinessDataProvider>();
-    final orderId = o['id'].toString();
-    final currentStatut = o['statut'] ?? 'confirmee';
-
+Widget _buildOrderCard(dynamic o) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -446,78 +563,44 @@ class _DashboardViewState extends State<_DashboardView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
-                child: Row(
-                  children: [
-                    Text('#$orderId',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.forest)),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text('${o['client_name'] ?? 'Client'}',
-                          style: const TextStyle(
-                              color: AppColors.mutedForeground,
-                              fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1),
-                    ),
-                  ],
-                ),
+              Row(
+                children: [
+                  Text('#${o['id'] ?? 'N/A'}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.forest)),
+                  const SizedBox(width: 8),
+                  Text('${o['client_name'] ?? 'Client'}',
+                      style: const TextStyle(
+                          color: AppColors.mutedForeground,
+                          fontSize: 12)),
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.warmWhite,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  currentStatut.toUpperCase(),
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.forest),
-                ),
-              ),
+              Text('${o['created_at'] ?? 'Maintenant'}',
+                  style: const TextStyle(
+                      color: AppColors.gold,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12)),
             ],
           ),
           const SizedBox(height: 4),
-          Text('${o['items_count'] ?? 0} articles • ${o['total'] ?? 0} DH',
+          Text('${o['items_count'] ?? 0} articles',
               style: const TextStyle(
                   color: AppColors.mutedForeground,
                   fontSize: 12)),
           const SizedBox(height: 12),
-          if (currentStatut == 'confirmee')
-            Row(
-              children: [
-                _buildOrderButton(
-                    'Accepter', AppColors.forest, Colors.white, () async {
-                      await provider.updateOrderStatus(orderId, 'confirmee');
-                    }),
-                const SizedBox(width: 8),
-                _buildOrderButton(
-                    'Préparer', AppColors.sage, Colors.white, () async {
-                      await provider.updateOrderStatus(orderId, 'en_preparation');
-                    }),
-              ],
-            )
-          else if (currentStatut == 'en_preparation' || currentStatut == 'preparee')
-             Row(
-              children: [
-                _buildOrderButton(
-                    'Prêt / Livraison', AppColors.amber, AppColors.forest, () async {
-                      await provider.updateOrderStatus(orderId, 'en_livraison');
-                    }),
-              ],
-            )
-          else if (currentStatut == 'en_livraison')
-             Row(
-              children: [
-                _buildOrderButton(
-                    'Livrée', AppColors.forest, Colors.white, () async {
-                      await provider.updateOrderStatus(orderId, 'livree');
-                    }),
-              ],
-            )
-          else
-            const Text('Commande terminée', style: TextStyle(color: AppColors.mutedForeground, fontStyle: FontStyle.italic, fontSize: 12)),
+          Row(
+            children: [
+              _buildOrderButton(
+                  'Accepter', AppColors.forest, Colors.white),
+              const SizedBox(width: 8),
+              _buildOrderButton(
+                  'Préparer', AppColors.sage, Colors.white),
+              const SizedBox(width: 8),
+              _buildOrderButton(
+                  'Prêt', AppColors.amber, AppColors.forest),
+            ],
+          ),
         ],
       ),
     );
@@ -584,6 +667,23 @@ class _CatalogView extends StatelessWidget {
                 onNavigate(BusinessScreen.importSheet);
               },
             ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: AppColors.warmWhite,
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Icon(LucideIcons.ticket, color: AppColors.forest),
+              ),
+              title: const Text('Ajouter une promotion',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Annoncer une offre ou une réduction'),
+              onTap: () {
+                Navigator.pop(context);
+                onNavigate(BusinessScreen.addPromotion);
+              },
+            ),
             const SizedBox(height: 16),
           ],
         ),
@@ -623,41 +723,7 @@ class _CatalogView extends StatelessWidget {
               ),
             ),
 
-            // Categories
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: ['Tout', 'Plats', 'Entrées', 'Boissons']
-                    .asMap()
-                    .entries
-                    .map((e) {
-                  final isFirst = e.key == 0;
-                  return Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isFirst ? AppColors.forest : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border:
-                          isFirst ? null : Border.all(color: Colors.black12),
-                    ),
-                    child: Text(
-                      e.value,
-                      style: TextStyle(
-                        color:
-                            isFirst ? Colors.white : AppColors.mutedForeground,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Grid
             Expanded(
@@ -673,71 +739,127 @@ class _CatalogView extends StatelessWidget {
                       mainAxisSpacing: 16,
                       childAspectRatio: 0.78,
                     ),
-                    itemCount: provider.products.length,
+                    itemCount: provider.businessProducts.length,
                     itemBuilder: (context, index) {
-                      final item = provider.products[index];
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: AppColors.cardShadow,
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AspectRatio(
-                              aspectRatio: 4 / 3,
-                              child: item.imageUrl != null
-                                  ? Image.network(item.imageUrl!,
-                                      fit: BoxFit.cover)
-                                  : Container(
-                                      color: AppColors.warmWhite,
-                                      child: const Icon(LucideIcons.image,
-                                          color: AppColors.mutedForeground)),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppColors.forest)),
-                                  Text('${item.price} MAD',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppColors.gold)),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () => onNavigate(
-                                            BusinessScreen.editProduct,
-                                            index: index),
-                                        child: const Icon(LucideIcons.pencil,
-                                            color: AppColors.gold, size: 16),
+                      final item = provider.businessProducts[index];
+                      final businessId = context.read<AuthProvider>().roleId;
+                      final isAvailable = item.isAvailable;
+
+                      return Opacity(
+                        opacity: isAvailable ? 1.0 : 0.5,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isAvailable
+                                ? Colors.white
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow:
+                                isAvailable ? AppColors.cardShadow : null,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AspectRatio(
+                                aspectRatio: 4 / 3,
+                                child: Stack(
+                                  children: [
+                                    item.image != null && item.image!.startsWith('http')
+                                        ? ColorFiltered(
+                                            colorFilter: isAvailable
+                                                ? const ColorFilter.mode(
+                                                    Colors.transparent,
+                                                    BlendMode.multiply)
+                                                : const ColorFilter.mode(
+                                                    Colors.grey,
+                                                    BlendMode.saturation),
+                                            child: Image.network(
+                                              item.image!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => ProductImagePlaceholder(
+                                                type: item.type,
+                                                borderRadius: BorderRadius.zero,
+                                              ),
+                                            ))
+                                        : ProductImagePlaceholder(
+                                            type: item.type,
+                                            borderRadius: BorderRadius.zero,
+                                          ),
+                                    if (!isAvailable)
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: const Text('MASQUÉ',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold)),
+                                        ),
                                       ),
-                                      GestureDetector(
-                                        onTap: () =>
-                                            provider.deleteProduct(index),
-                                        child: const Icon(LucideIcons.trash2,
-                                            color: AppColors.destructive,
-                                            size: 16),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.nom,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isAvailable ? AppColors.forest : Colors.grey)),
+                                    Text('${item.prix} MAD',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isAvailable ? AppColors.gold : Colors.grey)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () => onNavigate(
+                                              BusinessScreen.editProduct,
+                                              index: index),
+                                          child: Icon(LucideIcons.pencil,
+                                              color: isAvailable ? AppColors.gold : Colors.grey, size: 16),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () {
+                                            if (businessId != null) {
+                                              provider
+                                                  .toggleProductAvailability(
+                                                      item);
+                                            }
+                                          },
+                                          child: Icon(
+                                              isAvailable
+                                                  ? LucideIcons.eyeOff
+                                                  : LucideIcons.eye,
+                                              color: isAvailable
+                                                  ? AppColors.mutedForeground
+                                                  : AppColors.forest,
+                                              size: 16),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -782,7 +904,7 @@ class _ImportSheetView extends StatefulWidget {
 }
 
 class _ImportSheetViewState extends State<_ImportSheetView> {
-  List<BusinessProduct> _previewItems = [];
+  List<Produit> _previewItems = [];
   bool _isLoading = false;
   String? _fileName;
 
@@ -909,17 +1031,17 @@ class _ImportSheetViewState extends State<_ImportSheetView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.name,
+                          Text(item.nom,
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 14)),
-                          Text(item.category,
+                          Text(item.type,
                               style: const TextStyle(
                                   color: AppColors.mutedForeground,
                                   fontSize: 11)),
                         ],
                       ),
                     ),
-                    Text('${item.price} MAD',
+                    Text('${item.prix} MAD',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: AppColors.forest)),
@@ -931,15 +1053,22 @@ class _ImportSheetViewState extends State<_ImportSheetView> {
         ),
         const SizedBox(height: 24),
         ElevatedButton(
-          onPressed: () {
-            context.read<ProductProvider>().addBatch(_previewItems);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      '${_previewItems.length} produits importés avec succès !'),
-                  backgroundColor: AppColors.online),
-            );
-            widget.onNavigate(BusinessScreen.catalog);
+          onPressed: () async {
+            final businessId = context.read<AuthProvider>().roleId;
+            if (businessId != null) {
+              await context
+                  .read<ProductProvider>()
+                  .addBatch(_previewItems, businessId);
+            }
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        '${_previewItems.length} produits importés avec succès !'),
+                    backgroundColor: AppColors.online),
+              );
+              widget.onNavigate(BusinessScreen.catalog);
+            }
           },
           child: const Text('Importer tout'),
         ),
@@ -964,6 +1093,16 @@ class _AddProductViewState extends State<_AddProductView> {
   final _priceController = TextEditingController();
   String _category = 'meal';
   bool _isDispo = true;
+  File? _selectedImage;
+  bool _isUploading = false;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() => _selectedImage = File(pickedFile.path));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1000,23 +1139,30 @@ class _AddProductViewState extends State<_AddProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  decoration: BoxDecoration(
-                    color: AppColors.warmWhite.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.sage.withOpacity(0.2)),
-                  ),
-                  child: const Column(
-                    children: [
-                      Icon(LucideIcons.camera,
-                          color: AppColors.forest, size: 32),
-                      SizedBox(height: 8),
-                      Text('Ajouter une photo',
-                          style: TextStyle(
-                              color: AppColors.mutedForeground, fontSize: 13)),
-                    ],
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: double.infinity,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      color: AppColors.warmWhite.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.sage.withOpacity(0.2)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _selectedImage != null
+                        ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                        : const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.camera,
+                                color: AppColors.forest, size: 32),
+                            SizedBox(height: 8),
+                            Text('Ajouter une photo',
+                                style: TextStyle(
+                                    color: AppColors.mutedForeground, fontSize: 13)),
+                          ],
+                        ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -1029,6 +1175,8 @@ class _AddProductViewState extends State<_AddProductView> {
                 _buildField('Prix (MAD)', '0.00',
                     keyboardType: TextInputType.number,
                     controller: _priceController),
+                const SizedBox(height: 16),
+                _buildCategorySelector(_category, (v) => setState(() => _category = v)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1045,21 +1193,47 @@ class _AddProductViewState extends State<_AddProductView> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () {
-                    final p = BusinessProduct(
-                      name: _nameController.text,
-                      description: _descController.text,
-                      price: double.tryParse(_priceController.text) ?? 0.0,
-                      category: _category,
-                      isAvailable: _isDispo,
-                      imageUrl:
-                          'https://images.unsplash.com/photo-1541529086526-db283c563270?w=400&h=300&fit=crop',
-                    );
-                    context.read<ProductProvider>().addProduct(p);
-                    widget.onNavigate(BusinessScreen.catalog);
-                  },
-                  child: const Text('Enregistrer le produit'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (_isUploading) ? null : () async {
+                      final businessId = context.read<AuthProvider>().roleId;
+                      if (businessId == null) return;
+                      
+                      if (_nameController.text.isEmpty || _priceController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nom et prix requis')));
+                        return;
+                      }
+
+                      setState(() => _isUploading = true);
+                      
+                      String? imageUrl;
+                      if (_selectedImage != null) {
+                        final provider = context.read<ProductProvider>();
+                        final uploadedUrl = await provider.uploadImage(_selectedImage!, 'business_$businessId');
+                        if (uploadedUrl != null) imageUrl = uploadedUrl;
+                      } else {
+                        // Fallback to null if no image selected to allow icons
+                        imageUrl = null;
+                      }
+
+                      final p = Produit(
+                        id: 0,
+                        idBusiness: businessId,
+                        nom: _nameController.text,
+                        description: _descController.text,
+                        prix: double.tryParse(_priceController.text) ?? 0.0,
+                        type: _category,
+                        image: imageUrl,
+                      );
+                      await context.read<ProductProvider>().addProduct(p);
+                      setState(() => _isUploading = false);
+                      widget.onNavigate(BusinessScreen.catalog);
+                    },
+                    child: _isUploading 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Enregistrer le produit'),
+                  ),
                 ),
               ],
             ),
@@ -1103,6 +1277,39 @@ class _AddProductViewState extends State<_AddProductView> {
       ],
     );
   }
+
+  Widget _buildCategorySelector(String current, Function(String) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Catégorie de produit',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.forest)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: current,
+          items: const [
+            DropdownMenuItem(value: 'meal', child: Text('Restaurant (Plat)')),
+            DropdownMenuItem(
+                value: 'grocery', child: Text('Supermarché (Courses)')),
+            DropdownMenuItem(
+                value: 'pharmacy', child: Text('Pharmacie (Médicament)')),
+          ],
+          onChanged: (v) => onChanged(v ?? 'meal'),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.warmWhite,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ============ EDIT PRODUCT VIEW ============
@@ -1120,15 +1327,17 @@ class _EditProductViewState extends State<_EditProductView> {
   late TextEditingController _descController;
   late TextEditingController _priceController;
   late bool _isDispo;
+  late String _category;
 
   @override
   void initState() {
     super.initState();
-    final p = context.read<ProductProvider>().products[widget.index];
-    _nameController = TextEditingController(text: p.name);
+    final p = context.read<ProductProvider>().businessProducts[widget.index];
+    _nameController = TextEditingController(text: p.nom);
     _descController = TextEditingController(text: p.description);
-    _priceController = TextEditingController(text: p.price.toString());
-    _isDispo = p.isAvailable;
+    _priceController = TextEditingController(text: p.prix.toString());
+    _isDispo = true;
+    _category = p.type ?? 'meal';
   }
 
   @override
@@ -1175,6 +1384,8 @@ class _EditProductViewState extends State<_EditProductView> {
                 _buildField('Prix (MAD)', '0.00',
                     keyboardType: TextInputType.number,
                     controller: _priceController),
+                const SizedBox(height: 16),
+                _buildCategorySelector(_category, (v) => setState(() => _category = v)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1192,23 +1403,22 @@ class _EditProductViewState extends State<_EditProductView> {
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: () {
-                    final old =
-                        context.read<ProductProvider>().products[widget.index];
-                    final p = BusinessProduct(
-                      name: _nameController.text,
+                  onPressed: () async {
+                    final provider = context.read<ProductProvider>();
+                    final old = provider.businessProducts[widget.index];
+                    final p = Produit(
+                      id: old.id,
+                      idBusiness: old.idBusiness,
+                      nom: _nameController.text,
                       description: _descController.text,
-                      price: double.tryParse(_priceController.text) ?? 0.0,
-                      category: old.category,
-                      isAvailable: _isDispo,
-                      imageUrl: old.imageUrl,
+                      prix: double.tryParse(_priceController.text) ?? 0.0,
+                      type: _category,
+                      image: old.image,
                     );
-                    context
-                        .read<ProductProvider>()
-                        .updateProduct(widget.index, p);
+                    await provider.updateProduct(p);
                     widget.onNavigate(BusinessScreen.catalog);
                   },
-                  child: const Text('Mettre à jour'),
+                  child: const Text('Enregistrer les modifications'),
                 ),
               ],
             ),
@@ -1252,16 +1462,202 @@ class _EditProductViewState extends State<_EditProductView> {
       ],
     );
   }
+
+  Widget _buildCategorySelector(String current, Function(String) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Catégorie de produit',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.forest)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: current,
+          items: const [
+            DropdownMenuItem(value: 'meal', child: Text('Restaurant (Plat)')),
+            DropdownMenuItem(
+                value: 'grocery', child: Text('Supermarché (Courses)')),
+            DropdownMenuItem(
+                value: 'pharmacy', child: Text('Pharmacie (Médicament)')),
+          ],
+          onChanged: (v) => onChanged(v ?? 'meal'),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.warmWhite,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ============ ORDER DETAIL VIEW ============
-class _OrderDetailView extends StatelessWidget {
+class _OrderDetailView extends StatefulWidget {
   final Function(BusinessScreen) onNavigate;
+  final int? orderId;
 
-  const _OrderDetailView({required this.onNavigate});
+  const _OrderDetailView({required this.onNavigate, this.orderId});
+
+  @override
+  State<_OrderDetailView> createState() => _OrderDetailViewState();
+}
+
+class _OrderDetailViewState extends State<_OrderDetailView> {
+  Map<String, dynamic>? _orderData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetails();
+  }
+
+  Future<void> _fetchDetails() async {
+    if (widget.orderId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    final data = await context
+        .read<BusinessDataProvider>()
+        .fetchOrderDetails(widget.orderId!);
+    setState(() {
+      _orderData = data;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _updateStatus(String newStatus) async {
+    if (widget.orderId != null) {
+      await context
+          .read<BusinessDataProvider>()
+          .updateOrderStatus(widget.orderId!, newStatus);
+      _fetchDetails();
+    }
+  }
+
+  void _launchPhoneCall(String phoneNumber, String name, String role) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => InAppCallScreen(
+          contactName: name,
+          phoneNumber: phoneNumber,
+          role: role,
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List> _generatePdf(Map<String, dynamic> order, List<dynamic> lines) async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Text('FACTURE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text('Commande #${order['id_commande']}'),
+              pw.Text('Date: ${DateTime.now().toLocal().toString().split('.')[0]}'),
+              pw.Divider(),
+              ...lines.map((l) {
+                 final qty = l['quantite'];
+                 final price = l['total_ligne'];
+                 final prodName = l['produit'] != null ? l['produit']['nom_produit'] : 'Produit';
+                 return pw.Row(
+                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                   children: [
+                     pw.Expanded(child: pw.Text('$qty x $prodName', style: const pw.TextStyle(fontSize: 10))),
+                     pw.Text('$price MAD', style: const pw.TextStyle(fontSize: 10)),
+                   ],
+                 );
+              }).toList(),
+              pw.Divider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TOTAL', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                  pw.Text('${order['prix_total']} MAD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                ]
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(child: pw.Text('Merci pour votre commande !', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 10))),
+            ]
+          );
+        }
+      )
+    );
+
+    return pdf.save();
+  }
+
+  void _showReceiptPreview(Map<String, dynamic> order, List<dynamic> lines) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Aperçu du reçu'),
+          backgroundColor: AppColors.forest,
+          foregroundColor: Colors.white,
+        ),
+        body: PdfPreview(
+          build: (format) => _generatePdf(order, lines),
+          allowSharing: true,
+          allowPrinting: false,
+          canChangeOrientation: false,
+          canChangePageFormat: false,
+        ),
+      ),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_orderData == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Commande introuvable.'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => widget.onNavigate(BusinessScreen.dashboard),
+              child: const Text('Retour'),
+            )
+          ],
+        ),
+      );
+    }
+
+    final order = _orderData!['order'];
+    final lines = _orderData!['lines'] as List<dynamic>;
+
+    final statut = order['statut_commande'] ?? '';
+    final clientName = order['client']?['app_user']?['nom'] ?? 'Client Inconnu';
+    final clientPhone = order['client']?['app_user']?['num_tl'] ?? '';
+    final addressLine = order['adresse']?['ville'] ?? 'Adresse non spécifiée';
+    final total = order['prix_total']?.toString() ?? '0';
+
+    final timeline = order['timeline'] is List
+        ? (order['timeline'] as List).lastOrNull
+        : order['timeline'];
+    final livreur = timeline?['livreur'];
+    final livreurName = livreur?['app_user']?['nom'] ?? 'Aucun livreur';
+    final livreurPhone = livreur?['app_user']?['num_tl'] ?? '';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 40),
       child: Column(
@@ -1272,7 +1668,7 @@ class _OrderDetailView extends StatelessWidget {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: () => onNavigate(BusinessScreen.dashboard),
+                  onTap: () => widget.onNavigate(BusinessScreen.dashboard),
                   child: Container(
                     width: 40,
                     height: 40,
@@ -1283,16 +1679,16 @@ class _OrderDetailView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Commande #1042',
-                        style: TextStyle(
+                    Text('Commande #${widget.orderId}',
+                        style: const TextStyle(
                             color: AppColors.forest,
                             fontWeight: FontWeight.bold,
                             fontSize: 18)),
-                    Text('Il y a 5 min',
-                        style: TextStyle(
+                    Text(statut.toUpperCase(),
+                        style: const TextStyle(
                             color: AppColors.mutedForeground, fontSize: 12)),
                   ],
                 ),
@@ -1303,8 +1699,8 @@ class _OrderDetailView extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: AppColors.amber.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20)),
-                  child: const Text('En cours',
-                      style: TextStyle(
+                  child: Text('$total MAD',
+                      style: const TextStyle(
                           color: AppColors.amber,
                           fontSize: 12,
                           fontWeight: FontWeight.bold)),
@@ -1315,7 +1711,9 @@ class _OrderDetailView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Client Info
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1324,68 +1722,144 @@ class _OrderDetailView extends StatelessWidget {
                       boxShadow: AppColors.cardShadow),
                   child: Row(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(50),
-                        child: Image.network(
-                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop',
-                            width: 44,
-                            height: 44,
-                            fit: BoxFit.cover),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                            color: AppColors.forest.withOpacity(0.1),
+                            shape: BoxShape.circle),
+                        child: const Icon(LucideIcons.user,
+                            color: AppColors.forest),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Alae Benchakroun',
-                                style: TextStyle(
+                            Text(clientName,
+                                style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                     color: AppColors.forest)),
-                            Text('23, Rue Al Andalous',
-                                style: TextStyle(
+                            Text(addressLine,
+                                style: const TextStyle(
                                     color: AppColors.mutedForeground,
                                     fontSize: 12)),
                           ],
                         ),
                       ),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                            color: AppColors.sage.withOpacity(0.15),
-                            shape: BoxShape.circle),
-                        child: const Icon(LucideIcons.phone,
-                            color: AppColors.sage, size: 16),
-                      ),
+                      if (clientPhone.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => _launchPhoneCall(clientPhone, clientName, 'Client'),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                                color: AppColors.sage.withOpacity(0.15),
+                                shape: BoxShape.circle),
+                            child: const Icon(LucideIcons.phone,
+                                color: AppColors.sage, size: 16),
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildOrderItem(2, 'Couscous Royal', '170'),
-                _buildOrderItem(1, 'Thé à la Menthe', '15'),
+
+                // Driver Info (if applicable)
+                if (livreur != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: AppColors.cardShadow),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                              color: AppColors.amber.withOpacity(0.2),
+                              shape: BoxShape.circle),
+                          child: const Icon(LucideIcons.bike,
+                              color: AppColors.amber),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(livreurName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: AppColors.forest)),
+                              const Text('Livreur assigné',
+                                  style: TextStyle(
+                                      color: AppColors.mutedForeground,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        if (livreurPhone.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => _launchPhoneCall(livreurPhone, livreurName, 'Livreur'),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                  color: AppColors.sage.withOpacity(0.15),
+                                  shape: BoxShape.circle),
+                              child: const Icon(LucideIcons.phone,
+                                  color: AppColors.sage, size: 16),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                // Order Lines
+                ...lines.map((l) {
+                  final qty = l['quantite'];
+                  final price = l['total_ligne'];
+                  final prodName = l['produit'] != null
+                      ? l['produit']['nom_produit']
+                      : 'Produit inconnu';
+                  return _buildOrderItem(qty, prodName, price.toString());
+                }).toList(),
+
                 const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: AppColors.cardShadow),
-                  child: Column(
+
+                // Action Buttons based on status
+                if (statut == 'confirmee') ...[
+                  Row(
                     children: [
-                      _buildStep('Commande reçue', true, true),
-                      _buildStep('En préparation', true, true),
-                      _buildStep('Prêt pour livraison', false, true,
-                          isCurrent: true),
-                      _buildStep('Livrée', false, false),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.forest),
+                          onPressed: () => _updateStatus('preparee'),
+                          child: const Text('Commande prête (Préparée)'),
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                ] else ...[
+                  Center(
+                    child: Text('Statut actuel: ${statut.toUpperCase()}',
+                        style: const TextStyle(
+                            color: AppColors.mutedForeground,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
+
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(LucideIcons.printer, size: 16),
-                  label: const Text('Imprimer'),
+                  onPressed: () => _showReceiptPreview(order, lines),
+                  icon: const Icon(LucideIcons.download, size: 16),
+                  label: const Text('Télécharger le reçu'),
                 ),
               ],
             ),
@@ -1428,46 +1902,6 @@ class _OrderDetailView extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildStep(String label, bool isDone, bool showLine,
-      {bool isCurrent = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                  color: isDone
-                      ? AppColors.sage
-                      : (isCurrent ? AppColors.amber : AppColors.warmWhite),
-                  shape: BoxShape.circle),
-              child: isDone
-                  ? const Icon(LucideIcons.check, color: Colors.white, size: 12)
-                  : null,
-            ),
-            if (showLine)
-              Container(
-                  width: 2,
-                  height: 24,
-                  color: isDone ? AppColors.sage : Colors.black12),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Text(label,
-              style: TextStyle(
-                  color: isDone ? AppColors.sage : AppColors.mutedForeground,
-                  fontWeight:
-                      isDone || isCurrent ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 13)),
-        ),
-      ],
-    );
-  }
 }
 
 // ============ UTILS ============
@@ -1503,5 +1937,513 @@ class _PulseIndicatorState extends State<_PulseIndicator>
             height: 8,
             decoration: const BoxDecoration(
                 color: AppColors.destructive, shape: BoxShape.circle)));
+  }
+}
+
+// ============ HISTORY VIEW ============
+class _HistoryView extends StatelessWidget {
+  final Function(BusinessScreen, {int? index, int? orderId}) onNavigate;
+
+  const _HistoryView({required this.onNavigate});
+
+  @override
+  Widget build(BuildContext context) {
+    final businessData = context.watch<BusinessDataProvider>();
+    final ordersList = businessData.orders;
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+          decoration: const BoxDecoration(
+            color: AppColors.forest,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(32),
+              bottomRight: Radius.circular(32),
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Historique',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24),
+              ),
+              Text(
+                'Toutes vos commandes passées',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ordersList.isEmpty
+              ? const Center(child: Text('Aucune commande dans l\'historique'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: ordersList.length,
+                  itemBuilder: (context, index) {
+                    final o = ordersList[index];
+                    final commandeId = o['id_commande'];
+                    final statut = o['statut_commande'] as String? ?? '';
+                    final timeAgo = _formatTimeAgo(
+                        DateTime.tryParse(o['created_at'].toString()));
+
+                    return GestureDetector(
+                      onTap: () => onNavigate(BusinessScreen.orderDetail,
+                          orderId: commandeId),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: AppColors.cardShadow,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: statut == 'livree'
+                                    ? AppColors.forest.withOpacity(0.1)
+                                    : AppColors.amber.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                statut == 'livree'
+                                    ? LucideIcons.check
+                                    : LucideIcons.clock,
+                                color: statut == 'livree'
+                                    ? AppColors.forest
+                                    : AppColors.amber,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('#$commandeId - ${o['client_name']}',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.forest)),
+                                  Text('${o['total']} MAD • $statut',
+                                      style: const TextStyle(
+                                          color: AppColors.mutedForeground,
+                                          fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                            Text(timeAgo,
+                                style: const TextStyle(
+                                    color: AppColors.mutedForeground,
+                                    fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============ PROMOTIONS VIEW ============
+class _PromotionsView extends StatefulWidget {
+  final Function(BusinessScreen) onNavigate;
+  const _PromotionsView({required this.onNavigate});
+
+  @override
+  State<_PromotionsView> createState() => _PromotionsViewState();
+}
+
+class _PromotionsViewState extends State<_PromotionsView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final roleId = context.read<AuthProvider>().roleId;
+      if (roleId != null) {
+        context.read<ProductProvider>().fetchPromotionsByBusiness(roleId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final businessId = context.read<AuthProvider>().roleId;
+    final provider = context.watch<ProductProvider>();
+    final promos = provider.promotions;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () => widget.onNavigate(BusinessScreen.catalog),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                      color: AppColors.warmWhite, shape: BoxShape.circle),
+                  child: const Icon(LucideIcons.arrowLeft,
+                      color: AppColors.forest, size: 20),
+                ),
+              ),
+              const Text('Mes Promotions',
+                  style: TextStyle(
+                      color: AppColors.forest,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24)),
+              IconButton(
+                icon:
+                    const Icon(LucideIcons.circlePlus, color: AppColors.forest),
+                onPressed: () => widget.onNavigate(BusinessScreen.addPromotion),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: promos.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(LucideIcons.ticket,
+                          size: 64, color: AppColors.forest.withOpacity(0.2)),
+                      const SizedBox(height: 16),
+                      const Text('Aucune promotion active',
+                          style: TextStyle(color: AppColors.mutedForeground)),
+                      TextButton(
+                          onPressed: () =>
+                              widget.onNavigate(BusinessScreen.addPromotion),
+                          child: const Text('Ajouter ma première promo')),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: promos.length,
+                  itemBuilder: (context, index) {
+                    final p = promos[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      child: ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                              color: AppColors.amber.withOpacity(0.1),
+                              shape: BoxShape.circle),
+                          child: const Icon(LucideIcons.ticket,
+                              color: AppColors.amber),
+                        ),
+                        title: Text(p.produit?.nom ?? 'Promotion #${p.id}',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${p.pourcentage.toInt()}% de réduction - Expire le ${p.dateFin.day}/${p.dateFin.month}'),
+                        trailing: IconButton(
+                          icon: const Icon(LucideIcons.trash2,
+                              color: Colors.red, size: 20),
+                          onPressed: () {
+                            if (businessId != null) {
+                              provider.deletePromotion(p.id, businessId);
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============ ADD PROMOTION VIEW ============
+class _AddPromotionView extends StatefulWidget {
+  final Function(BusinessScreen) onNavigate;
+  const _AddPromotionView({required this.onNavigate});
+
+  @override
+  State<_AddPromotionView> createState() => _AddPromotionViewState();
+}
+
+class _AddPromotionViewState extends State<_AddPromotionView> {
+  final List<int> _selectedProductIds = [];
+  final _pourcentageController = TextEditingController();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 7));
+  bool _isLoading = false;
+
+  void _toggleProduct(int id) {
+    setState(() {
+      if (_selectedProductIds.contains(id)) {
+        _selectedProductIds.remove(id);
+      } else {
+        _selectedProductIds.add(id);
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final roleId = context.read<AuthProvider>().roleId;
+    if (roleId != null) {
+      context.read<ProductProvider>().fetchProductsByBusiness(roleId);
+      context.read<ProductProvider>().fetchPromotionsByBusiness(roleId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final products = context.watch<ProductProvider>().businessProducts;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 16),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => widget.onNavigate(BusinessScreen.promotions),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                        color: AppColors.warmWhite, shape: BoxShape.circle),
+                    child: const Icon(LucideIcons.arrowLeft,
+                        color: AppColors.forest, size: 20),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Nouvelle Promotion',
+                    style: TextStyle(
+                        color: AppColors.forest,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Sélectionner les produits',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Container(
+                  height: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (ctx, idx) {
+                      final p = products[idx];
+                      final isSelected = _selectedProductIds.contains(p.id);
+                      return CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (_) => _toggleProduct(p.id),
+                        title: Text(p.nom, style: const TextStyle(fontSize: 14)),
+                        subtitle: Text('${p.prix} MAD', style: const TextStyle(fontSize: 12)),
+                        activeColor: AppColors.forest,
+                        controlAffinity: ListTileControlAffinity.trailing,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Pourcentage de réduction',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _pourcentageController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'Ex: 20',
+                    suffixText: '%',
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Date de fin',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _endDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setState(() => _endDate = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${_endDate.day}/${_endDate.month}/${_endDate.year}'),
+                        const Icon(LucideIcons.calendar, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.forest,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: _isLoading ? null : _savePromotion,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Ajouter la promotion',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _savePromotion() async {
+    if (_selectedProductIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veuillez sélectionner au moins un produit')));
+      return;
+    }
+    final int? pourcentage = int.tryParse(_pourcentageController.text);
+    if (pourcentage == null || pourcentage <= 0 || pourcentage > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Veuillez saisir un pourcentage valide (1-100)')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final roleId = context.read<AuthProvider>().roleId;
+    if (roleId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final provider = context.read<ProductProvider>();
+    final currentPromos = provider.promotions;
+    bool allSuccess = true;
+    int skipCount = 0;
+
+    try {
+      for (final pid in _selectedProductIds) {
+        // Skip if this product ALREADY has an active promotion in memory
+        if (currentPromos.any((p) => p.idProduit == pid)) {
+          skipCount++;
+          continue;
+        }
+
+        final promo = Promotion(
+          id: 0,
+          idProduit: pid,
+          pourcentage: pourcentage.toDouble(),
+          dateDebut: DateTime.now(),
+          dateFin: _endDate,
+        );
+        final success = await provider.addPromotion(promo, roleId);
+        if (!success) allSuccess = false;
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        String msg = allSuccess ? 'Promotion(s) ajoutée(s) avec succès !' : 'Erreur lors de certains ajouts.';
+        if (skipCount > 0) msg += ' ($skipCount déjà en promo)';
+        
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        widget.onNavigate(BusinessScreen.promotions);
+      }
+    } catch (e) {
+       if (mounted) {
+         setState(() => _isLoading = false);
+         ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')));
+       }
+    }
+  }
+
+  Widget _buildField(String label, String placeholder,
+      {int lines = 1,
+      TextInputType? keyboardType,
+      TextEditingController? controller}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.forest)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: lines,
+          keyboardType: keyboardType,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            hintText: placeholder,
+            hintStyle:
+                const TextStyle(color: AppColors.mutedForeground, fontSize: 13),
+            filled: true,
+            fillColor: AppColors.warmWhite,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          ),
+        ),
+      ],
+    );
   }
 }

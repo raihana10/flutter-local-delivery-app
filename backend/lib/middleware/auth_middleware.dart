@@ -10,6 +10,9 @@ Middleware authMiddleware() {
       // 1. Allow public routes
       final publicRoutes = [
         'admin/login',
+        'auth/login',
+        'auth/register',
+        'auth/register-notify',
         'client/auth/login',
         'client/auth/register',
         '', // Health check root

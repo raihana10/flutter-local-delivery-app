@@ -1,8 +1,63 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
+import '../services/email_service.dart';
 
 class UsersController {
+  Future<void> _sendAccountStatusEmail({
+    required String idUser,
+    required bool estActif,
+  }) async {
+    final u = await SupabaseConfig.client
+        .from('app_user')
+        .select('email, nom')
+        .eq('id_user', idUser)
+        .maybeSingle();
+    if (u == null) return;
+    final email = u['email'] as String?;
+    final nom = u['nom'] as String? ?? '';
+    if (email == null || email.isEmpty) return;
+    final mail = EmailService.fromEnv();
+    if (estActif) {
+      await mail.sendToUser(
+        to: email,
+        subject: 'Compte activé — LivrApp',
+        html:
+            '<p>Bonjour ${nom.isEmpty ? '' : nom},</p>'
+            '<p>Votre compte a été <strong>activé</strong>. Vous pouvez vous connecter à l’application.</p>',
+      );
+    } else {
+      await mail.sendToUser(
+        to: email,
+        subject: 'Compte suspendu — LivrApp',
+        html:
+            '<p>Bonjour ${nom.isEmpty ? '' : nom},</p>'
+            '<p>Votre compte a été <strong>suspendu</strong>. Pour toute question, contactez le support.</p>',
+      );
+    }
+  }
+
+  Future<void> _sendDocumentsValidatedEmail(String idUser) async {
+    final u = await SupabaseConfig.client
+        .from('app_user')
+        .select('email, nom')
+        .eq('id_user', idUser)
+        .maybeSingle();
+    if (u == null) return;
+    final email = u['email'] as String?;
+    final nom = u['nom'] as String? ?? '';
+    if (email == null || email.isEmpty) return;
+    final mail = EmailService.fromEnv();
+    await mail.sendToUser(
+      to: email,
+      subject: 'Documents approuvés — LivrApp',
+      html:
+          '<p>Bonjour ${nom.isEmpty ? '' : nom},</p>'
+          '<p>Vos documents ont été <strong>validés</strong> et votre compte est désormais actif. '
+          'Vous pouvez utiliser l’application.</p>',
+    );
+  }
+
   // NOTE: PostgREST JOINs work if foreign keys are properly set up (e.g. user(client(...))).
   // Without exact schema FK knowledge, we assume standard one-to-one joining structures.
   // The generic fallback is querying 'user' and joining the specific role table.
@@ -178,6 +233,8 @@ class UsersController {
             .eq('id_user', id)
             .select();
 
+        await _sendAccountStatusEmail(idUser: id, estActif: newStatus);
+
         return Response.ok(
           jsonEncode({'success': true, 'data': updated}),
           headers: {'content-type': 'application/json'},
@@ -206,6 +263,8 @@ class UsersController {
           .update({'est_actif': newStatus})
           .eq('id_user', id)
           .select();
+
+      await _sendAccountStatusEmail(idUser: id, estActif: newStatus);
 
       return Response.ok(
         jsonEncode({'success': true, 'data': updatedUser}),
@@ -250,6 +309,8 @@ class UsersController {
           .eq('id_user', id)
           .isFilter('deleted_at', null)
           .select();
+
+      await _sendDocumentsValidatedEmail(id);
 
       return Response.ok(
         jsonEncode({

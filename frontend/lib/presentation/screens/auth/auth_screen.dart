@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../data/models/auth_models.dart';
@@ -39,11 +38,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late Animation<Offset> _formAnimation;
   late AnimationController _roleSelectionController;
   late Animation<double> _roleSelectionAnimation;
-
-  // Google Sign-In
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'],
-  );
 
   @override
   void initState() {
@@ -222,43 +216,36 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     });
 
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser != null) {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-        // Pour l'instant, nous simulerons une connexion réussie avec Google
-        // Plus tard, vous pourrez intégrer avec votre backend
-
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final ok = await authProvider.signInWithGoogle();
+      if (!mounted) return;
+      if (ok) {
+        _navigateToHome();
+      } else if (authProvider.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Connexion Google réussie: ${googleUser.email}'),
-            backgroundColor: AppColors.primary,
+            content: Text(authProvider.errorMessage!),
+            backgroundColor: AppColors.destructive,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
           ),
         );
-
-        // Simuler une navigation après connexion réussie
-        Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) {
-            _navigateToHome();
-          }
-        });
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur de connexion Google: $error'),
-          backgroundColor: AppColors.destructive,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de connexion Google: $error'),
+            backgroundColor: AppColors.destructive,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
-        ),
-      );
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {

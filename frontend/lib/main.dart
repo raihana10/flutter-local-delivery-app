@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,15 +14,14 @@ import 'package:app/presentation/screens/business/business_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dart';
 import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
 import 'package:app/presentation/screens/auth/pending_approval_screen.dart';
-import 'package:app/providers/product_provider.dart';
+import 'package:app/core/providers/product_provider.dart';
+import 'package:app/core/providers/order_provider.dart';
 import 'package:app/core/providers/client_data_provider.dart';
 import 'package:app/core/providers/business_data_provider.dart';
-
 import 'package:app/core/providers/livreur_dashboard_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('fr_FR', null);
 
   // Try to load .env, but don't crash if it doesn't exist yet (for the instructions to pass)
   try {
@@ -35,6 +33,9 @@ Future<void> main() async {
       await Supabase.initialize(
         url: dotenv.env['SUPABASE_URL']!,
         anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
       );
     }
   } catch (e) {
@@ -54,6 +55,7 @@ Future<void> main() async {
               previous ?? ClientDataProvider(authProvider: auth),
         ),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProxyProvider<AuthProvider, LivreurDashboardProvider>(
           create: (context) =>
               LivreurDashboardProvider(context.read<AuthProvider>()),
@@ -87,13 +89,13 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/pending-approval': (context) => const PendingApprovalScreen(),
         '/client/home': (context) => const ClientHomeScreen(),
         '/livreur/dashboard': (context) => const DashboardScreen(),
         '/business/dashboard': (context) => const BusinessMainScreen(),
         '/super_admin/dashboard': (context) => const SuperAdminMainScreen(),
         '/super_admin/login': (context) => const SuperAdminLoginScreen(),
         '/auth': (context) => const AuthScreen(),
-        '/pending-approval': (context) => const PendingApprovalScreen(),
       },
     );
   }
@@ -111,22 +113,25 @@ class RoleRouter extends StatelessWidget {
         }
 
         final role = authProvider.user?.role.value;
+        final isActive = authProvider.user?.estActif ?? false;
+        
         if (role == null) {
           // Si le rôle n'est pas encore chargé (ou utilisateur non trouvé dans la base)
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
         }
 
+        // ✅ Check if user is pending approval for livreur or business
+        if ((role == 'livreur' || role == 'business') && !isActive) {
+          return const PendingApprovalScreen();
+        }
+
         switch (role) {
           case 'client':
             return const ClientHomeScreen();
           case 'livreur':
-            // ✅ Livreur non actif → page d'attente
-            if (authProvider.user?.estActif == false) return const PendingApprovalScreen();
             return const DashboardScreen();
           case 'business':
-            // ✅ Business non actif → page d'attente
-            if (authProvider.user?.estActif == false) return const PendingApprovalScreen();
             return const BusinessMainScreen();
           case 'super_admin':
             return const SuperAdminMainScreen();

@@ -75,6 +75,7 @@ CREATE TABLE livreur (
     sexe           sexe_enum,
     date_naissance DATE,
     cni            VARCHAR(50),
+    documents_validation TEXT,              -- chemins ou URLs des pièces (soumis à validation admin)
     est_actif      BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -96,7 +97,7 @@ CREATE TABLE business (
     temps_preparation  INT,                    -- minutes
     is_open            BOOLEAN     NOT NULL DEFAULT FALSE,
     est_actif          BOOLEAN     NOT NULL DEFAULT FALSE,
-    documents_validation VARCHAR(255),         -- chemin/URL vers le fichier soumis
+    documents_validation TEXT,                   -- chemins ou URLs des pièces soumises
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at         TIMESTAMPTZ

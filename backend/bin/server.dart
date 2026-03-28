@@ -75,9 +75,11 @@ void main(List<String> args) async {
       .addMiddleware(authMiddleware()) // Unified authentication for /admin and /client routes
       .addHandler(router);
 
-  // 4. Start Server
-  final env = DotEnv()..load();
-  final port = int.parse(Platform.environment['PORT'] ?? '8084');
+  // 4. Start Server — PORT depuis l’environnement système ou backend/.env
+  final env = DotEnv(includePlatformEnvironment: true)..load();
+  final port = int.parse(
+    Platform.environment['PORT'] ?? env['PORT'] ?? '8084',
+  );
 
   final server = await serve(pipeline, InternetAddress.anyIPv4, port);
   print('Server listening on port ${server.port}');

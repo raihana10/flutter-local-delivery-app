@@ -2,9 +2,9 @@ class CommandeModel {
   final String id;
   final String restaurant;
   final String adresse;
-  final double distance; // en km
-  final double prix; // en MAD
-  final double fraisLivraison; // en MAD
+  final double distance;
+  final double prix;
+  final double fraisLivraison;
   final int tempsRestant; // en secondes (compte à rebours pour accepter)
   final double? latRestaurant;
   final double? lngRestaurant;
@@ -34,7 +34,7 @@ class CommandeModel {
       adresse: json['adresse'] as String,
       distance: (json['distance'] as num).toDouble(),
       prix: (json['prix'] as num).toDouble(),
-      fraisLivraison: json['fraisLivraison'] != null ? (json['fraisLivraison'] as num).toDouble() : 0.0,
+      fraisLivraison: (json['fraisLivraison'] as num).toDouble(),
       tempsRestant: json['tempsRestant'] as int,
       latRestaurant: json['latRestaurant'] != null
           ? (json['latRestaurant'] as num).toDouble()

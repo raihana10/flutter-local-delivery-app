@@ -10,8 +10,7 @@ class CommandeSupabaseModel extends CommandeModel {
   final double prixTotal;
   final double fraisLivraisonDb;
 
-  // Extra fields for UI display that we will fetch via Joins or use mock for now
-  // since the DB might not have all the restaurant info directly inside `commande`
+  // Extra fields for UI display
   final String numTlClient;
   final List<String> items;
   final List<Map<String, dynamic>> rawItems;
@@ -58,13 +57,6 @@ class CommandeSupabaseModel extends CommandeModel {
         );
 
   factory CommandeSupabaseModel.fromJson(Map<String, dynamic> json, {double? driverLat, double? driverLng}) {
-    // We expect the JSON to be a result of a join, looking somewhat like:
-    // {
-    //   'id_commande': 1,
-    //   '...': '...',
-    //   'ligne_commande': [ { 'quantite': 2, 'nom_snapshot': 'Burger' } ]
-    // }
-
     final clientData = json['client'] as Map<String, dynamic>?;
     final userData = clientData?['app_user'] as Map<String, dynamic>?;
     final String phone = userData?['num_tl'] ?? '';
@@ -85,14 +77,12 @@ class CommandeSupabaseModel extends CommandeModel {
     double? latRestaurant;
     double? lngRestaurant;
     
-    
     for (var l in lignesData) {
       if (l is Map<String, dynamic>) {
         final qte = l['quantite'] ?? 1;
         final nom = l['nom_snapshot'] ?? 'Produit';
         final prixUnitaire = l['prix_snapshot'] ?? 0.0;
         
-        // Try to extra business from relational mapping 'produit' -> 'business' -> 'app_user'
         String businessName = 'Inconnu';
         double? lat;
         double? lng;
@@ -101,8 +91,6 @@ class CommandeSupabaseModel extends CommandeModel {
           final b = l['produit']['business'];
           if (b['app_user'] != null) {
             businessName = b['app_user']['nom'] ?? 'Inconnu';
-            
-            // Extract coordinates
             final uaMap = b['app_user']['user_adresse'];
             if (uaMap is List && uaMap.isNotEmpty) {
                final adr = uaMap.first['adresse'];
@@ -115,8 +103,6 @@ class CommandeSupabaseModel extends CommandeModel {
                lng = (uaMap['adresse']['longitude'] as num?)?.toDouble();
             }
           }
-        } else if (l['business_snapshot'] != null) {
-          businessName = l['business_snapshot'];
         }
         
         if (firstBusiness == 'Restaurant (Inconnu)' && businessName != 'Inconnu') {
@@ -154,14 +140,13 @@ class CommandeSupabaseModel extends CommandeModel {
       rawItems: rawItemsParsed,
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
 
-      // Mapping to old UI fields for compatibility
       id: 'CMD-${json['id_commande']}',
       restaurant: firstBusiness,
       adresse: adresseData?['ville'] ?? 'Adresse inconnue',
       distance: computedDistance,
       prix: (json['prix_total'] as num).toDouble(),
       tempsRestant: 60,
-      latRestaurant: latRestaurant ?? 35.5711, // Fallback if missing
+      latRestaurant: latRestaurant ?? 35.5711, 
       lngRestaurant: lngRestaurant ?? -5.3694,
       latClient: latClient,
       lngClient: lngClient,

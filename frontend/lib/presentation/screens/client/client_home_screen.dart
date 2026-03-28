@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../../core/providers/client_data_provider.dart';
-import '../../../core/constants/app_colors.dart';
-import 'restaurant_detail_screen.dart';
-import 'cart_screen.dart';
-import 'client_profile_screen.dart';
-import 'client_notifications_screen.dart';
-import 'restaurant_list_screen.dart';
-import 'pharmacy_list_screen.dart';
-import 'market_list_screen.dart';
-import 'client_addresses_screen.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:app/presentation/screens/client/order_tracking_screen.dart';
+import 'package:app/core/providers/auth_provider.dart';
+import 'package:app/core/providers/client_data_provider.dart';
+import 'package:app/core/constants/app_colors.dart';
+import 'package:app/presentation/screens/client/restaurant_detail_screen.dart';
+import 'package:app/presentation/screens/client/cart_screen.dart';
+import 'package:app/presentation/screens/client/order_history_screen.dart';
+import 'package:app/presentation/screens/client/client_profile_screen.dart';
+import 'package:app/presentation/screens/client/client_notifications_screen.dart';
+import 'package:app/presentation/screens/client/restaurant_list_screen.dart';
+import 'package:app/presentation/screens/client/pharmacy_list_screen.dart';
+import 'package:app/presentation/screens/client/market_list_screen.dart';
+import 'package:app/presentation/screens/client/client_addresses_screen.dart';
+import 'package:app/core/providers/product_provider.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -41,11 +45,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   @override
   void initState() {
     super.initState();
+    print("DEBUG_LOG: ClientHomeScreen initState");
 
     // Fetch real data once after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ClientDataProvider>().fetchHomeData();
+        context.read<ProductProvider>().fetchPromotions();
       }
     });
 
@@ -73,7 +79,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     _floatingController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    );
+    // NE PAS appeler .repeat() ici - sera géré par didChangeDependencies
 
     _floatingAnimation = Tween<double>(begin: 0, end: 10).animate(
       CurvedAnimation(parent: _floatingController, curve: Curves.easeInOut),
@@ -94,7 +101,26 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ModalRoute est un InheritedWidget : didChangeDependencies se déclenche
+    // quand isCurrent change (push/pop d'une route).
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    if (isCurrent) {
+      // L'écran est actif : lancer l'animation flottante
+      if (!_floatingController.isAnimating) {
+        _floatingController.repeat(reverse: true);
+      }
+    } else {
+      // Une autre route est au premier plan : STOPPER l'animation
+      // pour éviter les rebuilds à 60fps en arrière-plan
+      _floatingController.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    print("DEBUG_LOG: ClientHomeScreen dispose");
     _fadeController.dispose();
     _restaurantsController.dispose();
     _pharmacieController.dispose();
@@ -105,31 +131,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_selectedCategory == 'restaurants') {
-      return WillPopScope(
-        onWillPop: () async {
-          setState(() => _selectedCategory = null);
-          return false;
-        },
-        child: const RestaurantListScreen(),
-      );
-    } else if (_selectedCategory == 'pharmacie') {
-      return WillPopScope(
-        onWillPop: () async {
-          setState(() => _selectedCategory = null);
-          return false;
-        },
-        child: const PharmacyListScreen(),
-      );
-    } else if (_selectedCategory == 'supermarche') {
-      return WillPopScope(
-        onWillPop: () async {
-          setState(() => _selectedCategory = null);
-          return false;
-        },
-        child: const MarketListScreen(),
-      );
-    }
+    print("DEBUG_LOG: ClientHomeScreen build start (mounted: $mounted)");
+    // The selectedCategory logic was removed to use Navigator.push instead.
 
     final user = context.watch<AuthProvider>().user;
 
@@ -137,22 +140,22 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       backgroundColor: AppColors.background,
       bottomNavigationBar: _buildBottomNavigationBar(),
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary.withOpacity(0.08),
-              AppColors.background,
-              AppColors.background,
-            ],
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primary.withOpacity(0.08),
+                AppColors.background,
+                AppColors.background,
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
+          child: SafeArea(
+            child: Column(
+              children: [
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: _buildHeader(user?.nom),
@@ -226,21 +229,28 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                         '🍴',
                         _restaurantsScale,
                         AppColors.primary,
-                        () =>
-                            setState(() => _selectedCategory = 'restaurants')),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RestaurantListScreen(initialNavIndex: 0)),
+                        )),
                     _buildCategoryCircle(
                         'Pharmacie',
                         '💊',
                         _pharmacieScale,
                         const Color(0xFFE53935),
-                        () => setState(() => _selectedCategory = 'pharmacie')),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PharmacyListScreen(initialNavIndex: 0)),
+                        )),
                     _buildCategoryCircle(
                         'Courses',
                         '🛒',
                         _supermarcheScale,
                         const Color(0xFF43A047),
-                        () =>
-                            setState(() => _selectedCategory = 'supermarche')),
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MarketListScreen(initialNavIndex: 0)),
+                        )),
                   ],
                 ),
               ),
@@ -259,48 +269,64 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.person_outline,
-                    color: AppColors.accent, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Bonjour,',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.secondary.withOpacity(0.8),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    name ?? 'Client',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+          Expanded(
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const OrderTrackingScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
+                    child: const Icon(Icons.directions_bike,
+                        color: AppColors.accent, size: 28),
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bonjour,',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.secondary.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        name ?? 'Client',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           Row(
             children: [
@@ -372,57 +398,35 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                 ),
               ),
               const SizedBox(width: 12),
-              // 3-dot menu for Profile and Logout
-              PopupMenuButton<String>(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                color: AppColors.card,
-                elevation: 8,
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: 'profile',
-                    child: Row(
-                      children: [
-                        Icon(Icons.person_outline, color: AppColors.primary, size: 20),
-                        SizedBox(width: 12),
-                        Text('Mon Profil', style: TextStyle(color: AppColors.foreground)),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: AppColors.destructive, size: 20),
-                        SizedBox(width: 12),
-                        Text('Déconnexion', style: TextStyle(color: AppColors.destructive)),
-                      ],
-                    ),
-                  ),
-                ],
-                onSelected: (String value) {
-                  if (value == 'profile') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ClientProfileScreen(),
-                      ),
-                    );
-                  } else if (value == 'logout') {
-                    context.read<AuthProvider>().logout();
-                    Navigator.of(context).pushReplacementNamed('/');
-                  }
-                },
+              InkWell(
+                onTap: () => _showCitySelector(context),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Icon(Icons.more_vert, color: AppColors.foreground, size: 24),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on,
+                          color: AppColors.accent, size: 16),
+                      const SizedBox(width: 4),
+                      Consumer<ClientDataProvider>(
+                        builder: (context, data, _) => Text(
+                          data.currentCity,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary.withOpacity(0.7),
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 16),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -432,26 +436,117 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     );
   }
 
+  void _showCitySelector(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String newCity = '';
+        return AlertDialog(
+          backgroundColor: AppColors.background,
+          title: const Text('Rechercher dans une ville', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.foreground)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Nom de la ville (ex: Tanger)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                ),
+                onChanged: (value) => newCity = value,
+                onSubmitted: (val) {
+                  if (val.trim().isNotEmpty) {
+                    context.read<ClientDataProvider>().setActiveCity(val.trim());
+                  }
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('Ma position'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.primary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    
+                    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+                    if (!serviceEnabled) return;
+              
+                    LocationPermission permission = await Geolocator.checkPermission();
+                    if (permission == LocationPermission.denied) {
+                      permission = await Geolocator.requestPermission();
+                      if (permission == LocationPermission.denied) return;
+                    }
+                    if (permission == LocationPermission.deniedForever) return;
+              
+                    final position = await Geolocator.getCurrentPosition();
+                    if (context.mounted) {
+                      // In a real app we could use geocoding package here
+                      // e.g. placemarkFromCoordinates to get the actual city name
+                      context.read<ClientDataProvider>().setActiveCity("Moi (${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)})");
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () {
+                if (newCity.trim().isNotEmpty) {
+                  context.read<ClientDataProvider>().setActiveCity(newCity.trim());
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Valider', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildCategoryCircle(String title, String emoji,
       Animation<double> scale, Color themeColor, VoidCallback onTap) {
     return Column(
       children: [
-        AnimatedBuilder(
-          animation: _floatingAnimation,
-          builder: (context, child) {
-            return Transform.translate(
-              offset: Offset(
-                  0,
-                  title == 'Pharmacie'
-                      ? -_floatingAnimation.value
-                      : _floatingAnimation.value),
-              child: child,
-            );
-          },
-          child: ScaleTransition(
-            scale: scale,
-            child: GestureDetector(
-              onTap: onTap,
+        GestureDetector(
+          onTap: onTap,
+          child: AnimatedBuilder(
+            animation: _floatingAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(
+                    0,
+                    title == 'Pharmacie'
+                        ? -_floatingAnimation.value
+                        : _floatingAnimation.value),
+                child: child,
+              );
+            },
+            child: ScaleTransition(
+              scale: scale,
               child: Container(
                 width: 100,
                 height: 100,
@@ -1074,8 +1169,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(Icons.home, 'Accueil', 0),
-          _buildNavItem(Icons.search, 'Rechercher', 1),
-          _buildNavItem(Icons.shopping_cart, 'Panier', 2),
+          _buildNavItem(Icons.shopping_cart, 'Panier', 1),
+          _buildNavItem(Icons.history, 'Historique', 2),
           _buildNavItem(Icons.person, 'Profil', 3),
         ],
       ),
@@ -1094,11 +1189,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           return;
         }
 
-        // Navigation logic for other tabs
         Widget? targetScreen;
         switch (index) {
-          case 2:
+          case 1:
             targetScreen = const CartScreen();
+            break;
+          case 2:
+            targetScreen = const OrderHistoryScreen();
             break;
           case 3:
             targetScreen = const ClientProfileScreen();
@@ -1135,7 +1232,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   color: isActive ? AppColors.accent : AppColors.secondary,
                   size: 24,
                 ),
-                if (index == 2) // Cart icon with badge
+                if (index == 1) // Cart icon with badge
                   Positioned(
                     top: -4,
                     right: -4,

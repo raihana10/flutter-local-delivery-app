@@ -10,6 +10,7 @@ class AuthRoutes {
 
     router.post('/login', authController.login);
     router.post('/register', authController.register);
+    router.post('/register-notify', authController.registerNotify);
 
     return router;
   }
