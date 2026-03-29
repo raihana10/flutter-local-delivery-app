@@ -105,6 +105,7 @@ class Produit {
   final DateTime? createdAt;
   final DateTime? deletedAt;
   final Business? business;
+  final Promotion? promotion;
 
   bool get isAvailable => deletedAt == null;
 
@@ -119,6 +120,7 @@ class Produit {
     this.createdAt,
     this.deletedAt,
     this.business,
+    this.promotion,
   });
 
   factory Produit.fromJson(Map<String, dynamic> json) {
@@ -138,6 +140,11 @@ class Produit {
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString()) : null,
       deletedAt: json['deleted_at'] != null ? DateTime.parse(json['deleted_at'].toString()) : null,
       business: json['business'] is Map<String, dynamic> ? Business.fromJson(json['business']) : null,
+      promotion: json['promotion'] != null 
+          ? (json['promotion'] is List 
+              ? ((json['promotion'] as List).isNotEmpty ? Promotion.fromJson((json['promotion'] as List).first) : null)
+              : Promotion.fromJson(json['promotion']))
+          : null,
     );
   }
 

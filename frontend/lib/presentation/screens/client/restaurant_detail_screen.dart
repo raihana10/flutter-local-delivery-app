@@ -91,6 +91,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             'image': p.image,
             'type_produit': p.type,
             'deleted_at': p.deletedAt,
+            'promotion': p.promotion,
           }).toList();
           _isLoadingProducts = false;
         });
@@ -465,15 +466,39 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${item['price']} DH',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.gold,
+                   const SizedBox(height: 8),
+                  if (item['promotion'] != null) ...[
+                    Row(
+                      children: [
+                        Text(
+                          '${((item['price'] as double) * (1 - (item['promotion'] as Promotion).pourcentage / 100)).toStringAsFixed(2)} DH',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${item['price']} DH',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.mutedForeground,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ] else ...[
+                    Text(
+                      '${item['price']} DH',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.gold,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -512,7 +537,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       backgroundColor: Colors.transparent,
       builder: (modalContext) => StatefulBuilder(
         builder: (innerModalContext, setModalState) {
-          final double basePrice = double.tryParse(item['price'].toString()) ?? 0.0;
+          final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
+          final double basePrice = item['promotion'] != null 
+              ? originalPrice * (1 - (item['promotion'] as Promotion).pourcentage / 100)
+              : originalPrice;
           final double totalPrice = basePrice * quantity;
           
           return Container(
@@ -564,15 +592,40 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     color: AppColors.foreground,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${item['price']} DH',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.gold,
+                 const SizedBox(height: 8),
+                if (item['promotion'] != null) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${((item['price'] as double) * (1 - (item['promotion'] as Promotion).pourcentage / 100)).toStringAsFixed(2)} DH',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${item['price']} DH',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: AppColors.mutedForeground,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ] else ...[
+                  Text(
+                    '${item['price']} DH',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.gold,
+                    ),
+                  ),
+                ],
                 
                 Expanded(
                   child: ListView(
@@ -660,9 +713,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
                               'id_produit': item['id'],
                               'id_business': widget.businessId,
-                              'name': item['name'],
+                               'name': item['name'],
                               'options': '', // Removed options tracking
                               'price': basePrice,
+                              'original_price': originalPrice,
                               'quantity': quantity,
                               'image': item['image'] ?? '🍽️',
                               'business_id': widget.businessId, // Add business_id for hybrid order detection
