@@ -546,6 +546,10 @@ class _DashboardViewState extends State<_DashboardView> {
     final statut = o['statut_commande'] as String? ?? '';
     final timeAgo = _formatTimeAgo(DateTime.tryParse(o['created_at'].toString()));
     
+    final clientName = o['client_nom'] ?? o['client_name'] ?? 'Client #$commandeId';
+    final itemsCount = o['items'] ?? o['nb_articles'] ?? '1+';
+    final total = o['prix_total'] ?? o['total'] ?? 0.0;
+    
     return GestureDetector(
       onTap: () => widget.onNavigate(BusinessScreen.orderDetail, orderId: commandeId),
       child: Container(
@@ -562,14 +566,14 @@ class _DashboardViewState extends State<_DashboardView> {
                   children: [
                     Text('#$commandeId', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
                     const SizedBox(width: 8),
-                    Text('${o['client_name']}', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                    Text(clientName, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
                   ],
                 ),
                 Text(timeAgo, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 12)),
               ],
             ),
             const SizedBox(height: 4),
-            Text('${o['items']} articles • ${o['total']} MAD', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+            Text('$itemsCount articles • $total MAD', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
             const SizedBox(height: 12),
             Row(children: _buildStatusButtons(commandeId, statut)),
           ],
@@ -1804,6 +1808,68 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
 
                 const SizedBox(height: 20),
 
+                // Price Summary
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppColors.cardShadow),
+                  child: Builder(builder: (context) {
+                    final subTotal = lines.fold<double>(
+                      0.0,
+                      (sum, l) => sum + ((l['total_ligne'] as num?)?.toDouble() ?? 0.0),
+                    );
+                    final totalDouble = double.tryParse(total) ?? 0.0;
+                    final deliveryFee = totalDouble - subTotal;
+
+                    return Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Sous-total',
+                                style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
+                            Text('${subTotal.toStringAsFixed(1)} MAD',
+                                style: const TextStyle(color: AppColors.forest, fontSize: 13)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Frais de livraison',
+                                style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
+                            Text('${deliveryFee.toStringAsFixed(2)} MAD',
+                                style: const TextStyle(color: AppColors.forest, fontSize: 13)),
+                          ],
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(color: AppColors.border),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppColors.forest)),
+                            Text('$total MAD',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppColors.gold)),
+                          ],
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 20),
+
                 // Action Buttons based on status
                 if (statut == 'confirmee') ...[
                   Row(
@@ -2002,11 +2068,11 @@ class _HistoryView extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('#$commandeId - ${o['client_name']}',
+                                  Text('#$commandeId - ${o['client_nom'] ?? o['client_name'] ?? 'Client'}',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: AppColors.forest)),
-                                  Text('${o['total']} MAD • $statut',
+                                  Text('${o['prix_total'] ?? o['total'] ?? 0} MAD • $statut',
                                       style: const TextStyle(
                                           color: AppColors.mutedForeground,
                                           fontSize: 12)),
