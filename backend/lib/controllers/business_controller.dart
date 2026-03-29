@@ -233,18 +233,30 @@ class BusinessController {
       final data = jsonDecode(body);
       final statut = data['statut'];
 
+      // Map status for compatibility (Postgres Enum expects 'preparee' for 'en_preparation')
+      String mappedStatut = statut?.toString() ?? '';
+      if (mappedStatut == 'en_preparation') mappedStatut = 'preparee';
+
+      // Use ONLY 'statut_commande' as the key (table doesn't have a 'statut' column)
       await SupabaseConfig.client
           .from('commande')
-          .update({'statut': statut, 'statut_commande': statut})
+          .update({'statut_commande': mappedStatut})
           .eq('id_commande', int.parse(cid));
 
-      await SupabaseConfig.client
-          .from('timeline')
-          .update({'statut_tmlne': statut})
-          .eq('id_commande', int.parse(cid));
-
-      // Notify Client
+      // Attempt timeline update (non-fatal)
       try {
+        await SupabaseConfig.client
+            .from('timeline')
+            .update({'statut_tmlne': mappedStatut})
+            .eq('id_commande', int.parse(cid));
+      } catch (e) {
+        print('Timeline update skipped: $e');
+      }
+
+      /*
+      // Notify Client (Commented out to prevent double notifications if processed by DB trigger)
+      try {
+        print('DEBUG: Notifying client for order $cid with status $statut');
         final commandeData = await SupabaseConfig.client
             .from('commande')
             .select('id_client, client:id_client(id_user)')
@@ -268,12 +280,14 @@ class BusinessController {
       } catch (e) {
         print('Error notifying client on status update: $e');
       }
+      */
 
       return Response.ok(
         jsonEncode({'message': 'Updated successfully'}),
         headers: _headers,
       );
     } catch (e) {
+      print('updateCommandeStatut ERROR: $e');
       return Response(
         500,
         body: jsonEncode({'error': e.toString()}),
