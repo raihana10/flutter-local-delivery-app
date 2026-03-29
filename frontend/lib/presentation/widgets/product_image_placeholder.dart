@@ -3,6 +3,8 @@ import '../../core/constants/app_colors.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class ProductImagePlaceholder extends StatelessWidget {
+  final double? width;
+  final double? height;
   final String? type;
   final double size;
   final double iconSize;
@@ -12,6 +14,8 @@ class ProductImagePlaceholder extends StatelessWidget {
     super.key,
     this.type,
     this.size = 80,
+    this.width,
+    this.height,
     this.iconSize = 32,
     this.borderRadius,
   });
@@ -47,8 +51,8 @@ class ProductImagePlaceholder extends StatelessWidget {
     gradient = [Colors.orange.shade100, Colors.orange.shade200];
 
     return Container(
-      width: size,
-      height: size,
+      width: width ?? size,
+      height: height ?? size,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

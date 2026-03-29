@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:ui';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -18,6 +19,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import 'views/business_stats_view.dart';
 import 'views/business_notifications_view.dart';
@@ -743,22 +745,48 @@ class _CatalogView extends StatelessWidget {
                                 child: Stack(
                                   children: [
                                     item.image != null && item.image!.startsWith('http')
-                                        ? CachedNetworkImage(
-                                            imageUrl: item.image!,
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) => Shimmer.fromColors(
-                                              baseColor: Colors.grey[300]!,
-                                              highlightColor: Colors.grey[100]!,
-                                              child: Container(color: Colors.white),
-                                            ),
-                                            errorWidget: (context, url, error) => ProductImagePlaceholder(
-                                              type: item.type,
-                                              borderRadius: BorderRadius.zero,
-                                            ),
+                                        ? Stack(
+                                            children: [
+                                              // Blurred background for vertical images
+                                              Positioned.fill(
+                                                child: CachedNetworkImage(
+                                                  imageUrl: item.image!,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                              Positioned.fill(
+                                                child: BackdropFilter(
+                                                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                                  child: Container(color: Colors.white.withOpacity(0.2)),
+                                                ),
+                                              ),
+                                              // Clear foreground image
+                                              Center(
+                                                child: CachedNetworkImage(
+                                                  imageUrl: item.image!,
+                                                  fit: BoxFit.contain,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                  placeholder: (context, url) => Shimmer.fromColors(
+                                                    baseColor: Colors.grey[300]!,
+                                                    highlightColor: Colors.grey[100]!,
+                                                    child: Container(color: Colors.white),
+                                                  ),
+                                                  errorWidget: (context, url, error) => ProductImagePlaceholder(
+                                                    type: item.type,
+                                                    borderRadius: BorderRadius.zero,
+                                                    width: double.infinity,
+                                                    height: double.infinity,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           )
                                         : ProductImagePlaceholder(
                                             type: item.type,
                                             borderRadius: BorderRadius.zero,
+                                            width: double.infinity,
+                                            height: double.infinity,
                                           ),
                                     if (!isAvailable)
                                       Positioned(
@@ -1068,14 +1096,14 @@ class _AddProductViewState extends State<_AddProductView> {
   final _priceController = TextEditingController();
   String _category = 'meal';
   bool _isDispo = true;
-  File? _selectedImage;
+  XFile? _selectedImage;
   bool _isUploading = false;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+      setState(() => _selectedImage = pickedFile);
     }
   }
 
@@ -1137,7 +1165,9 @@ class _AddProductViewState extends State<_AddProductView> {
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: _selectedImage != null
-                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              ? (kIsWeb 
+                                  ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                                  : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
                               : Container(
                                   color: AppColors.warmWhite,
                                   child: Icon(LucideIcons.image, 
@@ -1347,6 +1377,9 @@ class _EditProductViewState extends State<_EditProductView> {
   late TextEditingController _priceController;
   late bool _isDispo;
   late String _category;
+  XFile? _selectedImage;
+  String? _currentImageUrl;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -1360,15 +1393,11 @@ class _EditProductViewState extends State<_EditProductView> {
     _currentImageUrl = p.image;
   }
 
-  File? _selectedImage;
-  String? _currentImageUrl;
-  bool _isUploading = false;
-
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+      setState(() => _selectedImage = pickedFile);
     }
   }
 
@@ -1430,7 +1459,9 @@ class _EditProductViewState extends State<_EditProductView> {
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: _selectedImage != null
-                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              ? (kIsWeb 
+                                  ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                                  : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
                               : (_currentImageUrl != null
                                   ? CachedNetworkImage(
                                       imageUrl: _currentImageUrl!,

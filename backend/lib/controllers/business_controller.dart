@@ -366,8 +366,26 @@ class BusinessController {
       final result = await SupabaseConfig.client
           .from('promotion')
           .insert(data)
-          .select()
+          .select('*, produit(nom_produit, business(app_user(nom)))')
           .single();
+
+      // Create a global notification for clients
+      try {
+        final businessName = result['produit']?['business']?['app_user']?['nom'] ?? 'Un commerce';
+        final productName = result['produit']?['nom_produit'] ?? 'un produit';
+        final remise = result['pourcentage_remise'] ?? 0;
+
+        await SupabaseConfig.client.from('notification').insert({
+          'titre_not': 'Nouvelle Promotion !',
+          'contenu_not': '$businessName propose -$remise% sur $productName',
+          'type_not': 'promotion',
+          'est_globale': true,
+          'role_cible': 'client',
+        });
+      } catch (notifError) {
+        print('Error creating global notification: $notifError');
+        // We don't fail the whole request if notification fails
+      }
 
       return Response.ok(jsonEncode({'data': result}), headers: _headers);
     } catch (e) {
