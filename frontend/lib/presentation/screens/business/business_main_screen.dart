@@ -458,28 +458,34 @@ class _DashboardViewState extends State<_DashboardView> {
 
   List<Widget> _buildStatusButtons(int commandeId, String statut) {
     final provider = context.read<BusinessOrderProvider>();
-    if (statut == 'confirmee' || statut == 'en_preparation') {
+    if (statut == 'confirmee') {
       return [
-        _buildOrderButton('Commande prête', AppColors.forest, Colors.white, () {
+        _buildOrderButton('Commande prête (Préparée)', AppColors.forest, Colors.white, () {
           provider.updateOrderStatus(commandeId, 'preparee');
         }),
       ];
     } else if (statut == 'preparee') {
       return [
-        _buildOrderButton('Remettre au livreur', AppColors.amber, AppColors.forest, () {
-          provider.updateOrderStatus(commandeId, 'en_livraison');
-        }),
+        _buildOrderButton('En attente du livreur', Colors.grey.shade200, Colors.grey.shade700, null),
+      ];
+    } else if (statut == 'en_livraison') {
+      return [
+        _buildOrderButton('En cours de livraison', AppColors.amber, Colors.white, null),
+      ];
+    } else if (statut == 'livree') {
+      return [
+        _buildOrderButton('Livrée', AppColors.sage, Colors.white, null),
+      ];
+    } else {
+      return [
+        Expanded(
+            child: Text(statut.toUpperCase(),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.mutedForeground,
+                    fontSize: 12))),
       ];
     }
-    return [
-      Expanded(
-        child: Text(statut.toUpperCase(),
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.mutedForeground,
-                fontSize: 12)),
-      ),
-    ];
   }
 
   Widget _buildKPI(String label, String value, IconData icon) {
@@ -495,39 +501,60 @@ class _DashboardViewState extends State<_DashboardView> {
           children: [
             Icon(icon, color: AppColors.gold, size: 18),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.forest)),
-            Text(label, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 10)),
+            Text(value,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppColors.forest)),
+            Text(label,
+                style: const TextStyle(
+                    color: AppColors.mutedForeground, fontSize: 10)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildOrderButton(String text, Color bg, Color textCol, VoidCallback? onTap) {
+  Widget _buildOrderButton(
+      String text, Color bg, Color textCol, VoidCallback? onTap) {
     return Expanded(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+          ),
           alignment: Alignment.center,
-          child: Text(text, style: TextStyle(color: textCol, fontWeight: FontWeight.bold, fontSize: 12)),
+          child: Text(
+            text,
+            style: TextStyle(
+                color: textCol, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNavButton(String text, VoidCallback onTap) {
-    return Flexible(
-      fit: FlexFit.loose,
+    return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: AppColors.cardShadow),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AppColors.cardShadow,
+          ),
           alignment: Alignment.center,
-          child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
+          child: Text(
+            text,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppColors.forest),
+          ),
         ),
       ),
     );

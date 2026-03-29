@@ -80,28 +80,27 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     final cartItems = clientData.cartItems;
     if (cartItems.isEmpty) return null;
 
-    // Check if this is a hybrid order (multiple business_ids)
-    final businessIds = <String>{};
-    for (var item in cartItems) {
-      final bizId = item['business_id'];
-      if (bizId != null) {
-        businessIds.add(bizId.toString());
-      }
-    }
-
-    // If single or no business_id tracked, use the single business address
-    if (businessIds.length <= 1) {
-      final businessAddr = clientData.businessAddress;
-      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
-      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
-      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
-        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
-        return meters / 1000; // km
+    if (!_isHybridOrder(cartItems)) {
+      final bizAddress = cartItems.first['business_address'];
+      if (bizAddress != null && bizAddress is Map) {
+         final bizLat = double.tryParse(bizAddress['latitude']?.toString() ?? '');
+         final bizLng = double.tryParse(bizAddress['longitude']?.toString() ?? '');
+         if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+            final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+            return meters / 1000;
+         }
+      } else {
+        final businessAddr = clientData.businessAddress;
+        final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+        final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+        if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+          final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+          return meters / 1000;
+        }
       }
     } else {
       // Hybrid order: calculate average distance from all businesses
       // For now, use the single business address as fallback
-      // In production, you'd fetch all business addresses and average them
       final businessAddr = clientData.businessAddress;
       final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
       final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
