@@ -42,6 +42,7 @@ class _ClientPaymentMethodsScreenState
     final isLoading = provider.isLoading;
 
     final hasDefaultCard = methods.any((m) => m['is_default'] == true);
+    final isCashDefault = provider.preferredPaymentMethod == 'cash' || (!hasDefaultCard && provider.preferredPaymentMethod == null);
 
     final cashMethod = {
       'id': 'cash',
@@ -49,7 +50,7 @@ class _ClientPaymentMethodsScreenState
       'title': 'Paiement à la livraison',
       'subtitle': 'Payez en espèces au livreur',
       'icon': Icons.money,
-      'is_default': !hasDefaultCard,
+      'is_default': isCashDefault,
       'color': Colors.green,
     };
 
@@ -74,7 +75,7 @@ class _ClientPaymentMethodsScreenState
                 children: [
                   _buildPaymentMethodItem(cashMethod, isLocal: true),
                   ...methods.map((method) {
-                    final isDefault = method['is_default'] == true;
+                    final isDefault = method['is_default'] == true && provider.preferredPaymentMethod != 'cash';
                     final String cardNum =
                         method['numero_carte']?.toString() ?? '****';
                     final String last4 = cardNum.length > 4
@@ -202,7 +203,7 @@ class _ClientPaymentMethodsScreenState
                 ],
               ),
         onTap: () async {
-          if (!method['is_default'] && !isLocal) {
+          if (!method['is_default']) {
             await context
                 .read<ClientDataProvider>()
                 .setDefaultPaymentMethod(method['id']);

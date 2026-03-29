@@ -43,26 +43,25 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   void _initializePaymentMethod() {
     final clientData = context.read<ClientDataProvider>();
     final paymentMethods = clientData.paymentMethods;
+    final pref = clientData.preferredPaymentMethod;
     
-    // Check if there is a default payment card
-    if (paymentMethods.isNotEmpty) {
+    if (pref == 'card' && paymentMethods.isNotEmpty) {
       final defaultCard = paymentMethods.firstWhere(
         (m) => m['is_default'] == true,
         orElse: () => <String, dynamic>{},
       );
       
       if (defaultCard.isNotEmpty) {
-        // If there's a default card, select 'card' payment method
         setState(() {
           _selectedPaymentMethod = 1; // card
         });
-      } else {
-        // Otherwise, default to cash
-        setState(() {
-          _selectedPaymentMethod = 0; // cash
-        });
+        return;
       }
     }
+    
+    setState(() {
+      _selectedPaymentMethod = 0; // cash
+    });
   }
 
   @override
@@ -568,7 +567,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   };
 
                   final response =
-                      await clientData.createOrderSupabase(payload);
+                      await clientData.apiService.createOrder(payload);
 
                   if (mounted) {
                     setState(() {

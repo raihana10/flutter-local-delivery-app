@@ -86,4 +86,33 @@ class BusinessDataProvider extends ChangeNotifier {
     _setLoading(false);
     return success;
   }
+
+  Future<Map<String, dynamic>?> fetchOrderDetails(dynamic orderId) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final intId = int.tryParse(orderId.toString());
+      if (intId == null) return null;
+      
+      final orderResponse = await supabase
+          .from('commande')
+          .select('*, client(*, app_user(*)), adresse(*), timeline(*, livreur(*, app_user(*)))')
+          .eq('id_commande', intId)
+          .maybeSingle();
+
+      if (orderResponse == null) return null;
+
+      final linesResponse = await supabase
+          .from('ligne_commande')
+          .select('*, produit(*)')
+          .eq('id_commande', intId);
+
+      return {
+        'order': orderResponse,
+        'lines': linesResponse,
+      };
+    } catch (e) {
+      debugPrint('❌ BusinessDataProvider fetchOrderDetails Error: $e');
+      return null;
+    }
+  }
 }

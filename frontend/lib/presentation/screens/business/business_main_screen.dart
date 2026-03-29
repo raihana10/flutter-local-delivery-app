@@ -9,7 +9,7 @@ import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/product_provider.dart';
 import 'package:app/data/models/business_model.dart';
 import 'package:app/core/providers/business_data_provider.dart';
-import 'package:app/core/providers/business_order_provider.dart';
+
 import '../../widgets/product_image_placeholder.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
@@ -55,7 +55,6 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<BusinessDataProvider>().fetchAll();
-      context.read<BusinessOrderProvider>().fetchOrders();
       final auth = context.read<AuthProvider>();
       if (auth.roleId != null) {
         context.read<ProductProvider>().fetchProductsByBusiness(auth.roleId!);
@@ -204,14 +203,15 @@ class _DashboardViewState extends State<_DashboardView> {
   @override
   Widget build(BuildContext context) {
     final businessData = context.watch<BusinessDataProvider>();
-    final orderData = context.watch<BusinessOrderProvider>();
     
     final stats = businessData.stats;
     final profile = businessData.profile;
     
+    final allOrders = (stats['recent_orders'] ?? stats['commandes_recentes'] ?? []) as List<dynamic>;
+    
     // Filter orders: last 24h & not delivered
     final now = DateTime.now();
-    final ordersList = orderData.orders.where((o) {
+    final ordersList = allOrders.where((o) {
       final createdAt = DateTime.tryParse(o['created_at'].toString());
       final statut = o['statut_commande'] as String? ?? '';
       if (createdAt == null) return false;
@@ -223,7 +223,7 @@ class _DashboardViewState extends State<_DashboardView> {
     final businessType = profile['type_business'] ?? 'Type de Business';
 
     final revenus = stats['revenus_totaux']?.toString() ?? '0';
-    final nbCommandes = orderData.orders.length.toString();
+    final nbCommandes = allOrders.length.toString();
     final rating = stats['note_moyenne']?.toString() ?? '4.8';
     
     final bool isOpen = profile['is_open'] == true;
@@ -438,11 +438,11 @@ class _DashboardViewState extends State<_DashboardView> {
   }
 
   List<Widget> _buildStatusButtons(int commandeId, String statut) {
-    final provider = context.read<BusinessOrderProvider>();
+    final provider = context.read<BusinessDataProvider>();
     if (statut == 'confirmee') {
       return [
         _buildOrderButton('Commande prête (Préparée)', AppColors.forest, Colors.white, () {
-          provider.updateOrderStatus(commandeId, 'preparee');
+          provider.updateOrderStatus(commandeId.toString(), 'preparee');
         }),
       ];
     } else if (statut == 'preparee') {
@@ -1496,7 +1496,7 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
       return;
     }
     final data = await context
-        .read<BusinessOrderProvider>()
+        .read<BusinessDataProvider>()
         .fetchOrderDetails(widget.orderId!);
     setState(() {
       _orderData = data;
@@ -1507,8 +1507,8 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
   Future<void> _updateStatus(String newStatus) async {
     if (widget.orderId != null) {
       await context
-          .read<BusinessOrderProvider>()
-          .updateOrderStatus(widget.orderId!, newStatus);
+          .read<BusinessDataProvider>()
+          .updateOrderStatus(widget.orderId!.toString(), newStatus);
       _fetchDetails();
     }
   }
@@ -1920,8 +1920,8 @@ class _HistoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orderData = context.watch<BusinessOrderProvider>();
-    final ordersList = orderData.orders;
+    final businessData = context.watch<BusinessDataProvider>();
+    final ordersList = (businessData.stats['recent_orders'] ?? businessData.stats['commandes_recentes'] ?? []) as List<dynamic>;
 
     return Column(
       children: [

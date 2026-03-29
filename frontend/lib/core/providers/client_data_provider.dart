@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/client_api_service.dart';
 import 'auth_provider.dart';
@@ -9,6 +10,7 @@ class ClientDataProvider extends ChangeNotifier {
 
   ClientDataProvider({required this.authProvider}) {
     apiService = ClientApiService(authProvider);
+    _loadPaymentPreference();
   }
 
   bool isLoading = false;
@@ -65,6 +67,15 @@ class ClientDataProvider extends ChangeNotifier {
   List<dynamic> orders = [];
   List<dynamic> notifications = [];
   List<dynamic> paymentMethods = [];
+
+  String? _preferredPaymentMethod;
+  String get preferredPaymentMethod => _preferredPaymentMethod ?? 'cash';
+
+  Future<void> _loadPaymentPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    _preferredPaymentMethod = prefs.getString('preferred_payment_method') ?? 'cash';
+    notifyListeners();
+  }
   List<dynamic> favorites = [];
 
   // Cart Data
@@ -232,8 +243,21 @@ class ClientDataProvider extends ChangeNotifier {
   }
 
   Future<bool> setDefaultPaymentMethod(String id) async {
+    if (id == 'cash') {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('preferred_payment_method', 'cash');
+      _preferredPaymentMethod = 'cash';
+      notifyListeners();
+      return true;
+    }
+
     final success = await apiService.setDefaultPaymentMethod(id);
-    if (success) await fetchPaymentMethods();
+    if (success) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('preferred_payment_method', 'card');
+      _preferredPaymentMethod = 'card';
+      await fetchPaymentMethods();
+    }
     return success;
   }
 
