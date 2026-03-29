@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 
+import '../core/commission_config.dart';
+
 class StatsController {
   final Map<String, String> _headers = {'content-type': 'application/json'};
 
@@ -57,6 +59,7 @@ class StatsController {
 
       // Pour chaque livreur, compter ses courses livrées via timeline
       final List<Map<String, dynamic>> result = [];
+      final globalLivreurRate = await CommissionConfig.livreurRate;
 
       for (var livreur in livreurs) {
         final idLivreur = livreur['id_livreur'] as int;
@@ -75,7 +78,7 @@ class StatsController {
           final cmd = t['commande'];
           if (cmd != null && cmd['statut_commande'] == 'livree') {
             nbCourses++;
-            totalGains += ((cmd['frais_livraison'] as num?)?.toDouble() ?? 0.0) * 0.70;
+            totalGains += ((cmd['frais_livraison'] as num?)?.toDouble() ?? 0.0) * globalLivreurRate;
           }
         }
 
@@ -125,6 +128,7 @@ class StatsController {
           .select('id_business, id_user, type_business, app_user:id_user(nom, email)')
           .isFilter('deleted_at', null);
 
+      final globalBusinessRate = await CommissionConfig.businessRate;
       final List<Map<String, dynamic>> result = [];
 
       for (var business in businesses) {
@@ -164,7 +168,7 @@ class StatsController {
             revenusTotaux = commandes.fold<double>(
                 0.0,
                 (sum, c) =>
-                    sum + ((c['prix_total'] as num?)?.toDouble() ?? 0.0) * 0.75);
+                    sum + ((c['prix_total'] as num?)?.toDouble() ?? 0.0) * globalBusinessRate);
           }
         }
 

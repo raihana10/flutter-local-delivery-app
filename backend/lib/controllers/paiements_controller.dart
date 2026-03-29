@@ -51,17 +51,19 @@ class PaiementsController {
 
       List<Map<String, dynamic>> detail = [];
 
+      final commissionBusinessRate = await CommissionConfig.commissionBusinessRate;
+      final globalBusinessRate = await CommissionConfig.businessRate;
+      final globalLivreurRate = await CommissionConfig.livreurRate;
+      final globalAppLivraisonRate = await CommissionConfig.appLivraisonRate;
+
       for (var cmd in commandes) {
         final prixProduits = (cmd['prix_total'] as num).toDouble();
         final fraisLivraison = (cmd['frais_livraison'] as num).toDouble();
 
-        final commissionBusiness =
-            prixProduits * CommissionConfig.commissionBusinessRate;
-        final revenusBusiness = prixProduits * CommissionConfig.businessRate;
-        final revenusLivreur = fraisLivraison * CommissionConfig.livreurRate;
-        final revenusApp =
-            commissionBusiness +
-            (fraisLivraison * CommissionConfig.appLivraisonRate);
+        final commissionBusiness = prixProduits * commissionBusinessRate;
+        final revenusBusiness = prixProduits * globalBusinessRate;
+        final revenusLivreur = fraisLivraison * globalLivreurRate;
+        final revenusApp = commissionBusiness + (fraisLivraison * globalAppLivraisonRate);
 
         revenusAppTotal += revenusApp;
         revenusLivreurTotal += revenusLivreur;
@@ -111,13 +113,15 @@ class PaiementsController {
       int nbCourses = 0;
       double totalGains = 0.0;
 
+      final globalLivreurRate = await CommissionConfig.livreurRate;
+
       for (var t in timelines) {
         final cmd = t['commande'];
         if (cmd == null) continue;
         if (cmd['statut_commande'] == 'livree') {
           nbCourses++;
           final frais = (cmd['frais_livraison'] as num?)?.toDouble() ?? 0.0;
-          totalGains += frais * 0.70; // livreur reçoit 70%
+          totalGains += frais * globalLivreurRate; // dynamic rate from DB
         }
       }
 

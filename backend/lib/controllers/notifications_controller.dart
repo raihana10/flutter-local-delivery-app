@@ -53,13 +53,36 @@ class NotificationsController {
           .select()
           .single();
 
-      // Step 2: Link generically via user_notification if directed at a specific user
+      // Step 2: Link generically via user_notification
       if (idUser != null) {
+        // Notification ciblée sur un utilisateur précis
         await SupabaseConfig.client.from('user_notification').insert({
           'id_user': idUser,
           'id_not': notif['id_not'],
-          'lu': false,
+          'est_lu': false,
         });
+      } else {
+        // Envoi global à un ou plusieurs groupes (Tous, Clients, Livreurs, Commerce)
+        var query = SupabaseConfig.client.from('app_user').select('id_user');
+        
+        if (type == 'Clients') {
+          query = query.eq('role', 'client');
+        } else if (type == 'Livreurs') {
+          query = query.eq('role', 'livreur');
+        } else if (type == 'Commerce') {
+          query = query.eq('role', 'business');
+        }
+        
+        final targetUsers = await query;
+        if (targetUsers.isNotEmpty) {
+          final insertData = targetUsers.map((u) => <String, dynamic>{
+            'id_user': u['id_user'],
+            'id_not': notif['id_not'],
+            'est_lu': false,
+          }).toList();
+          
+          await SupabaseConfig.client.from('user_notification').insert(insertData);
+        }
       }
 
       return Response.ok(
