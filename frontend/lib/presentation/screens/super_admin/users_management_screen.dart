@@ -222,11 +222,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
       docsValidStr = user['documents_validation']?.toString() ?? '';
     }
 
-    final urls = docsValidStr.isNotEmpty &&
-            docsValidStr != 'validated' &&
-            docsValidStr != 'false' &&
-            docsValidStr.toLowerCase() != 'null'
-        ? docsValidStr
+    // Nettoyage de la chaîne de documents (enlever les caractères spéciaux si stocké bizarrement)
+    String cleaned = docsValidStr.replaceAll('[', '').replaceAll(']', '').replaceAll('"', '').trim();
+    
+    final urls = cleaned.isNotEmpty && cleaned != 'validated' && cleaned != 'false' && cleaned != 'null'
+        ? cleaned
             .split(',')
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
@@ -268,30 +268,33 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
                     ),
                   )
                 else
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 600;
-                      return SizedBox(
-                        height: isMobile ? 400 : 300,
-                        child: isMobile
-                            ? ListView.builder(
-                                itemCount: urls.length,
-                                itemBuilder: (context, index) {
-                                  return _buildDocumentTile(urls[index], isMobile: true);
-                                },
-                              )
-                            : GridView.count(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                // Hauteur suffisante pour image + bouton (évite overflow / comportements bizarres)
-                                childAspectRatio: 0.62,
-                                children: urls
-                                    .map((url) => _buildDocumentTile(url))
-                                    .toList(),
-                              ),
-                      );
-                    },
+                  Flexible(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isMobile = constraints.maxWidth < 600;
+                        return SizedBox(
+                          height: isMobile ? 400 : 350,
+                          child: isMobile
+                              ? ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: urls.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildDocumentTile(urls[index], isMobile: true);
+                                  },
+                                )
+                              : GridView.count(
+                                  shrinkWrap: true,
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 16,
+                                  crossAxisSpacing: 16,
+                                  childAspectRatio: 0.62,
+                                  children: urls
+                                      .map((url) => _buildDocumentTile(url))
+                                      .toList(),
+                                ),
+                        );
+                      },
+                    ),
                   ),
                 const SizedBox(height: 8),
                 if (urls.isNotEmpty)

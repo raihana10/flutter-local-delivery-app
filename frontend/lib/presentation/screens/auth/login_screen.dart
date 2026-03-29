@@ -419,9 +419,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Bottom Link
                   Padding(
-                    padding: EdgeInsets.only(bottom: 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    padding: EdgeInsets.only(bottom: 24, left: 16, right: 16),
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           'Pas encore de compte ? ',
