@@ -347,28 +347,35 @@ class AuthProvider extends ChangeNotifier {
   /// Connexion / inscription via Google (compte [UserRole.client] si nouveau).
   ///
   /// - **Web** : [GoogleSignIn] requiert [clientId] (même valeur que l’ID client OAuth « Web »).
-  /// - **Android/iOS** : [serverClientId] = cet ID client Web pour obtenir un `id_token`.
+  /// - **Android/iOS/macOS** : [clientId] = ID client iOS pur pour le login, [serverClientId] = ID client Web pour l’ID token.
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
     _errorMessage = null;
     try {
       final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+      final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
+
       if (webClientId == null || webClientId.isEmpty) {
-        _setError(
-          'Ajoutez GOOGLE_WEB_CLIENT_ID dans .env (ID client OAuth de type « Application Web » dans Google Cloud Console).',
-        );
+        _setError('ID client Google Web manquant dans le .env');
         return false;
       }
 
-      final GoogleSignIn googleSignIn = kIsWeb
-          ? GoogleSignIn(
-              scopes: const ['email', 'profile'],
-              clientId: webClientId,
-            )
-          : GoogleSignIn(
-              scopes: const ['email', 'profile'],
-              serverClientId: webClientId,
-            );
+      final GoogleSignIn googleSignIn;
+
+      if (kIsWeb) {
+        googleSignIn = GoogleSignIn(
+          scopes: const ['email', 'profile'],
+          clientId: webClientId,
+        );
+      } else {
+        // Sur Mobile/macOS, clientId doit être l'ID iOS (ou null si Info.plist est parfait)
+        // et serverClientId doit être l'ID Web pour obtenir le token validable par Supabase.
+        googleSignIn = GoogleSignIn(
+          scopes: const ['email', 'profile'],
+          clientId: (Platform.isIOS || Platform.isMacOS) ? iosClientId : null,
+          serverClientId: webClientId,
+        );
+      }
 
       final account = await googleSignIn.signIn();
       if (account == null) {
