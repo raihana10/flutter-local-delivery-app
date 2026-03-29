@@ -222,10 +222,20 @@ class LivreurDashboardProvider extends ChangeNotifier {
           .update({'statut_commande': 'en_livraison'})
           .eq('id_commande', _activeCommande!.idCommande);
 
+      // Create business address location map
+      final businessPos = _activeCommande!.latRestaurant != null && _activeCommande!.lngRestaurant != null 
+          ? {'latitude': _activeCommande!.latRestaurant, 'longitude': _activeCommande!.lngRestaurant}
+          : null;
+
+      final Map<String, dynamic> timelineUpdate = {'statut_tmlne': 'en_livraison'};
+      if (businessPos != null) {
+        timelineUpdate['position_order'] = businessPos;
+      }
+
       // Update timeline status
       await _supabase
           .from('timeline')
-          .update({'statut_tmlne': 'en_livraison'})
+          .update(timelineUpdate)
           .eq('id_commande', _activeCommande!.idCommande);
 
       _setLoading(false);
@@ -251,8 +261,18 @@ class LivreurDashboardProvider extends ChangeNotifier {
       await _supabase.from('commande').update({'statut_commande': 'livree'}).eq(
           'id_commande', _activeCommande!.idCommande);
 
+      // Create client address location map
+      final clientPos = _activeCommande!.latClient != null && _activeCommande!.lngClient != null 
+          ? {'latitude': _activeCommande!.latClient, 'longitude': _activeCommande!.lngClient}
+          : null;
+
+      final Map<String, dynamic> timelineUpdate = {'statut_tmlne': 'livree'};
+      if (clientPos != null) {
+        timelineUpdate['position_order'] = clientPos;
+      }
+
       // Update timeline
-      await _supabase.from('timeline').update({'statut_tmlne': 'livree'}).eq(
+      await _supabase.from('timeline').update(timelineUpdate).eq(
           'id_commande', _activeCommande!.idCommande);
 
       _activeCommande = null;
