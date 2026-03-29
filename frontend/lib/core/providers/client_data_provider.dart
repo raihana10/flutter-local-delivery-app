@@ -62,6 +62,8 @@ class ClientDataProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get allPharmacies => pharmacies;
   List<Map<String, dynamic>> get allSuperMarkets => superMarkets;
   
+  double deliveryFeeRate = 1.5;
+  
   Map<String, dynamic>? profile;
   List<dynamic> addresses = [];
   List<dynamic> orders = [];
@@ -153,7 +155,8 @@ class ClientDataProvider extends ChangeNotifier {
       fetchAddresses(),
       fetchNotifications(),
       fetchPaymentMethods(),
-      fetchFavorites()
+      fetchFavorites(),
+      _fetchAppConfigs()
     ]);
     _setLoading(false);
   }
@@ -223,6 +226,23 @@ class ClientDataProvider extends ChangeNotifier {
 
   int get unreadNotificationsCount {
     return notifications.where((n) => n['est_lu'] == false).length;
+  }
+
+  Future<void> _fetchAppConfigs() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final config = await supabase
+          .from('app_config')
+          .select('valeur')
+          .eq('cle', 'prix_par_km')
+          .maybeSingle();
+      if (config != null && config['valeur'] != null) {
+        deliveryFeeRate = double.tryParse(config['valeur'].toString()) ?? 1.5;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching app_config: $e');
+    }
   }
 
   Future<void> fetchPaymentMethods() async {

@@ -276,10 +276,13 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   double _calculateDeliveryFee(double? distanceKm) {
+    final clientData = context.read<ClientDataProvider>();
+    final rate = clientData.deliveryFeeRate;
+    
     if (distanceKm == null || distanceKm <= 0) {
-      return 1.5;
+      return rate;
     }
-    double baseFee = distanceKm * 1.5;
+    double baseFee = distanceKm * rate;
     double integerPart = baseFee.truncateToDouble();
     double fraction = baseFee - integerPart;
     

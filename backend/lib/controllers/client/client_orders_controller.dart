@@ -57,9 +57,25 @@ class ClientOrdersController {
 
       // Extract optional delivery info
       final distanceKm = data['distance_km'] != null ? double.tryParse(data['distance_km'].toString()) : null;
-      double fraisLivraison = 1.5;
+      
+      // Fetch delivery rate from app_config
+      double prixParKm = 1.5;
+      try {
+        final config = await SupabaseConfig.client
+            .from('app_config')
+            .select('valeur')
+            .eq('cle', 'prix_par_km')
+            .maybeSingle();
+        if (config != null && config['valeur'] != null) {
+          prixParKm = double.tryParse(config['valeur'].toString()) ?? 1.5;
+        }
+      } catch (e) {
+        print('Error fetching app_config: $e');
+      }
+
+      double fraisLivraison = prixParKm; // Default for very short distance if needed
       if (distanceKm != null && distanceKm > 0) {
-        double baseFee = distanceKm * 1.5;
+        double baseFee = distanceKm * prixParKm;
         double integerPart = baseFee.truncateToDouble();
         double fraction = baseFee - integerPart;
         
