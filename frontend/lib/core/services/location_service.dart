@@ -50,16 +50,20 @@ class LocationService {
             'User-Agent': 'LivrApp/1.0 (contact@livrapp.local)',
             'Accept': 'application/json',
           },
-          sendTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
         ),
       );
 
       final List data = response.data;
       return data.map((e) => e as Map<String, dynamic>).toList();
     } catch (e) {
-      // Nominatim may be blocked on web (CORS) — silently return empty
-      print('Nominatim Search Error: $e');
+      // Nominatim may be blocked on web (CORS) or timeout — silently return empty
+      if (e is DioException) {
+        print('Nominatim Search Error (${e.type}): ${e.message}');
+      } else {
+        print('Nominatim Search Error: $e');
+      }
       return [];
     }
   }

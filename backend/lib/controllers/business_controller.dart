@@ -233,35 +233,27 @@ class BusinessController {
       final data = jsonDecode(body);
       final statut = data['statut'];
 
-      // Map status if necessary (e.g. en_preparation -> preparee for ENUM compatibility)
-      String mappedStatut = statut;
-      if (statut == 'en_preparation') mappedStatut = 'preparee';
-
       await SupabaseConfig.client
           .from('commande')
-          .update({'statut': mappedStatut, 'statut_commande': mappedStatut})
+          .update({'statut': statut, 'statut_commande': statut})
           .eq('id_commande', int.parse(cid));
 
       await SupabaseConfig.client
           .from('timeline')
-          .update({'statut_tmlne': mappedStatut})
+          .update({'statut_tmlne': statut})
           .eq('id_commande', int.parse(cid));
 
-      // 3. Notify Client
+      // Notify Client
       try {
-        print('DEBUG: Attempting to notify client for order $cid with status $statut');
         final commandeData = await SupabaseConfig.client
             .from('commande')
             .select('id_client, client:id_client(id_user)')
             .eq('id_commande', int.parse(cid))
             .maybeSingle();
 
-        print('DEBUG: commandeData retrieved: $commandeData');
-
         if (commandeData != null) {
           final clientObj = commandeData['client'];
           final idUser = clientObj != null ? clientObj['id_user'] : null;
-          
           if (idUser != null) {
             String statusMsg = 'Votre commande N°$cid est passée au statut : $statut';
             if (statut == 'confirmee') statusMsg = 'Votre commande N°$cid a été confirmée.';
@@ -270,19 +262,8 @@ class BusinessController {
             if (statut == 'livree') statusMsg = 'Votre commande N°$cid a été livrée. Bon appétit !';
             if (statut == 'annulee') statusMsg = 'Malheureusement, votre commande N°$cid a été annulée.';
 
-            print('DEBUG: Creating notification for user $idUser: $statusMsg');
-            await _createNotification(
-              idUser,
-              'Mise à jour de commande',
-              statusMsg,
-              'commande',
-            );
-            print('Notification successfully created in DB for user $idUser');
-          } else {
-            print('CRITICAL: id_user not found in clientObj: $clientObj');
+            await _createNotification(idUser, 'Mise à jour de commande', statusMsg, 'commande');
           }
-        } else {
-          print('CRITICAL: No commande found for id $cid');
         }
       } catch (e) {
         print('Error notifying client on status update: $e');

@@ -292,6 +292,22 @@ class _OrderDetailsSheet extends StatelessWidget {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
+                  pw.Text('SOUS-TOTAL', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text('${((order['prix_total'] as num?)?.toDouble() ?? 0.0) - ((order['frais_livraison'] as num?)?.toDouble() ?? 0.0)} MAD', style: const pw.TextStyle(fontSize: 10)),
+                ]
+              ),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('FRAIS DE LIVRAISON', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text('${(order['frais_livraison'] as num?)?.toDouble() ?? 0.0} MAD', style: const pw.TextStyle(fontSize: 10)),
+                ]
+              ),
+              pw.Divider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
                   pw.Text('TOTAL', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
                   pw.Text('${order['prix_total']} MAD', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
                 ]
@@ -400,28 +416,40 @@ class _OrderDetailsSheet extends StatelessWidget {
                   ),
                 )).toList(),
                 const Divider(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Sous-total', style: TextStyle(color: AppColors.mutedForeground)),
-                    Text('${order['prix_total']} MAD', style: const TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Frais de livraison', style: TextStyle(color: AppColors.mutedForeground)),
-                    Text('0.00 MAD', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                const Divider(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    Text('${order['prix_total']} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary)),
-                  ],
+                Builder(
+                  builder: (context) {
+                    final double total = (order['prix_total'] as num?)?.toDouble() ?? 0.0;
+                    final double deliveryFee = (order['frais_livraison'] as num?)?.toDouble() ?? 0.0;
+                    final double subTotal = total - deliveryFee;
+                    
+                    return Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Sous-total', style: TextStyle(color: AppColors.mutedForeground)),
+                            Text('${subTotal.toStringAsFixed(2)} MAD', style: const TextStyle(fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Frais de livraison', style: TextStyle(color: AppColors.mutedForeground)),
+                            Text('${deliveryFee.toStringAsFixed(2)} MAD', style: const TextStyle(fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                        const Divider(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            Text('${total.toStringAsFixed(2)} MAD', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary)),
+                          ],
+                        ),
+                      ],
+                    );
+                  }
                 ),
                 const SizedBox(height: 40),
                 // Actions
