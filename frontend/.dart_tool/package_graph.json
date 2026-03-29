@@ -901,13 +901,6 @@
       ]
     },
     {
-      "name": "flutter_plugin_android_lifecycle",
-      "version": "2.0.33",
-      "dependencies": [
-        "flutter"
-      ]
-    },
-    {
       "name": "dbus",
       "version": "0.7.12",
       "dependencies": [
@@ -915,6 +908,13 @@
         "ffi",
         "meta",
         "xml"
+      ]
+    },
+    {
+      "name": "flutter_plugin_android_lifecycle",
+      "version": "2.0.33",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

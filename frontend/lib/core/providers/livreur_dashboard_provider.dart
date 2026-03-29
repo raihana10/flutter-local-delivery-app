@@ -461,6 +461,30 @@ class LivreurDashboardProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateLocation(int idCommande, double lat, double lng) async {
+    try {
+      final pos = {'latitude': lat, 'longitude': lng};
+      debugPrint('PUSHING GPS for Commande #$idCommande: $pos');
+      
+      // We use update first, as the timeline entry should exist since 'acceptation'
+      final res = await _supabase.from('timeline').update({
+        'position_order': pos
+      }).eq('id_commande', idCommande).select();
+      
+      if (res.isEmpty) {
+        debugPrint('WARNING: No timeline row found for #$idCommande. Attempting insert...');
+        // If update failed (no row), we might have a sync issue, let's try to find if it's missing
+        await _supabase.from('timeline').insert({
+          'id_commande': idCommande,
+          'position_order': pos,
+          'statut_tmlne': 'en_livraison'
+        });
+      }
+    } catch (e) {
+      debugPrint('ERROR updating location: $e');
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
