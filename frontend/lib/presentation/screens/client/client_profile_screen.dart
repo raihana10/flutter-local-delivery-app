@@ -6,6 +6,8 @@ import '../../../core/providers/theme_provider.dart';
 import 'client_notifications_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_payment_methods_screen.dart';
+import 'support_screen.dart';
+import 'about_screen.dart';
 
 import '../../../core/providers/client_data_provider.dart';
 
@@ -71,8 +73,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             _buildSection(
               title: 'Autre',
               items: [
-                _buildListTile(Icons.help_outline, 'Aide et support', onTap: () {}),
-                _buildListTile(Icons.info_outline, 'À propos', onTap: () {}),
+                _buildListTile(Icons.help_outline, 'Aide et support', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
+                }),
+                _buildListTile(Icons.info_outline, 'À propos', onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
+                }),
               ],
             ),
             const SizedBox(height: 32),
