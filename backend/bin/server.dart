@@ -15,6 +15,7 @@ import '../lib/routes/commandes_routes.dart';
 import '../lib/routes/paiements_routes.dart';
 import '../lib/routes/stats_routes.dart';
 import '../lib/routes/notifications_routes.dart';
+import '../lib/routes/admin_config_routes.dart';
 import '../lib/routes/client/client_main_routes.dart';
 import '../lib/routes/business/business_main_routes.dart';
 
@@ -64,6 +65,7 @@ void main(List<String> args) async {
   router.mount('/admin/paiements', PaiementsRoutes().router);
   router.mount('/admin/stats', StatsRoutes().router);
   router.mount('/admin/notifications', NotificationsRoutes().router);
+  router.mount('/admin/config', AdminConfigRoutes().router);
 
   router.mount('/client', ClientMainRoutes().router);
   router.mount('/business', BusinessMainRoutes().router);

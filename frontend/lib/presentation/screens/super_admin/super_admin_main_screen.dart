@@ -8,6 +8,7 @@ import 'orders_management_screen.dart';
 import 'payments_screen.dart';
 import 'statistics_screen.dart';
 import 'notifications_screen.dart';
+import 'admin_settings_screen.dart';
 
 class SuperAdminMainScreen extends StatefulWidget {
   const SuperAdminMainScreen({super.key});
@@ -26,6 +27,7 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
     const PaymentsScreen(),
     const StatisticsScreen(),
     const NotificationsScreen(),
+    const AdminSettingsScreen(),
   ];
 
   final List<Map<String, dynamic>> _menuItems = [
@@ -35,6 +37,7 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
     {'icon': LucideIcons.wallet, 'title': 'Paiements'},
     {'icon': Icons.bar_chart, 'title': 'Statistiques'},
     {'icon': LucideIcons.bell, 'title': 'Notifications'},
+    {'icon': LucideIcons.settings, 'title': 'Paramètres'},
   ];
 
   void _onItemTapped(int index) {
@@ -98,6 +101,8 @@ class _SuperAdminMainScreenState extends State<SuperAdminMainScreen> {
                         icon: Icon(Icons.bar_chart), label: 'Statistiques'),
                     const BottomNavigationBarItem(
                         icon: Icon(LucideIcons.bell), label: 'Notifications'),
+                    const BottomNavigationBarItem(
+                        icon: Icon(LucideIcons.settings), label: 'Paramètres'),
                   ],
                 ),
         );

@@ -441,4 +441,36 @@ class SuperAdminApiService {
       return {'error': e.toString()};
     }
   }
+
+  // Configurations APIs
+  Future<Map<String, String>> getConfigs() async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.get('$baseUrl/admin/config', options: options);
+      final data = response.data['data'] as Map<String, dynamic>;
+      
+      return data.map((key, value) => MapEntry(key, value.toString()));
+    } catch (e) {
+      print('❌ getConfigs ERROR: $e');
+      return {};
+    }
+  }
+
+  Future<bool> updateConfig(String key, String value) async {
+    try {
+      final options = await _getAuthOptions();
+      final response = await _dio.post(
+        '$baseUrl/admin/config',
+        data: {
+          'cle': key,
+          'valeur': value,
+        },
+        options: options,
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ updateConfig ERROR: $e');
+      return false;
+    }
+  }
 }
