@@ -1,9 +1,1 @@
-Analyzing test_supabase.dart...
-
-  error - test_supabase.dart:1:193 - The method 'is_' isn't defined for the type 'PostgrestFilterBuilder'. Try correcting the name to the name of an existing method, or defining a method named 'is_'. - undefined_method
-  error - test_supabase.dart:1:258 - The method 'isNull' isn't defined for the type 'PostgrestFilterBuilder'. Try correcting the name to the name of an existing method, or defining a method named 'isNull'. - undefined_method
-   info - test_supabase.dart:1:164 - Empty catch block. Try adding statements to the block, adding a comment to the block, or removing the 'catch' clause. - empty_catches
-   info - test_supabase.dart:1:228 - Empty catch block. Try adding statements to the block, adding a comment to the block, or removing the 'catch' clause. - empty_catches
-   info - test_supabase.dart:1:290 - Empty catch block. Try adding statements to the block, adding a comment to the block, or removing the 'catch' clause. - empty_catches
-
-5 issues found.
+{"error":"PostgrestException(message: Could not find the 'lu' column of 'user_notification' in the schema cache, code: PGRST204, details: Bad Request, hint: null)"}
