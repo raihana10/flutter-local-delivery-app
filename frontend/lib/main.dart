@@ -15,6 +15,7 @@ import 'package:app/presentation/screens/super_admin/super_admin_main_screen.dar
 import 'package:app/presentation/screens/super_admin/super_admin_login_screen.dart';
 import 'package:app/presentation/screens/auth/pending_approval_screen.dart';
 import 'package:app/core/providers/product_provider.dart';
+import 'package:app/presentation/screens/auth/pending_approval_screen.dart';
 import 'package:app/core/providers/order_provider.dart';
 import 'package:app/core/providers/client_data_provider.dart';
 import 'package:app/core/providers/business_data_provider.dart';
@@ -96,6 +97,7 @@ class MyApp extends StatelessWidget {
         '/super_admin/dashboard': (context) => const SuperAdminMainScreen(),
         '/super_admin/login': (context) => const SuperAdminLoginScreen(),
         '/auth': (context) => const AuthScreen(),
+        '/pending-approval': (context) => const PendingApprovalScreen(),
       },
     );
   }

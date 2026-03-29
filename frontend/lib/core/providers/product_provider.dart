@@ -5,9 +5,11 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
 import '../../data/models/business_model.dart';
+import 'package:app/core/services/image_upload_service.dart';
 
 class ProductProvider with ChangeNotifier {
   final _supabase = Supabase.instance.client;
+  final _imageService = ImageUploadService();
   
   bool _isLoading = false;
   String? _errorMessage;
@@ -48,7 +50,6 @@ class ProductProvider with ChangeNotifier {
 
   Future<void> fetchPromotionsByBusiness(int businessId) async {
     try {
-      // We filter by checking if the nested product belongs to the business
       final response = await _supabase
           .from('promotion')
           .select('*, produit!inner(*)')
@@ -98,6 +99,7 @@ class ProductProvider with ChangeNotifier {
       return null;
     }
   }
+
   Future<void> fetchBusinesses(String type) async {
     _isLoading = true;
     _errorMessage = null;
@@ -120,7 +122,6 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-  // Fetch products for a specific business
   Future<void> fetchProductsByBusiness(int businessId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -141,7 +142,6 @@ class ProductProvider with ChangeNotifier {
     }
   }
 
-  // Search products globally or by category
   Future<void> searchProducts(String query, {String? type}) async {
     _isLoading = true;
     notifyListeners();
@@ -169,22 +169,15 @@ class ProductProvider with ChangeNotifier {
 
   // --- Business Specific Methods ---
 
-  Future<String?> uploadImage(File file, String path) async {
+  Future<String?> uploadImage(File file) async {
+    _isLoading = true;
+    notifyListeners();
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final fullPath = '$path/$fileName';
-      
-      await _supabase.storage.from('products').upload(
-            fullPath,
-            file,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-          );
-      
-      final publicUrl = _supabase.storage.from('products').getPublicUrl(fullPath);
-      return publicUrl;
-    } catch (e) {
-      debugPrint('Error uploading image: $e');
-      return null;
+      final url = await _imageService.uploadProductImage(file);
+      return url;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 

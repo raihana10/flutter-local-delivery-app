@@ -4,6 +4,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/product_provider.dart';
@@ -741,22 +743,19 @@ class _CatalogView extends StatelessWidget {
                                 child: Stack(
                                   children: [
                                     item.image != null && item.image!.startsWith('http')
-                                        ? ColorFiltered(
-                                            colorFilter: isAvailable
-                                                ? const ColorFilter.mode(
-                                                    Colors.transparent,
-                                                    BlendMode.multiply)
-                                                : const ColorFilter.mode(
-                                                    Colors.grey,
-                                                    BlendMode.saturation),
-                                            child: Image.network(
-                                              item.image!,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => ProductImagePlaceholder(
-                                                type: item.type,
-                                                borderRadius: BorderRadius.zero,
-                                              ),
-                                            ))
+                                        ? CachedNetworkImage(
+                                            imageUrl: item.image!,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Shimmer.fromColors(
+                                              baseColor: Colors.grey[300]!,
+                                              highlightColor: Colors.grey[100]!,
+                                              child: Container(color: Colors.white),
+                                            ),
+                                            errorWidget: (context, url, error) => ProductImagePlaceholder(
+                                              type: item.type,
+                                              borderRadius: BorderRadius.zero,
+                                            ),
+                                          )
                                         : ProductImagePlaceholder(
                                             type: item.type,
                                             borderRadius: BorderRadius.zero,
@@ -1115,33 +1114,65 @@ class _AddProductViewState extends State<_AddProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    width: double.infinity,
-                    height: 160,
-                    decoration: BoxDecoration(
-                      color: AppColors.warmWhite.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.sage.withOpacity(0.2)),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: _selectedImage != null
-                        ? Image.file(_selectedImage!, fit: BoxFit.cover)
-                        : const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(LucideIcons.camera,
-                                color: AppColors.forest, size: 32),
-                            SizedBox(height: 8),
-                            Text('Ajouter une photo',
-                                style: TextStyle(
-                                    color: AppColors.mutedForeground, fontSize: 13)),
-                          ],
+                // Premium Image Selector
+                Center(
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: AppColors.warmWhite,
+                            borderRadius: BorderRadius.circular(32),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.forest.withOpacity(0.1),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.white, width: 4),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _selectedImage != null
+                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              : Container(
+                                  color: AppColors.warmWhite,
+                                  child: Icon(LucideIcons.image, 
+                                    color: AppColors.forest.withOpacity(0.3), 
+                                    size: 40
+                                  ),
+                                ),
                         ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.forest,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                )
+                              ],
+                            ),
+                            child: const Icon(LucideIcons.camera, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
                 _buildField('Nom du produit', 'Ex: Tajine Berbère',
                     controller: _nameController),
                 const SizedBox(height: 16),
@@ -1172,7 +1203,7 @@ class _AddProductViewState extends State<_AddProductView> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: (_isUploading) ? null : () async {
+                    onPressed: _isUploading ? null : () async {
                       final businessId = context.read<AuthProvider>().roleId;
                       if (businessId == null) return;
                       
@@ -1183,28 +1214,40 @@ class _AddProductViewState extends State<_AddProductView> {
 
                       setState(() => _isUploading = true);
                       
-                      String? imageUrl;
-                      if (_selectedImage != null) {
-                        final provider = context.read<ProductProvider>();
-                        final uploadedUrl = await provider.uploadImage(_selectedImage!, 'business_$businessId');
-                        if (uploadedUrl != null) imageUrl = uploadedUrl;
-                      } else {
-                        // Fallback to null if no image selected to allow icons
-                        imageUrl = null;
-                      }
+                      try {
+                        String? imageUrl;
+                        if (_selectedImage != null) {
+                          final provider = context.read<ProductProvider>();
+                          imageUrl = await provider.uploadImage(_selectedImage!);
+                          if (imageUrl == null) {
+                            throw Exception("L'upload de l'image a échoué. Vérifiez que le bucket 'product-image' existe dans Supabase.");
+                          }
+                        }
 
-                      final p = Produit(
-                        id: 0,
-                        idBusiness: businessId,
-                        nom: _nameController.text,
-                        description: _descController.text,
-                        prix: double.tryParse(_priceController.text) ?? 0.0,
-                        type: _category,
-                        image: imageUrl,
-                      );
-                      await context.read<ProductProvider>().addProduct(p);
-                      setState(() => _isUploading = false);
-                      widget.onNavigate(BusinessScreen.catalog);
+                        final p = Produit(
+                          id: 0,
+                          idBusiness: businessId,
+                          nom: _nameController.text,
+                          description: _descController.text,
+                          prix: double.tryParse(_priceController.text) ?? 0.0,
+                          type: _category,
+                          image: imageUrl,
+                        );
+                        
+                        await context.read<ProductProvider>().addProduct(p);
+                        
+                        if (mounted) {
+                          widget.onNavigate(BusinessScreen.catalog);
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isUploading = false);
+                        }
+                      }
                     },
                     child: _isUploading 
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -1314,6 +1357,19 @@ class _EditProductViewState extends State<_EditProductView> {
     _priceController = TextEditingController(text: p.prix.toString());
     _isDispo = true;
     _category = p.type ?? 'meal';
+    _currentImageUrl = p.image;
+  }
+
+  File? _selectedImage;
+  String? _currentImageUrl;
+  bool _isUploading = false;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() => _selectedImage = File(pickedFile.path));
+    }
   }
 
   @override
@@ -1351,6 +1407,72 @@ class _EditProductViewState extends State<_EditProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
+                // Premium Image Selector (Edit mode)
+                Center(
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: AppColors.warmWhite,
+                            borderRadius: BorderRadius.circular(32),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.forest.withOpacity(0.1),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.white, width: 4),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _selectedImage != null
+                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              : (_currentImageUrl != null
+                                  ? CachedNetworkImage(
+                                      imageUrl: _currentImageUrl!,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                      errorWidget: (context, url, error) => const Icon(LucideIcons.imageOff),
+                                    )
+                                  : Container(
+                                      color: AppColors.warmWhite,
+                                      child: Icon(LucideIcons.image, 
+                                        color: AppColors.forest.withOpacity(0.3), 
+                                        size: 40
+                                      ),
+                                    )),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.forest,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                )
+                              ],
+                            ),
+                            child: const Icon(LucideIcons.camera, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
                 _buildField('Nom du produit', 'Ex: Tajine Berbère',
                     controller: _nameController),
                 const SizedBox(height: 16),
@@ -1378,23 +1500,52 @@ class _EditProductViewState extends State<_EditProductView> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () async {
-                    final provider = context.read<ProductProvider>();
-                    final old = provider.businessProducts[widget.index];
-                    final p = Produit(
-                      id: old.id,
-                      idBusiness: old.idBusiness,
-                      nom: _nameController.text,
-                      description: _descController.text,
-                      prix: double.tryParse(_priceController.text) ?? 0.0,
-                      type: _category,
-                      image: old.image,
-                    );
-                    await provider.updateProduct(p);
-                    widget.onNavigate(BusinessScreen.catalog);
-                  },
-                  child: const Text('Enregistrer les modifications'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isUploading ? null : () async {
+                      setState(() => _isUploading = true);
+                      try {
+                        final provider = context.read<ProductProvider>();
+                        final old = provider.businessProducts[widget.index];
+                        
+                        String? imageUrl = old.image;
+                        if (_selectedImage != null) {
+                          imageUrl = await provider.uploadImage(_selectedImage!);
+                          if (imageUrl == null) {
+                            throw Exception("L'upload de l'image a échoué. Vérifiez que le bucket 'product-image' existe dans Supabase.");
+                          }
+                        }
+
+                        final p = Produit(
+                          id: old.id,
+                          idBusiness: old.idBusiness,
+                          nom: _nameController.text,
+                          description: _descController.text,
+                          prix: double.tryParse(_priceController.text) ?? 0.0,
+                          type: _category,
+                          image: imageUrl,
+                        );
+                        
+                        await provider.updateProduct(p);
+                        
+                        if (mounted) {
+                          widget.onNavigate(BusinessScreen.catalog);
+                        }
+                      } catch (e) {
+                         if (mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                         }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isUploading = false);
+                        }
+                      }
+                    },
+                    child: _isUploading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Enregistrer les modifications'),
+                  ),
                 ),
               ],
             ),

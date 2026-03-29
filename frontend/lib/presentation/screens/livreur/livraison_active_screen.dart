@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,13 +21,40 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
   int _currentStep = 0;
   late CommandeSupabaseModel _commande;
   final MapController _mapController = MapController();
-  final LatLng _livreurPos = const LatLng(35.5740, -5.3680);
+  LatLng _livreurPos = const LatLng(35.5740, -5.3680);
+  StreamSubscription<Position>? _positionStream;
 
   @override
   void initState() {
     super.initState();
-    // Assuming commande is always passed; if not, you'd typically handle the error gracefully
     _commande = widget.commande!;
+    _startLocationTracking();
+  }
+
+  @override
+  void dispose() {
+    _positionStream?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationTracking() {
+    const LocationSettings settings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // Update every 10 meters
+    );
+    
+    _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen((Position pos) {
+      if (mounted) {
+        setState(() {
+          _livreurPos = LatLng(pos.latitude, pos.longitude);
+        });
+        debugPrint('DRIVER: Sending GPS update for Lat/Lng: ${pos.latitude}, ${pos.longitude}');
+        // Update database for client tracking
+        context.read<LivreurDashboardProvider>().updateLocation(
+          _commande.idCommande, pos.latitude, pos.longitude
+        );
+      }
+    });
   }
 
   LatLng get _restaurantPos => LatLng(
@@ -185,7 +214,7 @@ class _LivraisonActiveScreenState extends State<LivraisonActiveScreen> {
       options: MapOptions(initialCenter: _livreurPos, initialZoom: 14.5),
       children: [
         TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.example.app'),
         PolylineLayer(polylines: [
           Polyline(

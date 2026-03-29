@@ -154,8 +154,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
             ),
           ),
           child: SafeArea(
-            child: Column(
-              children: [
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        children: [
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: _buildHeader(user?.nom),
@@ -257,6 +263,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
               const Spacer(),
               const SizedBox(height: 24),
             ],
+          ),
+          ),
+          ),
+          );
+          },
           ),
         ),
       ),

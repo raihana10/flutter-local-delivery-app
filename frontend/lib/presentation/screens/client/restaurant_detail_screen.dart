@@ -37,9 +37,11 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _fetchDetails();
-    _fetchReviews();
-    _fetchProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchDetails();
+      _fetchReviews();
+      _fetchProducts();
+    });
   }
 
   Future<void> _fetchDetails() async {

@@ -91,6 +91,44 @@ class AuthProvider extends ChangeNotifier {
         debugPrint("AuthProvider: Logged in as $role with roleId: $_roleId, active: ${_user!.estActif}");
       } else {
         // Fallback if user is in auth but not in public schema yet
+        // Attempt to create the user by assuming it's a new Google sign-in redirect.
+        final session = _supabase.auth.currentSession;
+        if (session != null && session.user.email == email) {
+          final nom = session.user.userMetadata?['full_name']?.toString() ??
+                      session.user.userMetadata?['name']?.toString() ??
+                      email.split('@').first;
+          final isNew = await _ensureAppUserFromGoogle(
+            email: email,
+            nom: nom,
+          );
+          if (isNew) {
+            await _notifyBackendNewRegistration(
+              email: email,
+              nom: nom,
+              role: 'client',
+            );
+          }
+          
+          // Re-fetch after creation
+          final retryResponse = await _supabase
+              .from('app_user')
+              .select()
+              .eq('email', email)
+              .maybeSingle();
+
+          if (retryResponse != null) {
+            _user = User.fromJson(retryResponse);
+            final roleData = await _supabase.from('client').select().eq('id_user', _user!.id).maybeSingle();
+            if (roleData != null) {
+              _roleId = roleData['id_client'];
+            }
+            debugPrint("AuthProvider: Recovered missing user via Google redirect. Logged in as ${_user!.role.value}");
+            notifyListeners();
+            return;
+          }
+        }
+
+        debugPrint("AuthProvider: Using fallback user id 0 for $email");
         _user = User(
           id: 0,
           email: email,
@@ -347,28 +385,50 @@ class AuthProvider extends ChangeNotifier {
   /// Connexion / inscription via Google (compte [UserRole.client] si nouveau).
   ///
   /// - **Web** : [GoogleSignIn] requiert [clientId] (même valeur que l’ID client OAuth « Web »).
-  /// - **Android/iOS** : [serverClientId] = cet ID client Web pour obtenir un `id_token`.
+  /// - **Android/iOS/macOS** : [clientId] = ID client iOS pur pour le login, [serverClientId] = ID client Web pour l’ID token.
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
     _errorMessage = null;
     try {
-      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
-      if (webClientId == null || webClientId.isEmpty) {
-        _setError(
-          'Ajoutez GOOGLE_WEB_CLIENT_ID dans .env (ID client OAuth de type « Application Web » dans Google Cloud Console).',
+      if (kIsWeb) {
+        // ─── Web : OAuth redirect via Supabase ────────────────────────────────
+        // signInWithOAuth ouvre la popup/redirect Google et Supabase récupère
+        // lui-même le token. L'événement onAuthStateChange(signedIn) gère la suite.
+        await _supabase.auth.signInWithOAuth(
+          supa.OAuthProvider.google,
+          redirectTo: Uri.base.origin, // redirige vers la même origine
         );
+        // Sur web, signInWithOAuth déclenche une navigation (redirect).
+        // Le retour ici n'arrive que si le provider utilise le mode popup.
+        // Dans tous les cas, onAuthStateChange gère _fetchUserDetails.
+        return true;
+      }
+
+      // ─── Mobile (Android / iOS) ────────────────────────────────────────────
+      final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+      final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
+
+      if (webClientId == null || webClientId.isEmpty) {
+        _setError('ID client Google Web manquant dans le .env');
         return false;
       }
 
-      final GoogleSignIn googleSignIn = kIsWeb
-          ? GoogleSignIn(
-              scopes: const ['email', 'profile'],
-              clientId: webClientId,
-            )
-          : GoogleSignIn(
-              scopes: const ['email', 'profile'],
-              serverClientId: webClientId,
-            );
+      final GoogleSignIn googleSignIn;
+
+      if (kIsWeb) {
+        googleSignIn = GoogleSignIn(
+          scopes: const ['email', 'profile'],
+          clientId: webClientId,
+        );
+      } else {
+        // Sur Mobile/macOS, clientId doit être l'ID iOS (ou null si Info.plist est parfait)
+        // et serverClientId doit être l'ID Web pour obtenir le token validable par Supabase.
+        googleSignIn = GoogleSignIn(
+          scopes: const ['email', 'profile'],
+          clientId: (Platform.isIOS || Platform.isMacOS) ? iosClientId : null,
+          serverClientId: webClientId,
+        );
+      }
 
       final account = await googleSignIn.signIn();
       if (account == null) {
@@ -378,9 +438,7 @@ class AuthProvider extends ChangeNotifier {
       final idToken = googleAuth.idToken;
       if (idToken == null) {
         _setError(
-          kIsWeb
-              ? 'Jeton Google indisponible. Vérifiez GOOGLE_WEB_CLIENT_ID et les origines JS autorisées dans Google Cloud.'
-              : 'Jeton Google indisponible. Utilisez l’ID client OAuth « Web » comme GOOGLE_WEB_CLIENT_ID et vérifiez le SHA-1 Android.',
+          'Jeton Google indisponible. Vérifiez GOOGLE_WEB_CLIENT_ID et le SHA-1 Android.',
         );
         return false;
       }
