@@ -433,25 +433,6 @@ class _DashboardViewState extends State<_DashboardView> {
             ],
           ),
         ),
-
-        // Bottom Navigation
-        Positioned(
-          bottom: 40,
-          left: 24,
-          right: 24,
-          child: Row(
-            children: [
-              _buildNavButton(
-                  '📦 Catalogue', () => widget.onNavigate(BusinessScreen.catalog)),
-              const SizedBox(width: 12),
-              _buildNavButton(
-                  '📈 Stats', () => widget.onNavigate(BusinessScreen.stats)),
-              const SizedBox(width: 12),
-              _buildNavButton(
-                  '⚙️ Profil', () => widget.onNavigate(BusinessScreen.profile)),
-            ],
-          ),
-        ),
       ],
     );
   }
