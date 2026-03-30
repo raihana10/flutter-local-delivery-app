@@ -482,7 +482,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: AppColors.destructive,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -620,7 +620,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: AppColors.destructive,
                               ),
                             ),
                             Text(
