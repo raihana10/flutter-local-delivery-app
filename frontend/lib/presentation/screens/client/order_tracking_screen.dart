@@ -69,12 +69,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         .subscribe();
 
     _timelineChannel = supabase
-        .channel('timeline_updates')
+        .channel('timeline_updates_tracker')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'timeline',
-          callback: (payload) => _fetchOrderData(),
+          callback: (payload) {
+            debugPrint('TRACKER: Realtime update from TIMELINE table! Refetching...');
+            _fetchOrderData();
+          },
         )
         .subscribe();
   }
@@ -114,6 +117,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .eq('id_commande', widget.orderId!)
             .maybeSingle();
       } else if (clientId != null) {
+        debugPrint('TRACKER: Querying latest order for client $clientId...');
         final response = await supabase
             .from('commande')
             .select(selectQuery)
@@ -121,12 +125,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison', 'livree'])
             .order('created_at', ascending: false)
             .limit(1);
+            
+        debugPrint('TRACKER: Found ${response.length} candidate(s)');
         if (response.isNotEmpty) {
           final candidate = response.first;
+          final int? cid = int.tryParse(candidate['id_commande']?.toString() ?? '');
           final orderProvider = context.read<OrderProvider>();
-          if (orderProvider.acknowledgedOrderIds.contains(candidate['id_commande'])) {
-             data = null; // Ignore if user stopped this one
+          
+          if (cid != null && orderProvider.acknowledgedOrderIds.contains(cid)) {
+             debugPrint('TRACKER: Order $cid is already acknowledged (stopped). Ignoring.');
+             data = null;
           } else {
+             debugPrint('TRACKER: Using order $cid with status ${candidate['statut_commande']}');
              data = candidate;
           }
         }
@@ -215,10 +225,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         if (tl != null) {
           final pos = tl['position_order'];
           if (pos is Map) {
+            debugPrint('TRACKER: Raw position_order from DB: $pos');
             final lat = double.tryParse(pos['latitude']?.toString() ?? '');
             final lng = double.tryParse(pos['longitude']?.toString() ?? '');
             if (lat != null && lng != null && lat != 0 && lng != 0) {
               riderLatLng = LatLng(lat, lng);
+              debugPrint('TRACKER: New rider location parsed: $riderLatLng');
             }
           }
           final livRaw = tl['livreur'];
@@ -283,8 +295,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _fitBounds();
         }
       } else if (mounted) {
+        debugPrint('TRACKER: No active order found for current user or stop triggered.');
         setState(() {
-          _status = 'Aucune commande trouvée';
+          // IMPORTANT: We only clear _orderData if we are SURE there's nothing to track.
+          // If we had an order and now we don't, but haven't stopped tracking, maybe it's a transient state?
+          // However, to satisfy "Aucune commande à suivre" only after STOP:
+          _status = 'Aucune commande à suivre';
           _isLoading = false;
         });
       }
@@ -615,9 +631,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             borderRadius: BorderRadius.circular(12)),
                         elevation: 0),
                     onPressed: () {
-                      final orderId = _orderData!['id_commande'];
-                      if (orderId is int) {
-                        context.read<OrderProvider>().acknowledgeOrder(orderId);
+                      final int? cid = int.tryParse(_orderData!['id_commande']?.toString() ?? '');
+                      if (cid != null) {
+                        context.read<OrderProvider>().acknowledgeOrder(cid);
                       }
                       Navigator.pop(context);
                     },
