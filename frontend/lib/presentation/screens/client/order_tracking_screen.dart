@@ -143,29 +143,48 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         try {
           final lines = await supabase
               .from('ligne_commande')
-              .select('id_produit, produit(id_business, business(app_user(nom, user_adresse(adresse(*)))))')
+              .select('id_produit, produit(id_business, business(id_business, app_user(nom, user_adresse(adresse(*)))))')
               .eq('id_commande', orderId)
               .limit(1);
           
           if (lines.isNotEmpty) {
-            final biz = lines.first['produit']?['business']?['app_user'];
+            final produitData = lines.first['produit'];
+            final biz = produitData?['business']?['app_user'];
+            
             if (biz != null) {
               bizName = biz['nom'] ?? 'Commerce';
               final uaRaw = biz['user_adresse'];
               Map<String, dynamic>? adrData;
-              if (uaRaw is List && uaRaw.isNotEmpty) adrData = uaRaw.first['adresse'];
-              else if (uaRaw is Map) adrData = uaRaw['adresse'];
+              
+              if (uaRaw is List && uaRaw.isNotEmpty) {
+                // Find default address or just take the first one
+                final defaultAdr = uaRaw.firstWhere((a) => a['is_default'] == true, orElse: () => uaRaw.first);
+                adrData = defaultAdr['adresse'];
+              } else if (uaRaw is Map) {
+                adrData = uaRaw['adresse'];
+              }
 
               if (adrData != null) {
                 bizAddr = adrData['ville'] ?? 'Ville inconnue';
                 final lat = double.tryParse(adrData['latitude']?.toString() ?? '');
                 final lng = double.tryParse(adrData['longitude']?.toString() ?? '');
-                if (lat != null && lng != null) bizLatLng = LatLng(lat, lng);
+                if (lat != null && lng != null) {
+                  bizLatLng = LatLng(lat, lng);
+                  debugPrint('TRACKER: Found business location: $bizLatLng');
+                } else {
+                   debugPrint('TRACKER: Lat/Lng parsing failed for business: $lat, $lng');
+                }
+              } else {
+                debugPrint('TRACKER: No address data found in user_adresse for business');
               }
+            } else {
+               debugPrint('TRACKER: Business app_user not found in join');
             }
+          } else {
+             debugPrint('TRACKER: No order lines found');
           }
         } catch (e) {
-          debugPrint('Biz error: $e');
+          debugPrint('TRACKER: Biz fetch error: $e');
         }
 
         // 3. Rider Coords & Info
@@ -417,7 +436,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 point: _businessPos!,
                 width: 44,
                 height: 44,
-                child: _buildMarkerWidget(Icons.restaurant, AppColors.yellow)),
+                child: _buildMarkerWidget(Icons.store, AppColors.accent)),
           if (_riderPos != null)
             Marker(
                 point: _riderPos!,
