@@ -14,8 +14,32 @@ class BusinessDataProvider extends ChangeNotifier {
 
   final int? overrideBusinessId;
 
+  /// Clé primaire `business.id_business` (table `produit.id_business`), résolue pour le commerce courant.
+  /// En mode admin (`overrideBusinessId` = `id_user`), chargée via [loadIdBusinessPk].
+  int? idBusinessPk;
+
   BusinessDataProvider({required this.authProvider, this.overrideBusinessId}) {
     apiService = BusinessApiService(authProvider, overrideBusinessId: overrideBusinessId);
+  }
+
+  /// À appeler au chargement de l’écran commerce : fournit le bon `id_business` même si l’admin n’est pas le business.
+  Future<void> loadIdBusinessPk() async {
+    try {
+      if (overrideBusinessId != null) {
+        final row = await Supabase.instance.client
+            .from('business')
+            .select('id_business')
+            .eq('id_user', overrideBusinessId!)
+            .maybeSingle();
+        idBusinessPk = row?['id_business'] as int?;
+      } else {
+        idBusinessPk = authProvider.roleId;
+      }
+    } catch (e) {
+      debugPrint('loadIdBusinessPk: $e');
+      idBusinessPk = authProvider.roleId;
+    }
+    notifyListeners();
   }
 
   void _setLoading(bool value) {

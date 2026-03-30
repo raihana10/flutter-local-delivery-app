@@ -8,6 +8,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/business_model.dart';
+import '../../../core/utils/image_utils.dart';
+import 'dart:io';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -151,7 +153,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
           'time': '15-25 min',
           'image': Icons.local_pharmacy,
           'pdp': biz.pdp,
-          'distance': '1.0 km',
           'isOpen': biz.isOpen,
           'is_open': biz.isOpen,
           'category': 'all',
@@ -161,11 +162,26 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
           'description': biz.description ?? 'Pharmacie',
           'app_user': {
             'nom': biz.user?.nom ?? 'Pharmacie',
-          }
+          },
+          'latitude': biz.latitude,
+          'longitude': biz.longitude,
+          'minPrice': biz.minPrice ?? 0.0,
+          'distance_val': biz.latitude != null && biz.longitude != null 
+              ? _calculateDistance(_userLocation.latitude, _userLocation.longitude, biz.latitude!, biz.longitude!)
+              : 1.0,
         };
       }).toList();
-      _filteredRestaurants = List.from(_allRestaurants);
+      _applyFilters();
     });
+  }
+
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) *
+            (1 - c((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a));
   }
 
   void _initializeMockData() {
@@ -208,16 +224,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 .toLowerCase()
                 .contains(_searchQuery.toLowerCase());
 
-        // Filter by distance
-        double dist = double.tryParse(
-              (restaurant['distance']?.toString() ?? '0 km').split(' ')[0]) ?? 0.0;
-        bool matchesDistance = dist <= _maxDistance;
+        // Filter by distance (Disabled by user request)
+        bool matchesDistance = true;
 
-        // Filter by price (mocking minOrder as a proxy for price level)
-        double price = double.tryParse(
-              (restaurant['minOrder']?.toString() ?? '0 DH').split(' ')[0]) ?? 0.0;
-        bool matchesPrice =
-            price >= _priceRange.start && price <= _priceRange.end;
+        // Filter by price (business must have at least one product with price <= threshold)
+        double minPrice = (restaurant['minPrice'] as double?) ?? 0.0;
+        bool matchesPrice = minPrice <= _priceRange.end;
 
         return matchesCategory &&
             matchesSearch &&
@@ -265,21 +277,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text('Distance Max (km)',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Slider(
-                    value: _maxDistance,
-                    min: 0.5,
-                    max: 20,
-                    divisions: 19,
-                    label: '${_maxDistance.toStringAsFixed(1)} km',
-                    activeColor: AppColors.primary,
-                    inactiveColor: AppColors.secondary.withOpacity(0.2),
-                    onChanged: (value) {
-                      setModalState(() => _maxDistance = value);
-                      _applyFilters();
-                    },
-                  ),
                   const SizedBox(height: 16),
                   const Text('Budget Min (MAD)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -437,6 +434,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: SafeArea(
         child: Stack(
           children: [
@@ -634,6 +632,33 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 48,
+                                                  height: 48,
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
+                                                    border: Border.all(
+                                                        color: AppColors.primary
+                                                            .withOpacity(0.3)),
+                                                  ),
+                                                  child: const Icon(
+                                                      Icons.directions_bike,
+                                                      color:
+                                                          AppColors.textWhite),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
                                               PopupMenuButton<String>(
                                                 onSelected: (value) async {
                                                   if (value == 'logout') {
@@ -758,10 +783,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             ),
 
                           IconButton(
+                            icon: const Icon(Icons.tune, color: AppColors.primary),
+                            onPressed: _showFilterSheet,
+                          ),
+                          IconButton(
                             icon: Icon(
-                                _isMapViewOpen
-                                    ? Icons.list
-                                    : Icons.map_outlined,
+                                _isMapViewOpen ? Icons.list : Icons.map_outlined,
                                 color: AppColors.primary),
                             onPressed: () => setState(
                                 () => _isMapViewOpen = !_isMapViewOpen),
@@ -907,9 +934,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
           ],
         ),
       ),
-
-      // Bottom Navigation
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -1748,18 +1772,29 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                         color: Colors.white, size: 20),
                   ),
                 ),
-                ..._filteredRestaurants.map((res) {
-                  final distStr = (res['distance']?.toString() ?? '1.0 km');
-                  final distVal = double.tryParse(distStr.split(' ')[0]) ?? 1.0;
-                  double lat = _userLocation.latitude + (distVal * 0.005);
-                  double lng = _userLocation.longitude + (distVal * 0.005);
+                ..._filteredRestaurants.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final res = entry.value;
+                  if (res['latitude'] == null || res['longitude'] == null) return null;
                   return Marker(
-                    point: LatLng(lat, lng),
+                    point: LatLng(res['latitude'] as double, res['longitude'] as double),
                     width: 50,
                     height: 50,
                     child: GestureDetector(
-                      onTap: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text(res['name']))),
+                    onTap: () {
+                      final businessUser = res['app_user'] ?? {};
+                      final idBusiness = res['id_business'] ?? '0';
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RestaurantDetailScreen(
+                            restaurantName: businessUser['nom'] ?? 'Pharmacie',
+                            heroTag: 'pharmacy_${idBusiness}_$index',
+                            businessId: idBusiness.toString(),
+                          ),
+                        ),
+                      );
+                    },
                       child: Container(
                         decoration: BoxDecoration(
                             color: Colors.white,
@@ -1773,7 +1808,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                       ),
                     ),
                   );
-                }),
+                }).whereType<Marker>().toList(),
               ],
             ),
           ],

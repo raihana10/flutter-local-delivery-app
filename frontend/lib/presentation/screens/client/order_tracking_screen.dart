@@ -8,6 +8,7 @@ import 'package:app/core/constants/app_strings.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:app/core/providers/auth_provider.dart';
+import 'package:app/core/providers/order_provider.dart';
 import 'package:provider/provider.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -68,12 +69,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         .subscribe();
 
     _timelineChannel = supabase
-        .channel('timeline_updates')
+        .channel('timeline_updates_tracker')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'timeline',
-          callback: (payload) => _fetchOrderData(),
+          callback: (payload) {
+            debugPrint('TRACKER: Realtime update from TIMELINE table! Refetching...');
+            _fetchOrderData();
+          },
         )
         .subscribe();
   }
@@ -113,6 +117,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .eq('id_commande', widget.orderId!)
             .maybeSingle();
       } else if (clientId != null) {
+        debugPrint('TRACKER: Querying latest order for client $clientId...');
         final response = await supabase
             .from('commande')
             .select(selectQuery)
@@ -120,7 +125,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison', 'livree'])
             .order('created_at', ascending: false)
             .limit(1);
-        if (response.isNotEmpty) data = response.first;
+            
+        debugPrint('TRACKER: Found ${response.length} candidate(s)');
+        if (response.isNotEmpty) {
+          final candidate = response.first;
+          final int? cid = int.tryParse(candidate['id_commande']?.toString() ?? '');
+          final orderProvider = context.read<OrderProvider>();
+          
+          if (cid != null && orderProvider.acknowledgedOrderIds.contains(cid)) {
+             debugPrint('TRACKER: Order $cid is already acknowledged (stopped). Ignoring.');
+             data = null;
+          } else {
+             debugPrint('TRACKER: Using order $cid with status ${candidate['statut_commande']}');
+             data = candidate;
+          }
+        }
       }
 
       if (data != null && mounted) {
@@ -143,29 +162,48 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         try {
           final lines = await supabase
               .from('ligne_commande')
-              .select('id_produit, produit(id_business, business(app_user(nom, user_adresse(adresse(*)))))')
+              .select('id_produit, produit(id_business, business(id_business, app_user(nom, user_adresse(adresse(*)))))')
               .eq('id_commande', orderId)
               .limit(1);
           
           if (lines.isNotEmpty) {
-            final biz = lines.first['produit']?['business']?['app_user'];
+            final produitData = lines.first['produit'];
+            final biz = produitData?['business']?['app_user'];
+            
             if (biz != null) {
               bizName = biz['nom'] ?? 'Commerce';
               final uaRaw = biz['user_adresse'];
               Map<String, dynamic>? adrData;
-              if (uaRaw is List && uaRaw.isNotEmpty) adrData = uaRaw.first['adresse'];
-              else if (uaRaw is Map) adrData = uaRaw['adresse'];
+              
+              if (uaRaw is List && uaRaw.isNotEmpty) {
+                // Find default address or just take the first one
+                final defaultAdr = uaRaw.firstWhere((a) => a['is_default'] == true, orElse: () => uaRaw.first);
+                adrData = defaultAdr['adresse'];
+              } else if (uaRaw is Map) {
+                adrData = uaRaw['adresse'];
+              }
 
               if (adrData != null) {
                 bizAddr = adrData['ville'] ?? 'Ville inconnue';
                 final lat = double.tryParse(adrData['latitude']?.toString() ?? '');
                 final lng = double.tryParse(adrData['longitude']?.toString() ?? '');
-                if (lat != null && lng != null) bizLatLng = LatLng(lat, lng);
+                if (lat != null && lng != null) {
+                  bizLatLng = LatLng(lat, lng);
+                  debugPrint('TRACKER: Found business location: $bizLatLng');
+                } else {
+                   debugPrint('TRACKER: Lat/Lng parsing failed for business: $lat, $lng');
+                }
+              } else {
+                debugPrint('TRACKER: No address data found in user_adresse for business');
               }
+            } else {
+               debugPrint('TRACKER: Business app_user not found in join');
             }
+          } else {
+             debugPrint('TRACKER: No order lines found');
           }
         } catch (e) {
-          debugPrint('Biz error: $e');
+          debugPrint('TRACKER: Biz fetch error: $e');
         }
 
         // 3. Rider Coords & Info
@@ -187,10 +225,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         if (tl != null) {
           final pos = tl['position_order'];
           if (pos is Map) {
+            debugPrint('TRACKER: Raw position_order from DB: $pos');
             final lat = double.tryParse(pos['latitude']?.toString() ?? '');
             final lng = double.tryParse(pos['longitude']?.toString() ?? '');
             if (lat != null && lng != null && lat != 0 && lng != 0) {
               riderLatLng = LatLng(lat, lng);
+              debugPrint('TRACKER: New rider location parsed: $riderLatLng');
             }
           }
           final livRaw = tl['livreur'];
@@ -255,8 +295,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _fitBounds();
         }
       } else if (mounted) {
+        debugPrint('TRACKER: No active order found for current user or stop triggered.');
         setState(() {
-          _status = 'Aucune commande trouvée';
+          // IMPORTANT: We only clear _orderData if we are SURE there's nothing to track.
+          // If we had an order and now we don't, but haven't stopped tracking, maybe it's a transient state?
+          // However, to satisfy "Aucune commande à suivre" only after STOP:
+          _status = 'Aucune commande à suivre';
           _isLoading = false;
         });
       }
@@ -417,7 +461,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 point: _businessPos!,
                 width: 44,
                 height: 44,
-                child: _buildMarkerWidget(Icons.restaurant, AppColors.yellow)),
+                child: _buildMarkerWidget(Icons.store, AppColors.accent)),
           if (_riderPos != null)
             Marker(
                 point: _riderPos!,
@@ -586,7 +630,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                         elevation: 0),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      final int? cid = int.tryParse(_orderData!['id_commande']?.toString() ?? '');
+                      if (cid != null) {
+                        context.read<OrderProvider>().acknowledgeOrder(cid);
+                      }
+                      Navigator.pop(context);
+                    },
                     child: const Text('Arrêter le suivi',
                         style: TextStyle(
                             color: Colors.white,

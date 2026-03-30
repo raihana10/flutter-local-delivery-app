@@ -8,6 +8,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/business_model.dart';
+import '../../../core/utils/image_utils.dart';
+import 'dart:io';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -140,21 +142,34 @@ class _MarketListScreenState extends State<MarketListScreen>
           'time': '30-45 min',
           'image': Icons.shopping_cart,
           'pdp': biz.pdp,
-          'distance': '1.5 km',
           'isOpen': biz.isOpen,
           'is_open': biz.isOpen,
           'category': 'all',
           'deliveryFee': '20 DH',
-          'minOrder': '100 DH',
           'description': biz.description ?? 'Épicerie et produits frais',
           'cuisine': biz.description ?? 'Épicerie et produits frais',
           'app_user': {
             'nom': biz.user?.nom ?? 'Supermarché',
-          }
+          },
+          'latitude': biz.latitude,
+          'longitude': biz.longitude,
+          'minPrice': biz.minPrice ?? 0.0,
+          'distance_val': biz.latitude != null && biz.longitude != null 
+              ? _calculateDistance(_userLocation.latitude, _userLocation.longitude, biz.latitude!, biz.longitude!)
+              : 1.0,
         };
       }).toList();
-      _filteredRestaurants = List.from(_allRestaurants);
+      _applyFilters();
     });
+  }
+
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) *
+            (1 - c((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a));
   }
 
   void _initializeMockData() {
@@ -197,16 +212,12 @@ class _MarketListScreenState extends State<MarketListScreen>
                 .toLowerCase()
                 .contains(_searchQuery.toLowerCase());
 
-        // Filter by distance
-        double dist =
-            double.parse(restaurant['distance'].toString().split(' ')[0]);
-        bool matchesDistance = dist <= _maxDistance;
+        // Filter by distance (Disabled by user request)
+        bool matchesDistance = true;
 
-        // Filter by price (mocking minOrder as a proxy for price level)
-        double price =
-            double.parse(restaurant['minOrder'].toString().split(' ')[0]);
-        bool matchesPrice =
-            price >= _priceRange.start && price <= _priceRange.end;
+        // Filter by price (business must have at least one product with price <= threshold)
+        double minPrice = (restaurant['minPrice'] as double?) ?? 0.0;
+        bool matchesPrice = minPrice <= _priceRange.end;
 
         return matchesCategory &&
             matchesSearch &&
@@ -254,21 +265,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text('Distance Max (km)',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Slider(
-                    value: _maxDistance,
-                    min: 0.5,
-                    max: 20,
-                    divisions: 19,
-                    label: '${_maxDistance.toStringAsFixed(1)} km',
-                    activeColor: AppColors.primary,
-                    inactiveColor: AppColors.secondary.withOpacity(0.2),
-                    onChanged: (value) {
-                      setModalState(() => _maxDistance = value);
-                      _applyFilters();
-                    },
-                  ),
                   const SizedBox(height: 16),
                   const Text('Budget Min (MAD)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -616,33 +612,13 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
-                                              PopupMenuButton<String>(
-                                                onSelected: (value) async {
-                                                  if (value == 'logout') {
-                                                    await context
-                                                        .read<AuthProvider>()
-                                                        .logout();
-                                                    if (mounted) {
-                                                      Navigator.of(context)
-                                                          .pushReplacementNamed(
-                                                              '/');
-                                                    }
-                                                  }
+                                              GestureDetector(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
+                                                  );
                                                 },
-                                                itemBuilder: (context) => [
-                                                  const PopupMenuItem(
-                                                    value: 'logout',
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(Icons.logout,
-                                                            color: Colors.red,
-                                                            size: 20),
-                                                        SizedBox(width: 8),
-                                                        Text('Déconnexion'),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
                                                 child: Container(
                                                   width: 48,
                                                   height: 48,
@@ -657,7 +633,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                             .withOpacity(0.3)),
                                                   ),
                                                   child: const Icon(
-                                                      Icons.person,
+                                                      Icons.directions_bike,
                                                       color:
                                                           AppColors.textWhite),
                                                 ),
@@ -768,42 +744,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                   },
                 ),
 
-                // Category Chips
-                Container(
-                  height: 80,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _buildCategoryChip(
-                          'Tout',
-                          _getCategoryIcon('all'),
-                          _selectedCategory == 'all',
-                          () => _filterByCategory('all')),
-                      _buildCategoryChip(
-                          'Épicerie',
-                          _getCategoryIcon('epicerie'),
-                          _selectedCategory == 'epicerie',
-                          () => _filterByCategory('epicerie')),
-                      _buildCategoryChip(
-                          'Frais',
-                          _getCategoryIcon('frais'),
-                          _selectedCategory == 'frais',
-                          () => _filterByCategory('frais')),
-                      _buildCategoryChip(
-                          'Boissons',
-                          _getCategoryIcon('boissons'),
-                          _selectedCategory == 'boissons',
-                          () => _filterByCategory('boissons')),
-                      _buildCategoryChip(
-                          'Snacks',
-                          _getCategoryIcon('snacks'),
-                          _selectedCategory == 'snacks',
-                          () => _filterByCategory('snacks')),
-                    ],
-                  ),
-                ),
 
                 // Main Content
                 Expanded(
@@ -1472,7 +1412,8 @@ class _MarketListScreenState extends State<MarketListScreen>
         children: [
           _buildNavItem(Icons.home, 'Accueil', 0),
           _buildNavItem(Icons.shopping_cart, 'Panier', 1),
-          _buildNavItem(Icons.person, 'Profil', 2),
+          _buildNavItem(Icons.history, 'Historique', 2),
+          _buildNavItem(Icons.person, 'Profil', 3),
         ],
       ),
     );
@@ -1498,6 +1439,9 @@ class _MarketListScreenState extends State<MarketListScreen>
             targetScreen = const CartScreen();
             break;
           case 2:
+            targetScreen = const OrderHistoryScreen();
+            break;
+          case 3:
             targetScreen = const ClientProfileScreen();
             break;
         }
@@ -1609,32 +1553,43 @@ class _MarketListScreenState extends State<MarketListScreen>
                       color: Colors.white, size: 20),
                 ),
               ),
-              ..._filteredRestaurants.map((res) {
-                double lat = _userLocation.latitude +
-                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
-                double lng = _userLocation.longitude +
-                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
+              ..._filteredRestaurants.asMap().entries.map((entry) {
+                final index = entry.key;
+                final res = entry.value;
+                if (res['latitude'] == null || res['longitude'] == null) return null;
                 return Marker(
-                  point: LatLng(lat, lng),
+                  point: LatLng(res['latitude'] as double, res['longitude'] as double),
                   width: 50,
                   height: 50,
                   child: GestureDetector(
-                    onTap: () => ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(res['name']))),
+                    onTap: () {
+                      final businessUser = res['app_user'] ?? {};
+                      final idBusiness = res['id_business'] ?? '0';
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RestaurantDetailScreen(
+                            restaurantName: businessUser['nom'] ?? 'Magasin',
+                            heroTag: 'market_${idBusiness}_$index',
+                            businessId: idBusiness.toString(),
+                          ),
+                        ),
+                      );
+                    },
                     child: Container(
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(color: Colors.black26, blurRadius: 4)
                           ]),
                       child: Center(
-                          child: Icon(res['image'] as IconData,
+                          child: Icon((res['image'] as IconData?) ?? Icons.store,
                               color: AppColors.primary, size: 24)),
                     ),
                   ),
                 );
-              }),
+              }).whereType<Marker>().toList(),
             ],
           ),
         ],

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,6 +9,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/business_model.dart';
+import '../../../core/utils/image_utils.dart';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -155,21 +157,34 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
           'temps_preparation': biz.tempsPreparation ?? 25,
           'image': Icons.restaurant,
           'pdp': biz.pdp,
-          'distance': '1.0 km',
           'isOpen': biz.isOpen,
           'is_open': biz.isOpen,
           'category': 'all',
           'deliveryFee': '15 DH',
-          'minOrder': '50 DH',
           'description': biz.description ?? 'Cuisine variée',
           'cuisine': biz.description ?? 'Cuisine variée',
           'app_user': {
             'nom': biz.user?.nom ?? 'Restaurant',
-          }
+          },
+          'latitude': biz.latitude,
+          'longitude': biz.longitude,
+          'minPrice': biz.minPrice ?? 0.0,
+          'distance_val': biz.latitude != null && biz.longitude != null 
+              ? _calculateDistance(_userLocation.latitude, _userLocation.longitude, biz.latitude!, biz.longitude!)
+              : 1.0,
         };
       }).toList();
-      _filteredRestaurants = List.from(_allRestaurants);
+      _applyFilters();
     });
+  }
+
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) *
+            (1 - c((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a));
   }
 
   void _initializeMockData() {
@@ -212,16 +227,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 .toLowerCase()
                 .contains(_searchQuery.toLowerCase());
 
-        // Filter by distance
-        double dist = double.tryParse(
-              (restaurant['distance']?.toString() ?? '0 km').split(' ')[0]) ?? 0.0;
-        bool matchesDistance = dist <= _maxDistance;
+        // Filter by distance (Disabled by user request)
+        bool matchesDistance = true;
 
-        // Filter by price (mocking minOrder as a proxy for price level)
-        double price = double.tryParse(
-              (restaurant['minOrder']?.toString() ?? '0 DH').split(' ')[0]) ?? 0.0;
-        bool matchesPrice =
-            price >= _priceRange.start && price <= _priceRange.end;
+        // Filter by price (business must have at least one product with price <= threshold)
+        double minPrice = (restaurant['minPrice'] as double?) ?? 0.0;
+        bool matchesPrice = minPrice <= _priceRange.end;
 
         return matchesCategory &&
             matchesSearch &&
@@ -269,21 +280,6 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text('Distance Max (km)',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Slider(
-                    value: _maxDistance,
-                    min: 0.5,
-                    max: 20,
-                    divisions: 19,
-                    label: '${_maxDistance.toStringAsFixed(1)} km',
-                    activeColor: AppColors.primary,
-                    inactiveColor: AppColors.secondary.withOpacity(0.2),
-                    onChanged: (value) {
-                      setModalState(() => _maxDistance = value);
-                      _applyFilters();
-                    },
-                  ),
                   const SizedBox(height: 16),
                   const Text('Budget Min (MAD)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1441,7 +1437,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                         ],
                         image: restaurantInfo['pdp'] != null
                             ? DecorationImage(
-                                image: NetworkImage(restaurantInfo['pdp']),
+                                image: ImageUtils.getImageProvider(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
@@ -1749,18 +1745,28 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                   child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 20),
                 ),
               ),
-              ..._filteredRestaurants.map((res) {
-                final distStr = (res['distance']?.toString() ?? '1.0 km');
-                final distVal = double.tryParse(distStr.split(' ')[0]) ?? 1.0;
-                double lat = _userLocation.latitude + (distVal * 0.005);
-                double lng = _userLocation.longitude + (distVal * 0.005);
+              ..._filteredRestaurants.asMap().entries.map((entry) {
+                final index = entry.key;
+                final res = entry.value;
+                if (res['latitude'] == null || res['longitude'] == null) return null;
                 return Marker(
-                  point: LatLng(lat, lng),
+                  point: LatLng(res['latitude'] as double, res['longitude'] as double),
                   width: 50,
                   height: 50,
                   child: GestureDetector(
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['name'])));
+                      final businessUser = res['app_user'] ?? {};
+                      final idBusiness = res['id_business'] ?? '0';
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RestaurantDetailScreen(
+                            restaurantName: businessUser['nom'] ?? 'Restaurant',
+                            heroTag: 'restaurant_${idBusiness}_$index',
+                            businessId: idBusiness.toString(),
+                          ),
+                        ),
+                      );
                     },
                     child: Container(
                       decoration: const BoxDecoration(
@@ -1771,7 +1777,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                     ),
                   ),
                 );
-              }),
+              }).whereType<Marker>().toList(),
             ],
           ),
         ],

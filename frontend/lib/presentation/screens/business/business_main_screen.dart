@@ -8,7 +8,6 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
-import 'package:app/core/providers/auth_provider.dart';
 import 'package:app/core/providers/product_provider.dart';
 import 'package:app/data/models/business_model.dart';
 import 'package:app/core/providers/business_data_provider.dart';
@@ -57,12 +56,14 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BusinessDataProvider>().fetchAll();
-      final auth = context.read<AuthProvider>();
-      if (auth.roleId != null) {
-        context.read<ProductProvider>().fetchProductsByBusiness(auth.roleId!);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final bdp = context.read<BusinessDataProvider>();
+      await bdp.loadIdBusinessPk();
+      if (!mounted) return;
+      if (bdp.idBusinessPk != null) {
+        context.read<ProductProvider>().fetchProductsByBusiness(bdp.idBusinessPk!);
       }
+      await bdp.fetchAll();
     });
   }
 
@@ -707,8 +708,8 @@ class _CatalogView extends StatelessWidget {
 
             // Grid
             Expanded(
-              child: Consumer<ProductProvider>(
-                builder: (context, provider, child) {
+              child: Consumer2<ProductProvider, BusinessDataProvider>(
+                builder: (context, provider, businessData, child) {
                   return GridView.builder(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 12),
@@ -722,7 +723,7 @@ class _CatalogView extends StatelessWidget {
                     itemCount: provider.businessProducts.length,
                     itemBuilder: (context, index) {
                       final item = provider.businessProducts[index];
-                      final businessId = context.read<AuthProvider>().roleId;
+                      final businessId = businessData.idBusinessPk;
                       final isAvailable = item.isAvailable;
 
                       return Opacity(
@@ -1057,7 +1058,9 @@ class _ImportSheetViewState extends State<_ImportSheetView> {
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () async {
-            final businessId = context.read<AuthProvider>().roleId;
+            final bdp = context.read<BusinessDataProvider>();
+            await bdp.loadIdBusinessPk();
+            final businessId = bdp.idBusinessPk;
             if (businessId != null) {
               await context
                   .read<ProductProvider>()
@@ -1234,9 +1237,22 @@ class _AddProductViewState extends State<_AddProductView> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isUploading ? null : () async {
-                      final businessId = context.read<AuthProvider>().roleId;
-                      if (businessId == null) return;
-                      
+                      final bdp = context.read<BusinessDataProvider>();
+                      await bdp.loadIdBusinessPk();
+                      final businessId = bdp.idBusinessPk;
+                      if (businessId == null) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Commerce introuvable. Réessayez dans un instant ou revenez au tableau admin.',
+                              ),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
                       if (_nameController.text.isEmpty || _priceController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nom et prix requis')));
                         return;
@@ -1699,16 +1715,18 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
     }
   }
 
-  void _launchPhoneCall(String phoneNumber, String name, String role) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => InAppCallScreen(
-          contactName: name,
-          phoneNumber: phoneNumber,
-          role: role,
-        ),
-      ),
-    );
+  void _launchPhoneCall(String phoneNumber, String name, String role) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      debugPrint('Could not launch phone call to $phoneNumber');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de lancer l\'appel.')),
+        );
+      }
+    }
   }
 
   Future<Uint8List> _generatePdf(Map<String, dynamic> order, List<dynamic> lines) async {
@@ -2290,17 +2308,19 @@ class _PromotionsViewState extends State<_PromotionsView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final roleId = context.read<AuthProvider>().roleId;
-      if (roleId != null) {
-        context.read<ProductProvider>().fetchPromotionsByBusiness(roleId);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final bdp = context.read<BusinessDataProvider>();
+      await bdp.loadIdBusinessPk();
+      final bid = bdp.idBusinessPk;
+      if (bid != null && context.mounted) {
+        context.read<ProductProvider>().fetchPromotionsByBusiness(bid);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final businessId = context.read<AuthProvider>().roleId;
+    final businessId = context.watch<BusinessDataProvider>().idBusinessPk;
     final provider = context.watch<ProductProvider>();
     final promos = provider.promotions;
 
@@ -2422,11 +2442,15 @@ class _AddPromotionViewState extends State<_AddPromotionView> {
   @override
   void initState() {
     super.initState();
-    final roleId = context.read<AuthProvider>().roleId;
-    if (roleId != null) {
-      context.read<ProductProvider>().fetchProductsByBusiness(roleId);
-      context.read<ProductProvider>().fetchPromotionsByBusiness(roleId);
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final bdp = context.read<BusinessDataProvider>();
+      await bdp.loadIdBusinessPk();
+      final bid = bdp.idBusinessPk;
+      if (bid != null && context.mounted) {
+        context.read<ProductProvider>().fetchProductsByBusiness(bid);
+        context.read<ProductProvider>().fetchPromotionsByBusiness(bid);
+      }
+    });
   }
 
   @override
@@ -2585,9 +2609,16 @@ class _AddPromotionViewState extends State<_AddPromotionView> {
 
     setState(() => _isLoading = true);
 
-    final roleId = context.read<AuthProvider>().roleId;
+    final bdp = context.read<BusinessDataProvider>();
+    await bdp.loadIdBusinessPk();
+    final roleId = bdp.idBusinessPk;
     if (roleId == null) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Identifiant commerce introuvable.')),
+        );
+      }
       return;
     }
 
