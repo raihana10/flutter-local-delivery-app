@@ -69,12 +69,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         .subscribe();
 
     _timelineChannel = supabase
-        .channel('timeline_updates')
+        .channel('timeline_updates_tracker')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'timeline',
-          callback: (payload) => _fetchOrderData(),
+          callback: (payload) {
+            debugPrint('TRACKER: Realtime update from TIMELINE table! Refetching...');
+            _fetchOrderData();
+          },
         )
         .subscribe();
   }
@@ -222,10 +225,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         if (tl != null) {
           final pos = tl['position_order'];
           if (pos is Map) {
+            debugPrint('TRACKER: Raw position_order from DB: $pos');
             final lat = double.tryParse(pos['latitude']?.toString() ?? '');
             final lng = double.tryParse(pos['longitude']?.toString() ?? '');
             if (lat != null && lng != null && lat != 0 && lng != 0) {
               riderLatLng = LatLng(lat, lng);
+              debugPrint('TRACKER: New rider location parsed: $riderLatLng');
             }
           }
           final livRaw = tl['livreur'];

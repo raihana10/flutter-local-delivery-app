@@ -649,49 +649,62 @@ var filteredUsers = users
     columns.add(const DataColumn(
         label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))));
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: PaginatedDataTable(
-        header: Text('Liste des $role${role.endsWith('s') ? '' : 's'}',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        rowsPerPage: filteredUsers.length > 5
-            ? 5
-            : (filteredUsers.isEmpty ? 1 : filteredUsers.length),
-        columns: columns,
-        source: _UserDataTableSource(
-          data: filteredUsers,
-          role: role,
-          onStatusToggle: _showConfirmationDialog,
-          onViewDetails: _showUserModal,
-          onValidate: _showDocumentValidationModal,
-          onManageBusiness: (user) {
-            // L'admin doit usurper l'identité du business, qui est gérée par son id_user
-            final idUser = user['id_user'] as int?;
-            
-            print('🏪 MANAGE BUSINESS id_user: $idUser');
-            
-            if (idUser == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ID user introuvable')),
-              );
-              return;
-            }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final estimatedColumnWidth = isMobile ? 160.0 : 190.0;
+        final minWidth = (columns.length * estimatedColumnWidth)
+            .clamp(constant 320.0, double.infinity);
 
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChangeNotifierProvider(
-                  create: (ctx) => BusinessDataProvider(
-                    authProvider: ctx.read<AuthProvider>(),
-                    overrideBusinessId: idUser,
-                  ),
-                  child: BusinessMainScreen(idBusiness: idUser),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: minWidth),
+              child: PaginatedDataTable(
+                header: Text('Liste des $role${role.endsWith('s') ? '' : 's'}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                rowsPerPage: filteredUsers.length > 5
+                    ? 5
+                    : (filteredUsers.isEmpty ? 1 : filteredUsers.length),
+                columns: columns,
+                source: _UserDataTableSource(
+                  data: filteredUsers,
+                  role: role,
+                  onStatusToggle: _showConfirmationDialog,
+                  onViewDetails: _showUserModal,
+                  onValidate: _showDocumentValidationModal,
+                  onManageBusiness: (user) {
+                    // L'admin doit usurper l'identité du business, qui est gérée par son id_user
+                    final idUser = user['id_user'] as int?;
+
+                    if (idUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('ID user introuvable')),
+                      );
+                      return;
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChangeNotifierProvider(
+                          create: (ctx) => BusinessDataProvider(
+                            authProvider: ctx.read<AuthProvider>(),
+                            overrideBusinessId: idUser,
+                          ),
+                          child: BusinessMainScreen(idBusiness: idUser),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
