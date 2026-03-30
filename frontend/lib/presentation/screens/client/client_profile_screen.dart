@@ -73,9 +73,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 _buildListTile(Icons.notifications_active_outlined, 'Paramètres des notifications', onTap: () {
                   _showNotificationSettingsBottomSheet(context);
                 }),
-                _buildListTile(Icons.language, 'Langue', trailing: Text('Français', style: TextStyle(color: AppColors.mutedForeground)), onTap: () {
-                  _showLanguageDialog(context);
-                }),
                 Consumer<ThemeProvider>(
                   builder: (context, themeProvider, child) {
                     return _buildListTile(
@@ -344,41 +341,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       },
     );
   }
-  void _showLanguageDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Choisir la langue'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('Français'),
-                trailing: const Icon(Icons.check, color: AppColors.primary),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                title: const Text('Arabe'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Langue changée en Arabe')));
-                },
-              ),
-              ListTile(
-                title: const Text('Anglais'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Langue changée en Anglais')));
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _showNotificationSettingsBottomSheet(BuildContext context) {
     bool pushEnabled = true;
     bool emailEnabled = false;
