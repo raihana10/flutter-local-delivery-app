@@ -39,6 +39,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
             map['client'] = map['client_nom'] ?? 'Client #${map['id_client']}';
             map['business'] = map['business_nom'] ?? 'Non défini';
             map['livreur'] = map['livreur_nom']; // null si pas assigné
+            map['prix_donne'] = (map['prix_donne'] ?? 0.0) as num;
             
             return map;
           }).toList();
@@ -372,7 +373,15 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : isMobile
                       ? _buildMobileOrderList()
-                      : _buildDesktopOrderTable(),
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: constraints.maxWidth - 48, // Padding de 24.0 * 2
+                            ),
+                            child: _buildDesktopOrderTable(),
+                          ),
+                        ),
             ],
           ),
         );
