@@ -363,83 +363,57 @@ class BusinessController {
       final body = await request.readAsString();
       final data = jsonDecode(body);
 
+      // 1. Insérer la promotion (select simple — pas de join complexe)
       final result = await SupabaseConfig.client
           .from('promotion')
           .insert(data)
-          .select('*, produit(nom_produit, business(app_user(nom)))')
+          .select('*')
           .single();
 
       print('✅ PROMOTION CRÉÉE: ID=${result['id_promotion']}');
 
-      // Create notification only for users who favorited this business
+      // 2. Récupérer le nom du produit et du business séparément
+      String businessName = 'Un commerce';
+      String productName = 'un produit';
       try {
-        final businessName = result['produit']?['business']?['app_user']?['nom'] ?? 'Un commerce';
-        final productName = result['produit']?['nom_produit'] ?? 'un produit';
+        final produit = await SupabaseConfig.client
+            .from('produit')
+            .select('nom_produit, business(app_user:id_user(nom))')
+            .eq('id_produit', result['id_produit'])
+            .maybeSingle();
+        if (produit != null) {
+          productName = produit['nom_produit'] ?? 'un produit';
+          businessName = produit['business']?['app_user']?['nom'] ?? 'Un commerce';
+        }
+      } catch (e) {
+        print('⚠️ Impossible de récupérer nom produit/business: $e');
+      }
+
+      // 3. Envoyer la notification à TOUS les clients
+      try {
         final remise = result['pourcentage'] ?? 0;
-        final idBusiness = int.parse(id);
+        final titre = 'Nouvelle Promotion !';
+        final message = '$businessName propose -$remise% sur $productName';
 
-        print('📢 CRÉATION NOTIFICATION - Business: $businessName, Produit: $productName, Remise: -$remise%');
-        print('📢 ID Business: $idBusiness');
+        print('📢 NOTIFICATION PROMO: $message');
 
-        // 1. Create the notification itself
-        final notif = await SupabaseConfig.client.from('notification').insert({
-          'titre': 'Nouvelle Promotion !',
-          'message': '$businessName propose -$remise% sur $productName',
-          'type': 'PROMOTION',
-          'created_at': DateTime.now().toIso8601String(),
-          'id_ref': result['id_promotion']
-        }).select().single();
+        final allClients = await SupabaseConfig.client
+            .from('app_user')
+            .select('id_user')
+            .eq('role', 'client');
 
-        final notifId = notif['id_not'] ?? notif['id'];
-        print('✅ NOTIFICATION CRÉÉE: ID=$notifId');
+        final clientsList = allClients as List;
+        print('📊 ${clientsList.length} clients à notifier');
 
-        // 2. Fetch id_client values from favoris table
-        print('🔍 RECHERCHE DES FAVORIS...');
-        final favorites = await SupabaseConfig.client
-            .from('favoris')
-            .select('id_client')
-            .eq('id_business', idBusiness);
-
-        final favoritesList = favorites as List;
-        print('📊 ${favoritesList.length} favoris trouvés');
-
-        final List<Map<String, dynamic>> toInsert = [];
-
-        // 3. For each favorite client, fetch their user ID
-        for (var fav in favoritesList) {
-          final idClient = fav['id_client'];
-          print('  📍 Processing client: $idClient');
-
-          final clientData = await SupabaseConfig.client
-              .from('client')
-              .select('id_user')
-              .eq('id_client', idClient)
-              .maybeSingle();
-
-          if (clientData != null && clientData['id_user'] != null) {
-            final idUser = clientData['id_user'];
-            print('    ➜ User ID: $idUser');
-            toInsert.add({
-              'id_user': idUser,
-              'id_not': notifId,
-              'est_lu': false,
-            });
-          } else {
-            print('    ⚠️ Pas d\'utilisateur trouvé pour ce client');
-          }
+        for (var client in clientsList) {
+          final idUser = client['id_user'];
+          await _createNotification(idUser, titre, message, 'promotion');
         }
 
-        // 4. Bulk insert into user_notification
-        print('📝 ${toInsert.length} utilisateurs à notifier');
-        if (toInsert.isNotEmpty) {
-          await SupabaseConfig.client.from('user_notification').insert(toInsert);
-          print('✅ NOTIFICATIONS ENVOYÉES À ${toInsert.length} UTILISATEURS');
-        } else {
-          print('⚠️ AUCUN UTILISATEUR À NOTIFIER');
-        }
-      } catch (notifError) {
-        print('❌ ERREUR NOTIFICATION: $notifError');
-        print('📋 Stack trace: $notifError');
+        print('✅ PROMOTIONS NOTIFIÉES À ${clientsList.length} CLIENTS');
+      } catch (notifError, stackTrace) {
+        print('❌ ERREUR NOTIFICATION PROMO: $notifError');
+        print('📋 Stack trace: $stackTrace');
       }
 
       return Response.ok(jsonEncode({'data': result}), headers: _headers);
