@@ -224,9 +224,8 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                 .toLowerCase()
                 .contains(_searchQuery.toLowerCase());
 
-        // Filter by distance
-        double dist = restaurant['distance_val'] as double;
-        bool matchesDistance = dist <= _maxDistance;
+        // Filter by distance (Disabled by user request)
+        bool matchesDistance = true;
 
         // Filter by price (business must have at least one product with price <= threshold)
         double minPrice = (restaurant['minPrice'] as double?) ?? 0.0;
@@ -278,21 +277,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                     ],
                   ),
                   const SizedBox(height: 24),
-                  const Text('Distance Max (km)',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Slider(
-                    value: _maxDistance,
-                    min: 0.5,
-                    max: 20,
-                    divisions: 19,
-                    label: '${_maxDistance.toStringAsFixed(1)} km',
-                    activeColor: AppColors.primary,
-                    inactiveColor: AppColors.secondary.withOpacity(0.2),
-                    onChanged: (value) {
-                      setModalState(() => _maxDistance = value);
-                      _applyFilters();
-                    },
-                  ),
                   const SizedBox(height: 16),
                   const Text('Budget Min (MAD)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -780,10 +764,12 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             ),
 
                           IconButton(
+                            icon: const Icon(Icons.tune, color: AppColors.primary),
+                            onPressed: _showFilterSheet,
+                          ),
+                          IconButton(
                             icon: Icon(
-                                _isMapViewOpen
-                                    ? Icons.list
-                                    : Icons.map_outlined,
+                                _isMapViewOpen ? Icons.list : Icons.map_outlined,
                                 color: AppColors.primary),
                             onPressed: () => setState(
                                 () => _isMapViewOpen = !_isMapViewOpen),
@@ -1802,15 +1788,29 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                         color: Colors.white, size: 20),
                   ),
                 ),
-                ..._filteredRestaurants.map((res) {
+                ..._filteredRestaurants.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final res = entry.value;
                   if (res['latitude'] == null || res['longitude'] == null) return null;
                   return Marker(
                     point: LatLng(res['latitude'] as double, res['longitude'] as double),
                     width: 50,
                     height: 50,
                     child: GestureDetector(
-                      onTap: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text(res['name']))),
+                    onTap: () {
+                      final businessUser = res['app_user'] ?? {};
+                      final idBusiness = res['id_business'] ?? '0';
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RestaurantDetailScreen(
+                            restaurantName: businessUser['nom'] ?? 'Pharmacie',
+                            heroTag: 'pharmacy_${idBusiness}_$index',
+                            businessId: idBusiness.toString(),
+                          ),
+                        ),
+                      );
+                    },
                       child: Container(
                         decoration: BoxDecoration(
                             color: Colors.white,
