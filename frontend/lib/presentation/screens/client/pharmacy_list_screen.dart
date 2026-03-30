@@ -440,6 +440,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: SafeArea(
         child: Stack(
           children: [
@@ -612,6 +613,33 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                       ),
                                                     ],
                                                   ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 48,
+                                                  height: 48,
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            16),
+                                                    border: Border.all(
+                                                        color: AppColors.primary
+                                                            .withOpacity(0.3)),
+                                                  ),
+                                                  child: const Icon(
+                                                      Icons.directions_bike,
+                                                      color:
+                                                          AppColors.textWhite),
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
@@ -889,9 +917,6 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
           ],
         ),
       ),
-
-      // Bottom Navigation
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 

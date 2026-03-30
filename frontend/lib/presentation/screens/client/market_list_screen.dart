@@ -423,6 +423,7 @@ class _MarketListScreenState extends State<MarketListScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: SafeArea(
         child: Stack(
           children: [
@@ -598,33 +599,13 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
-                                              PopupMenuButton<String>(
-                                                onSelected: (value) async {
-                                                  if (value == 'logout') {
-                                                    await context
-                                                        .read<AuthProvider>()
-                                                        .logout();
-                                                    if (mounted) {
-                                                      Navigator.of(context)
-                                                          .pushReplacementNamed(
-                                                              '/');
-                                                    }
-                                                  }
+                                              GestureDetector(
+                                                onTap: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
+                                                  );
                                                 },
-                                                itemBuilder: (context) => [
-                                                  const PopupMenuItem(
-                                                    value: 'logout',
-                                                    child: Row(
-                                                      children: [
-                                                        Icon(Icons.logout,
-                                                            color: Colors.red,
-                                                            size: 20),
-                                                        SizedBox(width: 8),
-                                                        Text('Déconnexion'),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
                                                 child: Container(
                                                   width: 48,
                                                   height: 48,
@@ -639,7 +620,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                             .withOpacity(0.3)),
                                                   ),
                                                   child: const Icon(
-                                                      Icons.person,
+                                                      Icons.directions_bike,
                                                       color:
                                                           AppColors.textWhite),
                                                 ),
@@ -750,42 +731,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                   },
                 ),
 
-                // Category Chips
-                Container(
-                  height: 80,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _buildCategoryChip(
-                          'Tout',
-                          _getCategoryIcon('all'),
-                          _selectedCategory == 'all',
-                          () => _filterByCategory('all')),
-                      _buildCategoryChip(
-                          'Épicerie',
-                          _getCategoryIcon('epicerie'),
-                          _selectedCategory == 'epicerie',
-                          () => _filterByCategory('epicerie')),
-                      _buildCategoryChip(
-                          'Frais',
-                          _getCategoryIcon('frais'),
-                          _selectedCategory == 'frais',
-                          () => _filterByCategory('frais')),
-                      _buildCategoryChip(
-                          'Boissons',
-                          _getCategoryIcon('boissons'),
-                          _selectedCategory == 'boissons',
-                          () => _filterByCategory('boissons')),
-                      _buildCategoryChip(
-                          'Snacks',
-                          _getCategoryIcon('snacks'),
-                          _selectedCategory == 'snacks',
-                          () => _filterByCategory('snacks')),
-                    ],
-                  ),
-                ),
 
                 // Main Content
                 Expanded(
@@ -1506,7 +1451,8 @@ class _MarketListScreenState extends State<MarketListScreen>
         children: [
           _buildNavItem(Icons.home, 'Accueil', 0),
           _buildNavItem(Icons.shopping_cart, 'Panier', 1),
-          _buildNavItem(Icons.person, 'Profil', 2),
+          _buildNavItem(Icons.history, 'Historique', 2),
+          _buildNavItem(Icons.person, 'Profil', 3),
         ],
       ),
     );
@@ -1532,6 +1478,9 @@ class _MarketListScreenState extends State<MarketListScreen>
             targetScreen = const CartScreen();
             break;
           case 2:
+            targetScreen = const OrderHistoryScreen();
+            break;
+          case 3:
             targetScreen = const ClientProfileScreen();
             break;
         }
