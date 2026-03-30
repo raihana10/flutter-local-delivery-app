@@ -8,10 +8,17 @@ class OrderProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   List<Map<String, dynamic>> _orderHistory = [];
+  final Set<int> _acknowledgedOrderIds = {};
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<Map<String, dynamic>> get orderHistory => _orderHistory;
+  Set<int> get acknowledgedOrderIds => _acknowledgedOrderIds;
+
+  void acknowledgeOrder(int orderId) {
+    _acknowledgedOrderIds.add(orderId);
+    notifyListeners();
+  }
 
   Future<void> fetchOrderHistory(int clientId) async {
     _isLoading = true;

@@ -8,6 +8,7 @@ import 'package:app/core/constants/app_strings.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:app/core/providers/auth_provider.dart';
+import 'package:app/core/providers/order_provider.dart';
 import 'package:provider/provider.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -117,10 +118,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .from('commande')
             .select(selectQuery)
             .eq('id_client', clientId)
-            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison'])
+            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison', 'livree'])
             .order('created_at', ascending: false)
             .limit(1);
-        if (response.isNotEmpty) data = response.first;
+        if (response.isNotEmpty) {
+          final candidate = response.first;
+          final orderProvider = context.read<OrderProvider>();
+          if (orderProvider.acknowledgedOrderIds.contains(candidate['id_commande'])) {
+             data = null; // Ignore if user stopped this one
+          } else {
+             data = candidate;
+          }
+        }
       }
 
       if (data != null && mounted) {
@@ -605,7 +614,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                         elevation: 0),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      final orderId = _orderData!['id_commande'];
+                      if (orderId is int) {
+                        context.read<OrderProvider>().acknowledgeOrder(orderId);
+                      }
+                      Navigator.pop(context);
+                    },
                     child: const Text('Arrêter le suivi',
                         style: TextStyle(
                             color: Colors.white,
