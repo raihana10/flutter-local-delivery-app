@@ -366,7 +366,7 @@ class AuthProvider extends ChangeNotifier {
     final secret = dotenv.env['NOTIFY_SECRET'];
     if (secret == null || secret.isEmpty) return;
     final base =
-        dotenv.env['API_URL'] ?? const String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+        dotenv.env['API_URL'] ?? const String.fromEnvironment('API_URL', defaultValue: 'http://192.168.100.10:8084');
     try {
       await Dio().post(
         '$base/auth/register-notify',

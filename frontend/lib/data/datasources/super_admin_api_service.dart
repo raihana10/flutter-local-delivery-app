@@ -10,7 +10,7 @@ class SuperAdminApiService {
     if (u != null && u.trim().isNotEmpty) return u.trim();
     return const String.fromEnvironment(
       'API_URL',
-      defaultValue: 'http://localhost:8084',
+      defaultValue: 'http://192.168.100.10:8084',
     );
   }
 

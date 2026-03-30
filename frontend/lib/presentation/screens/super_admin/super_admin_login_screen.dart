@@ -45,7 +45,7 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
       final dio = Dio();
       // Replace localhost with your backend URL when deploying
       const apiUrl = String.fromEnvironment('API_URL',
-          defaultValue: 'http://localhost:8084');
+          defaultValue: 'http://192.168.100.10:8084');
 
       final response = await dio.post(
         '$apiUrl/admin/login',
