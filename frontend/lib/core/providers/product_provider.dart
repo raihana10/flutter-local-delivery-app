@@ -261,6 +261,14 @@ class ProductProvider with ChangeNotifier {
 
   // --- File Import ---
 
+  String _mapType(String? input) {
+    if (input == null) return 'meal';
+    final lower = input.toLowerCase();
+    if (lower.contains('medic') || lower == 'pharmacy') return 'pharmacy';
+    if (lower.contains('market') || lower == 'grocery' || lower.contains('super')) return 'grocery';
+    return 'meal'; // fallback
+  }
+
   Future<List<Produit>> parseFile(File file, String extension) async {
     List<Produit> items = [];
     if (extension == 'csv') {
@@ -275,8 +283,8 @@ class ProductProvider with ChangeNotifier {
               nom: rows[i][0]?.toString() ?? '',
               description: rows[i].length > 1 ? rows[i][1]?.toString() ?? '' : '',
               prix: double.tryParse(rows[i].length > 2 ? rows[i][2]?.toString() ?? '0' : '0') ?? 0.0,
-              type: rows[i].length > 3 ? rows[i][3]?.toString() ?? 'meal' : 'meal',
-              image: rows[i].length > 4 ? rows[i][4]?.toString() : 'https://images.unsplash.com/photo-1541529086526-db283c563270?w=400&h=300&fit=crop',
+              type: _mapType(rows[i].length > 3 ? rows[i][3]?.toString() : 'meal'),
+              image: rows[i].length > 4 ? rows[i][4]?.toString() : null,
             ));
           }
         }
@@ -299,7 +307,8 @@ class ProductProvider with ChangeNotifier {
                 nom: row[0]?.value?.toString() ?? '',
                 description: row.length > 1 ? row[1]?.value?.toString() ?? '' : '',
                 prix: double.tryParse(row.length > 2 ? row[2]?.value?.toString() ?? '0' : '0') ?? 0.0,
-                type: row.length > 3 ? row[3]?.value?.toString() ?? 'meal' : 'meal',
+                type: _mapType(row.length > 3 ? row[3]?.value?.toString() : 'meal'),
+                image: row.length > 4 ? row[4]?.value?.toString() : null,
               ));
             }
           }
@@ -309,7 +318,7 @@ class ProductProvider with ChangeNotifier {
     return items;
   }
 
-  Future<void> addBatch(List<Produit> items, int businessId) async {
+  Future<bool> addBatch(List<Produit> items, int businessId) async {
     _isLoading = true;
     notifyListeners();
     try {
@@ -323,9 +332,11 @@ class ProductProvider with ChangeNotifier {
       }).toList();
       await _supabase.from('produit').insert(toInsert);
       await fetchProductsByBusiness(businessId);
+      return true;
     } catch (e) {
       _errorMessage = e.toString();
       debugPrint('Batch insert error: $e');
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
