@@ -423,7 +423,6 @@ class _MarketListScreenState extends State<MarketListScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: _buildBottomNavigationBar(),
       body: SafeArea(
         child: Stack(
           children: [
