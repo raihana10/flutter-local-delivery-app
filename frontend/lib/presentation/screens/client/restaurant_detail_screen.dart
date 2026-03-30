@@ -82,7 +82,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       
       if (mounted) {
         setState(() {
-          // Map BusinessModel.Produit to expected map format for UI
           _products = productProvider.businessProducts.map((p) => {
             'id_produit': p.id,
             'nom_produit': p.nom,
@@ -143,6 +142,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     final int reviewCount = _reviews.length;
     final double averageRating = reviewCount == 0 ? 0.0 : 
@@ -332,6 +332,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                             'price': p['prix_unitaire'] ?? 0,
                             'image': p['image'],
                             'type': p['type_produit'] ?? 'meal',
+                            'promotion': p['promotion'],
                           });
                         },
                       ),
@@ -466,39 +467,47 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                   const SizedBox(height: 8),
-                  if (item['promotion'] != null) ...[
-                    Row(
-                      children: [
-                        Text(
-                          '${((item['price'] as double) * (1 - (item['promotion'] as Promotion).pourcentage / 100)).toStringAsFixed(2)} DH',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final promo = item['promotion'];
+                      final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
+                      
+                      if (promo != null && promo is Promotion) {
+                        final double promoPrice = originalPrice * (1 - (promo.pourcentage / 100));
+                        return Row(
+                          children: [
+                            Text(
+                              '${promoPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${originalPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                decoration: TextDecoration.lineThrough,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      
+                      return Text(
+                        '${item['price']} DH',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.gold,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${item['price']} DH',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.mutedForeground,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    Text(
-                      '${item['price']} DH',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.gold,
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                  ),
                 ],
               ),
             ),
@@ -537,11 +546,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       backgroundColor: Colors.transparent,
       builder: (modalContext) => StatefulBuilder(
         builder: (innerModalContext, setModalState) {
+          final promo = item['promotion'];
           final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
-          final double basePrice = item['promotion'] != null 
-              ? originalPrice * (1 - (item['promotion'] as Promotion).pourcentage / 100)
-              : originalPrice;
-          final double totalPrice = basePrice * quantity;
+          double unitPrice = originalPrice;
+          
+          if (promo != null && promo is Promotion) {
+            unitPrice = originalPrice * (1 - (promo.pourcentage / 100));
+          }
+          
+          final double totalPrice = unitPrice * quantity;
           
           return Container(
             height: MediaQuery.of(context).size.height * 0.75,
@@ -592,40 +605,45 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     color: AppColors.foreground,
                   ),
                 ),
-                 const SizedBox(height: 8),
-                if (item['promotion'] != null) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${((item['price'] as double) * (1 - (item['promotion'] as Promotion).pourcentage / 100)).toStringAsFixed(2)} DH',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
+                const SizedBox(height: 8),
+                 Builder(
+                  builder: (context) {
+                    final promo = item['promotion'];
+                    final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
+                    
+                    if (promo != null && promo is Promotion) {
+                      final double promoPrice = originalPrice * (1 - (promo.pourcentage / 100));
+                      return Column(
+                         children: [
+                            Text(
+                              '${promoPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Text(
+                              '${originalPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                decoration: TextDecoration.lineThrough,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ),
+                         ],
+                      );
+                    }
+                    return Text(
+                      '${item['price']} DH',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.gold,
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${item['price']} DH',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: AppColors.mutedForeground,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  Text(
-                    '${item['price']} DH',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.gold,
-                    ),
-                  ),
-                ],
+                    );
+                  }
+                ),
                 
                 Expanded(
                   child: ListView(
@@ -713,10 +731,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
                               'id_produit': item['id'],
                               'id_business': widget.businessId,
-                               'name': item['name'],
+                              'name': item['name'],
                               'options': '', // Removed options tracking
-                              'price': basePrice,
-                              'original_price': originalPrice,
+                              'price': unitPrice,
                               'quantity': quantity,
                               'image': item['image'] ?? '🍽️',
                               'business_id': widget.businessId, // Add business_id for hybrid order detection

@@ -85,6 +85,7 @@ class RealPromoCard extends StatelessWidget {
     final discountedPrice = originalPrice * (1 - promo.pourcentage / 100);
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         Navigator.push(
           context,

@@ -130,7 +130,7 @@ class ProductProvider with ChangeNotifier {
     try {
       final response = await _supabase
           .from('produit')
-          .select('*')
+          .select('*, promotion(*)')
           .eq('id_business', businessId);
 
       _businessProducts = (response as List).map((json) => Produit.fromJson(json)).toList();

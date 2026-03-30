@@ -374,9 +374,9 @@ class BusinessController {
         final businessName = result['produit']?['business']?['app_user']?['nom'] ?? 'Un commerce';
         final productName = result['produit']?['nom_produit'] ?? 'un produit';
         final remise = result['pourcentage'] ?? 0;
-        
+
         await SupabaseConfig.client.from('notification').insert({
-          'titre': 'Nouvelle Promotion ! 🎉',
+          'titre': 'Nouvelle Promotion !',
           'message': '$businessName propose -$remise% sur $productName',
           'type': 'promotion',
           'est_globale': true,

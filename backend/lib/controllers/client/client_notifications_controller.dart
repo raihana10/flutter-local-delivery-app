@@ -32,11 +32,11 @@ class ClientNotificationsController {
       final Set<int> existingNotifIds = results.map((e) => e['id_not'] as int).toSet();
 
       for (var gn in globalNotifs as List) {
-        if (!existingNotifIds.contains(gn['id_notification'])) {
+        if (!existingNotifIds.contains(gn['id_not'])) {
           results.add({
             'id_user_not': 0, // Virtual ID
             'id_user': userId,
-            'id_not': gn['id_notification'],
+            'id_not': gn['id_not'],
             'est_lu': false,
             'created_at': gn['created_at'],
             'notification': gn
@@ -84,7 +84,7 @@ class ClientNotificationsController {
         final isGlobal = await SupabaseConfig.client
             .from('notification')
             .select('est_globale')
-            .eq('id_notification', int.parse(idNot))
+            .eq('id_not', int.parse(idNot))
             .maybeSingle();
 
         if (isGlobal != null && isGlobal['est_globale'] == true) {
