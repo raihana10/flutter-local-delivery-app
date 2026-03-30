@@ -1652,16 +1652,18 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
     }
   }
 
-  void _launchPhoneCall(String phoneNumber, String name, String role) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => InAppCallScreen(
-          contactName: name,
-          phoneNumber: phoneNumber,
-          role: role,
-        ),
-      ),
-    );
+  void _launchPhoneCall(String phoneNumber, String name, String role) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      debugPrint('Could not launch phone call to $phoneNumber');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de lancer l\'appel.')),
+        );
+      }
+    }
   }
 
   Future<Uint8List> _generatePdf(Map<String, dynamic> order, List<dynamic> lines) async {
