@@ -291,6 +291,7 @@ class ProductProvider with ChangeNotifier {
                 description: row.length > 1 ? row[1]?.value?.toString() ?? '' : '',
                 prix: double.tryParse(row.length > 2 ? row[2]?.value?.toString() ?? '0' : '0') ?? 0.0,
                 type: _mapType(row.length > 3 ? row[3]?.value?.toString() : 'meal'),
+                image: row.length > 4 ? row[4]?.value?.toString() : null,
               ));
             }
           }
@@ -310,6 +311,7 @@ class ProductProvider with ChangeNotifier {
         'description': p.description,
         'prix_unitaire': p.prix,
         'type_produit': p.type,
+        'image': p.image,
       }).toList();
       await _supabase.from('produit').insert(toInsert);
       await fetchProductsByBusiness(businessId);
