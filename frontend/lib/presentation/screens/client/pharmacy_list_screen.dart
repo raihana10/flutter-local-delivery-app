@@ -138,6 +138,29 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     _mapBusinessesToPharmacies();
   }
 
+  void _mapBusinessesToPharmacies() {
+    final businesses = context.read<ProductProvider>().businesses;
+    setState(() {
+      _allRestaurants = businesses.map<Map<String, dynamic>>((b) {
+        final biz = b as Business;
+        return {
+          'id': biz.id,
+          'id_business': biz.id,
+          'name': biz.user?.nom ?? 'Pharmacie',
+          'rating': 4.5,
+          'time': '15-25 min',
+          'image': Icons.local_pharmacy,
+          'pdp': biz.pdp,
+          'isOpen': biz.isOpen,
+          'is_open': biz.isOpen,
+          'category': 'all',
+          'is24h': true,
+          'deliveryFee': '10 DH',
+          'address': biz.description ?? 'Adresse non spécifiée',
+          'description': biz.description ?? 'Pharmacie',
+          'app_user': {
+            'nom': biz.user?.nom ?? 'Pharmacie',
+          },
           'latitude': biz.latitude,
           'longitude': biz.longitude,
           'minPrice': biz.minPrice ?? 0.0,
@@ -183,6 +206,21 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
       ),
     );
   }
+
+  void _applyFilters() {
+    setState(() {
+      _filteredRestaurants = _allRestaurants.where((restaurant) {
+        bool matchesCategory = _selectedCategory == 'all' ||
+            restaurant['category'] == _selectedCategory;
+        bool matchesSearch = _searchQuery.isEmpty ||
+            restaurant['name']
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()) ||
+            (restaurant['cuisine'] ?? '')
+                .toString()
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase());
 
         // Filter by distance
         double dist = restaurant['distance_val'] as double;
