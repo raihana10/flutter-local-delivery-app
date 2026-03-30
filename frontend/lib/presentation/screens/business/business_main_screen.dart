@@ -999,21 +999,28 @@ class _ImportSheetViewState extends State<_ImportSheetView> {
         ElevatedButton(
           onPressed: () async {
             final bdp = context.read<BusinessDataProvider>();
+            final pp = context.read<ProductProvider>();
             await bdp.loadIdBusinessPk();
             final businessId = bdp.idBusinessPk;
             if (businessId != null) {
-              await context
-                  .read<ProductProvider>()
-                  .addBatch(_previewItems, businessId);
-            }
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(
-                        '${_previewItems.length} produits importés avec succès !'),
-                    backgroundColor: AppColors.online),
-              );
-              widget.onNavigate(BusinessScreen.catalog);
+              final success = await pp.addBatch(_previewItems, businessId);
+              if (context.mounted) {
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            '${_previewItems.length} produits importés avec succès !'),
+                        backgroundColor: AppColors.online),
+                  );
+                  widget.onNavigate(BusinessScreen.catalog);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Erreur d\'importation: ${pp.errorMessage}'),
+                        backgroundColor: Colors.red),
+                  );
+                }
+              }
             }
           },
           child: const Text('Importer tout'),
