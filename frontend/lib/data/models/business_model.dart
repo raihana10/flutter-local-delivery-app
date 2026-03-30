@@ -28,6 +28,9 @@ class Business {
   final bool isOpen;
   final bool estActif;
   final User? user; // Joined from app_user
+  final double? latitude;
+  final double? longitude;
+  final double? minPrice;
 
   Business({
     required this.id,
@@ -40,6 +43,9 @@ class Business {
     this.isOpen = false,
     this.estActif = false,
     this.user,
+    this.latitude,
+    this.longitude,
+    this.minPrice,
   });
 
   factory Business.fromJson(Map<String, dynamic> json) {
@@ -80,6 +86,9 @@ class Business {
             : (json['app_user'] is List && (json['app_user'] as List).isNotEmpty
                 ? User.fromJson((json['app_user'] as List).first)
                 : null),
+        latitude: _extractLatitude(json),
+        longitude: _extractLongitude(json),
+        minPrice: _calculateMinPrice(json),
       );
     } catch (e) {
       print('DEBUG: Error parsing Business: $e');
@@ -90,6 +99,49 @@ class Business {
         type: BusinessType.restaurant,
         description: 'Error parsing business data',
       );
+    }
+  }
+
+  static double? _extractLatitude(Map<String, dynamic> json) {
+    try {
+      final user = json['app_user'];
+      if (user == null) return null;
+      final adresses = user['user_adresse'];
+      if (adresses == null || (adresses as List).isEmpty) return null;
+      final adresse = adresses[0]['adresse'];
+      if (adresse == null) return null;
+      return double.tryParse(adresse['latitude'].toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static double? _extractLongitude(Map<String, dynamic> json) {
+    try {
+      final user = json['app_user'];
+      if (user == null) return null;
+      final adresses = user['user_adresse'];
+      if (adresses == null || (adresses as List).isEmpty) return null;
+      final adresse = adresses[0]['adresse'];
+      if (adresse == null) return null;
+      return double.tryParse(adresse['longitude'].toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static double? _calculateMinPrice(Map<String, dynamic> json) {
+    try {
+      final produits = json['produit'];
+      if (produits == null || (produits as List).isEmpty) return null;
+      double min = double.infinity;
+      for (var p in produits) {
+        final prix = double.tryParse(p['prix_unitaire'].toString()) ?? double.infinity;
+        if (prix < min) min = prix;
+      }
+      return min == double.infinity ? null : min;
+    } catch (_) {
+      return null;
     }
   }
 }

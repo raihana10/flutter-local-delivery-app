@@ -108,7 +108,7 @@ class ProductProvider with ChangeNotifier {
     try {
       final response = await _supabase
           .from('business')
-          .select('*, app_user(*)')
+          .select('*, app_user(*, user_adresse(adresse(*))), produit(prix_unitaire)')
           .eq('type_business', type)
           .eq('est_actif', true);
 

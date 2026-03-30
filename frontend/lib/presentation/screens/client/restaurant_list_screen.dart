@@ -155,21 +155,34 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
           'temps_preparation': biz.tempsPreparation ?? 25,
           'image': Icons.restaurant,
           'pdp': biz.pdp,
-          'distance': '1.0 km',
           'isOpen': biz.isOpen,
           'is_open': biz.isOpen,
           'category': 'all',
           'deliveryFee': '15 DH',
-          'minOrder': '50 DH',
           'description': biz.description ?? 'Cuisine variée',
           'cuisine': biz.description ?? 'Cuisine variée',
           'app_user': {
             'nom': biz.user?.nom ?? 'Restaurant',
-          }
+          },
+          'latitude': biz.latitude,
+          'longitude': biz.longitude,
+          'minPrice': biz.minPrice ?? 0.0,
+          'distance_val': biz.latitude != null && biz.longitude != null 
+              ? _calculateDistance(_userLocation.latitude, _userLocation.longitude, biz.latitude!, biz.longitude!)
+              : 1.0,
         };
       }).toList();
-      _filteredRestaurants = List.from(_allRestaurants);
+      _applyFilters();
     });
+  }
+
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) *
+            (1 - c((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a));
   }
 
   void _initializeMockData() {
@@ -213,15 +226,12 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 .contains(_searchQuery.toLowerCase());
 
         // Filter by distance
-        double dist = double.tryParse(
-              (restaurant['distance']?.toString() ?? '0 km').split(' ')[0]) ?? 0.0;
+        double dist = restaurant['distance_val'] as double;
         bool matchesDistance = dist <= _maxDistance;
 
-        // Filter by price (mocking minOrder as a proxy for price level)
-        double price = double.tryParse(
-              (restaurant['minOrder']?.toString() ?? '0 DH').split(' ')[0]) ?? 0.0;
-        bool matchesPrice =
-            price >= _priceRange.start && price <= _priceRange.end;
+        // Filter by price (business must have at least one product with price <= threshold)
+        double minPrice = (restaurant['minPrice'] as double?) ?? 0.0;
+        bool matchesPrice = minPrice <= _priceRange.end;
 
         return matchesCategory &&
             matchesSearch &&
@@ -1796,12 +1806,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                 ),
               ),
               ..._filteredRestaurants.map((res) {
-                final distStr = (res['distance']?.toString() ?? '1.0 km');
-                final distVal = double.tryParse(distStr.split(' ')[0]) ?? 1.0;
-                double lat = _userLocation.latitude + (distVal * 0.005);
-                double lng = _userLocation.longitude + (distVal * 0.005);
+                if (res['latitude'] == null || res['longitude'] == null) return null;
                 return Marker(
-                  point: LatLng(lat, lng),
+                  point: LatLng(res['latitude'] as double, res['longitude'] as double),
                   width: 50,
                   height: 50,
                   child: GestureDetector(
@@ -1817,7 +1824,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                     ),
                   ),
                 );
-              }),
+              }).whereType<Marker>().toList(),
             ],
           ),
         ],

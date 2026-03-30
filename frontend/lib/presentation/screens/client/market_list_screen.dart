@@ -140,21 +140,34 @@ class _MarketListScreenState extends State<MarketListScreen>
           'time': '30-45 min',
           'image': Icons.shopping_cart,
           'pdp': biz.pdp,
-          'distance': '1.5 km',
           'isOpen': biz.isOpen,
           'is_open': biz.isOpen,
           'category': 'all',
           'deliveryFee': '20 DH',
-          'minOrder': '100 DH',
           'description': biz.description ?? 'Épicerie et produits frais',
           'cuisine': biz.description ?? 'Épicerie et produits frais',
           'app_user': {
             'nom': biz.user?.nom ?? 'Supermarché',
-          }
+          },
+          'latitude': biz.latitude,
+          'longitude': biz.longitude,
+          'minPrice': biz.minPrice ?? 0.0,
+          'distance_val': biz.latitude != null && biz.longitude != null 
+              ? _calculateDistance(_userLocation.latitude, _userLocation.longitude, biz.latitude!, biz.longitude!)
+              : 1.0,
         };
       }).toList();
-      _filteredRestaurants = List.from(_allRestaurants);
+      _applyFilters();
     });
+  }
+
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    var p = 0.017453292519943295;
+    var c = cos;
+    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) *
+            (1 - c((lon2 - lon1) * p)) / 2;
+    return 12742 * asin(sqrt(a));
   }
 
   void _initializeMockData() {
@@ -198,15 +211,12 @@ class _MarketListScreenState extends State<MarketListScreen>
                 .contains(_searchQuery.toLowerCase());
 
         // Filter by distance
-        double dist =
-            double.parse(restaurant['distance'].toString().split(' ')[0]);
+        double dist = restaurant['distance_val'] as double;
         bool matchesDistance = dist <= _maxDistance;
 
-        // Filter by price (mocking minOrder as a proxy for price level)
-        double price =
-            double.parse(restaurant['minOrder'].toString().split(' ')[0]);
-        bool matchesPrice =
-            price >= _priceRange.start && price <= _priceRange.end;
+        // Filter by price (business must have at least one product with price <= threshold)
+        double minPrice = (restaurant['minPrice'] as double?) ?? 0.0;
+        bool matchesPrice = minPrice <= _priceRange.end;
 
         return matchesCategory &&
             matchesSearch &&
@@ -1592,31 +1602,28 @@ class _MarketListScreenState extends State<MarketListScreen>
                 ),
               ),
               ..._filteredRestaurants.map((res) {
-                double lat = _userLocation.latitude +
-                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
-                double lng = _userLocation.longitude +
-                    (double.parse(res['distance'].split(' ')[0]) * 0.005);
+                if (res['latitude'] == null || res['longitude'] == null) return null;
                 return Marker(
-                  point: LatLng(lat, lng),
+                  point: LatLng(res['latitude'] as double, res['longitude'] as double),
                   width: 50,
                   height: 50,
                   child: GestureDetector(
                     onTap: () => ScaffoldMessenger.of(context)
                         .showSnackBar(SnackBar(content: Text(res['name']))),
                     child: Container(
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(color: Colors.black26, blurRadius: 4)
                           ]),
                       child: Center(
-                          child: Icon(res['image'] as IconData,
+                          child: Icon((res['image'] as IconData?) ?? Icons.store,
                               color: AppColors.primary, size: 24)),
                     ),
                   ),
                 );
-              }),
+              }).whereType<Marker>().toList(),
             ],
           ),
         ],
