@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,6 +9,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/business_model.dart';
+import '../../../core/utils/image_utils.dart';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -1426,7 +1428,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                         ],
                         image: restaurantInfo['pdp'] != null 
                             ? DecorationImage(
-                                image: NetworkImage(restaurantInfo['pdp']),
+                                image: ImageUtils.getImageProvider(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,

@@ -8,6 +8,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/business_model.dart';
+import '../../../core/utils/image_utils.dart';
+import 'dart:io';
 import 'order_history_screen.dart';
 import 'order_tracking_screen.dart';
 import 'support_screen.dart';
@@ -1227,7 +1229,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                         ],
                         image: marketInfo['pdp'] != null 
                             ? DecorationImage(
-                                image: NetworkImage(marketInfo['pdp']),
+                                image: ImageUtils.getImageProvider(marketInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
