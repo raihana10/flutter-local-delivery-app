@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import 'package:app/core/providers/client_data_provider.dart';
+import '../../../core/providers/client_data_provider.dart';
 import '../../widgets/product_image_placeholder.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../data/models/business_model.dart';

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/core/constants/app_strings.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
 import 'package:provider/provider.dart';
-import 'package:app/core/providers/livreur_dashboard_provider.dart';
-import 'package:app/data/models/gains_model.dart';
-import 'package:app/presentation/widgets/livreur/bottom_nav_bar.dart';
-import 'package:app/presentation/screens/livreur/dashboard_screen.dart';
-import 'package:app/presentation/screens/livreur/historique_screen.dart';
-import 'package:app/presentation/screens/livreur/livreur_profile_screen.dart';
-import 'package:app/presentation/screens/livreur/livraison_active_screen.dart';
+import '../../../core/providers/livreur_dashboard_provider.dart';
+import '../../../data/models/gains_model.dart';
+import '../../widgets/livreur/bottom_nav_bar.dart';
+import 'dashboard_screen.dart';
+import 'historique_screen.dart';
+import 'livreur_profile_screen.dart';
+import 'livraison_active_screen.dart';
 
 class GainsScreen extends StatefulWidget {
   const GainsScreen({super.key});

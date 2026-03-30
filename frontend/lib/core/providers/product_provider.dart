@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
 import '../../data/models/business_model.dart';
-import 'package:app/core/services/image_upload_service.dart';
+import '../services/image_upload_service.dart';
 
 class ProductProvider with ChangeNotifier {
   final _supabase = Supabase.instance.client;

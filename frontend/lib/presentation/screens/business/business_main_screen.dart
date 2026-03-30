@@ -8,9 +8,10 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
-import 'package:app/core/providers/product_provider.dart';
-import 'package:app/data/models/business_model.dart';
-import 'package:app/core/providers/business_data_provider.dart';
+import '../../../core/providers/product_provider.dart';
+import '../../../data/models/business_model.dart';
+import '../../../core/providers/business_data_provider.dart';
+import '../../../core/providers/auth_provider.dart';
 
 import '../../widgets/product_image_placeholder.dart';
 import 'package:url_launcher/url_launcher.dart';

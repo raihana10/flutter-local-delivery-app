@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/super_admin_api_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../data/datasources/super_admin_api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../business/business_main_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/core/providers/business_data_provider.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/business_data_provider.dart';
 
 /// Construit l’URL publique Supabase Storage pour le bucket `alae`, ou renvoie l’URL déjà absolue.
 String _resolveAlaeDisplayUrl(String raw) {

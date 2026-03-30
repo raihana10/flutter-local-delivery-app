@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app/core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;

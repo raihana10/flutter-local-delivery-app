@@ -5,10 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/core/constants/app_strings.dart';
-import 'package:app/data/models/commande_supabase_model.dart';
-import 'package:app/core/providers/livreur_dashboard_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../../data/models/commande_supabase_model.dart';
+import '../../../core/providers/livreur_dashboard_provider.dart';
 
 class LivraisonActiveScreen extends StatefulWidget {
   final CommandeSupabaseModel? commande;

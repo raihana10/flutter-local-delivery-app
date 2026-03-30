@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/super_admin_api_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../data/datasources/super_admin_api_service.dart';
 
 class BusinessDetailAdminScreen extends StatefulWidget {
   final int idBusiness;

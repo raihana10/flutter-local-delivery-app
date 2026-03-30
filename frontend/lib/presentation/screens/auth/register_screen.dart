@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:app/data/models/auth_models.dart' as auth;
+import '../../../data/models/auth_models.dart' as auth;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import 'package:flutter_map/flutter_map.dart';

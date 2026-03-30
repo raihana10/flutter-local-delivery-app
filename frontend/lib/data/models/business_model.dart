@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:app/data/models/auth_models.dart';
+import 'auth_models.dart';
 
 enum BusinessType {
   restaurant('restaurant'),
