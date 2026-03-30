@@ -136,9 +136,12 @@ class _ClientPaymentMethodsScreenState
         ),
         title: Row(
           children: [
-            Text(
-              method['title'],
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Flexible(
+              child: Text(
+                method['title'],
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (method['is_default']) ...[
               const SizedBox(width: 8),

@@ -180,25 +180,40 @@ class RealPromoCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Text(
-                        '${discountedPrice.toStringAsFixed(2)} MAD',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${discountedPrice.toStringAsFixed(2)} MAD',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                '${originalPrice.toStringAsFixed(2)} MAD',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 13,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.white.withOpacity(0.6),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '${originalPrice.toStringAsFixed(2)} MAD',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 13,
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: Colors.white.withOpacity(0.6),
-                        ),
-                      ),
-                      const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),

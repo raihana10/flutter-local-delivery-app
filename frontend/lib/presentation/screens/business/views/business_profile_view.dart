@@ -632,7 +632,13 @@ class _BusinessAddressesScreenState extends State<BusinessAddressesScreen> {
         ),
         title: Row(
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             if (isDefault) ...[
               const SizedBox(width: 8),
               Container(

@@ -369,22 +369,46 @@ class BusinessController {
           .select('*, produit(nom_produit, business(app_user(nom)))')
           .single();
 
-      // Create a global notification for clients
+      // Create notification only for users who favorited this business
       try {
         final businessName = result['produit']?['business']?['app_user']?['nom'] ?? 'Un commerce';
         final productName = result['produit']?['nom_produit'] ?? 'un produit';
         final remise = result['pourcentage'] ?? 0;
+        final idBusiness = int.parse(id);
 
-        await SupabaseConfig.client.from('notification').insert({
+        // 1. Create the notification itself
+        final notif = await SupabaseConfig.client.from('notification').insert({
           'titre': 'Nouvelle Promotion !',
           'message': '$businessName propose -$remise% sur $productName',
-          'type': 'promotion',
-          'est_globale': true,
-          'role_cible': 'client',
-        });
+          'type': 'PROMOTION',
+          'created_at': DateTime.now().toIso8601String(),
+          'id_ref': result['id_promotion']
+        }).select().single();
+
+        // 2. Fetch users who favorited this business
+        final favorites = await SupabaseConfig.client
+            .from('favoris')
+            .select('client(id_user)')
+            .eq('id_business', idBusiness);
+
+        final List<Map<String, dynamic>> toInsert = [];
+        for (var f in (favorites as List)) {
+          final clientObj = f['client'];
+          if (clientObj != null && clientObj['id_user'] != null) {
+            toInsert.add({
+              'id_user': clientObj['id_user'],
+              'id_not': notif['id_not'] ?? notif['id'],
+              'est_lu': false,
+            });
+          }
+        }
+
+        // 3. Bulk insert Targeted into user_notification
+        if (toInsert.isNotEmpty) {
+          await SupabaseConfig.client.from('user_notification').insert(toInsert);
+        }
       } catch (notifError) {
-        print('Error creating global notification: $notifError');
-        // We don't fail the whole request if notification fails
+        print('Error creating targeted promotion notification: $notifError');
       }
 
       return Response.ok(jsonEncode({'data': result}), headers: _headers);
