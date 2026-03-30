@@ -38,7 +38,7 @@ class AboutScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             const Text(
-              'DarZitoun Delivery',
+              'LocalDelivery',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -123,7 +123,7 @@ class AboutScreen extends StatelessWidget {
             
             // Footer
             const Text(
-              '© 2026 DarZitoun. Tous droits réservés.',
+              '© 2026 LocalDelivery. Tous droits réservés.',
               style: TextStyle(
                 fontSize: 12,
                 color: AppColors.mutedForeground,
