@@ -117,7 +117,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             .from('commande')
             .select(selectQuery)
             .eq('id_client', clientId)
-            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison', 'livree'])
+            .inFilter('statut_commande', ['confirmee', 'preparee', 'en_livraison'])
             .order('created_at', ascending: false)
             .limit(1);
         if (response.isNotEmpty) data = response.first;

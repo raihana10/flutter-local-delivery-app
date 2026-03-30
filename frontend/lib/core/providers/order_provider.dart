@@ -42,6 +42,7 @@ class OrderProvider with ChangeNotifier {
             )
           ''')
           .eq('id_client', clientId)
+          .eq('statut_commande', 'livree')
           .order('created_at', ascending: false);
 
       _orderHistory = List<Map<String, dynamic>>.from(response as List);
