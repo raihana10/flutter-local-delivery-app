@@ -1,44 +1,38 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dotenv/dotenv.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 
 void main() async {
-  // Remplacez par VOTRE clé API
-  const apiKey = 're_3EHnLw3z_G2PhN2R4FwE51QrvNTuLoq8B';
-  const from = 'onboarding@resend.dev';
+  // Charger .env
+  final env = DotEnv(includePlatformEnvironment: true)..load();
   
-  // Test avec 2 emails
-  final emails = [
-    'elbarkoukialae@gmail.com',
-    'elbarkoukialaez@gmail.com'
-  ];
+  final smtpUser = env['SMTP_USER'] ?? '';
+  final smtpPass = env['SMTP_PASS'] ?? '';
   
-  print('Test envoi à ${emails.length} destinataires:');
-  print('Emails: $emails');
-  
+  print('Test avec:');
+  print('User: $smtpUser');
+  print('Pass: ${smtpPass.substring(0, 4)}... (${smtpPass.length} caractères)');
+  print('');
+
   try {
-    final response = await http.post(
-      Uri.parse('https://api.resend.com/emails'),
-      headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'from': from,
-        'to': emails,
-        'subject': 'Test multi-destinataires',
-        'html': '<p>Test avec ${emails.length} destinataires</p>',
-      }),
+    final smtpServer = SmtpServer(
+      'smtp.gmail.com',
+      port: 587,
+      username: smtpUser,
+      password: smtpPass,
+      allowInsecure: true,
     );
-    
-    print('Status: ${response.statusCode}');
-    print('Response: ${response.body}');
-    
-    if (response.statusCode == 200) {
-      print('✅ Succès !');
-    } else {
-      print('❌ Échec: ${response.body}');
-    }
+
+    final message = Message()
+      ..from = Address(smtpUser)
+      ..recipients.add(smtpUser)
+      ..subject = 'Test Email'
+      ..html = '<h1>Succès!</h1><p>Le test fonctionne à ${DateTime.now()}</p>';
+
+    print('Envoi en cours...');
+    await send(message, smtpServer);
+    print('✅ EMAIL ENVOYÉ AVEC SUCCÈS !');
   } catch (e) {
-    print('❌ Exception: $e');
+    print('❌ Erreur: $e');
   }
 }
