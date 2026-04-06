@@ -1,9 +1,16 @@
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
+import '../services/email_service.dart';
+import '../services/promotion_service.dart';
 
 class BusinessController {
   final Map<String, String> _headers = {'content-type': 'application/json'};
+  late final PromotionService _promotionService;
+
+  BusinessController({PromotionService? promotionService}) {
+    _promotionService = promotionService ?? PromotionService(emailService: EmailService.fromEnv());
+  }
 
   Future<Response> getBusinesses(Request request) async {
     try {
@@ -389,7 +396,7 @@ class BusinessController {
         print('⚠️ Impossible de récupérer nom produit/business: $e');
       }
 
-      // 3. Envoyer la notification à TOUS les clients
+      // 3. Envoyer la notification SEULEMENT aux clients qui ont ce business en FAVORIS
       try {
         final remise = result['pourcentage'] ?? 0;
         final titre = 'Nouvelle Promotion !';
@@ -397,20 +404,77 @@ class BusinessController {
 
         print('📢 NOTIFICATION PROMO: $message');
 
-        final allClients = await SupabaseConfig.client
-            .from('app_user')
-            .select('id_user')
-            .eq('role', 'client');
-
-        final clientsList = allClients as List;
-        print('📊 ${clientsList.length} clients à notifier');
-
-        for (var client in clientsList) {
-          final idUser = client['id_user'];
-          await _createNotification(idUser, titre, message, 'promotion');
+        // Récupérer d'abord le id_business du produit
+        int businessId = 0;
+        try {
+          final produitData = await SupabaseConfig.client
+              .from('produit')
+              .select('id_business')
+              .eq('id_produit', result['id_produit'])
+              .maybeSingle();
+          
+          if (produitData != null) {
+            businessId = produitData['id_business'] as int;
+            print('🏪 Business ID: $businessId');
+          }
+        } catch (e) {
+          print('⚠️ Impossible de récupérer le business: $e');
+          return Response.ok(jsonEncode({'data': result}), headers: _headers);
         }
 
-        print('✅ PROMOTIONS NOTIFIÉES À ${clientsList.length} CLIENTS');
+        // Récupérer les clients qui ont ce business en favoris
+        final favorisClients = await SupabaseConfig.client
+            .from('favoris')
+            .select('id_client')
+            .eq('id_business', businessId)
+            .isFilter('deleted_at', null);
+
+        final favorisClientIds = (favorisClients as List)
+            .map((fav) => fav['id_client'] as int)
+            .toList();
+
+        print('❤️ ${favorisClientIds.length} clients avec ce business en favoris');
+
+        if (favorisClientIds.isEmpty) {
+          print('ℹ️ Aucun client en favoris pour ce business');
+          return Response.ok(jsonEncode({'data': result}), headers: _headers);
+        }
+
+        // Récupérer les id_user correspondants depuis la table client
+        final clientUsers = await SupabaseConfig.client
+            .from('client')
+            .select('id_client, id_user')
+            .inFilter('id_client', favorisClientIds);
+
+        // Créer une notification pour chaque client
+        int notified = 0;
+        for (var clientEntry in clientUsers) {
+          try {
+            final idUser = clientEntry['id_user'] as int;
+            await _createNotification(idUser, titre, message, 'promotion');
+            notified++;
+          } catch (e) {
+            print('⚠️ Erreur notification client: $e');
+          }
+        }
+
+        print('✅ PROMOTION NOTIFIÉE À $notified CLIENTS EN FAVORIS');
+
+        // 4. BONUS: Envoyer aussi des emails aux clients favoris
+        try {
+          final clientEmails = await _promotionService.getClientsEmailsForBusiness(businessId);
+          if (clientEmails.isNotEmpty) {
+            print('📧 Envoi des emails de promotion à ${clientEmails.length} clients...');
+            await _promotionService.sendPromotionEmail(
+              businessName: businessName,
+              productName: productName,
+              discount: remise.toDouble(),
+              clientEmails: clientEmails,
+            );
+          }
+        } catch (emailError) {
+          print('⚠️ Erreur envoi emails (non-bloquant): $emailError');
+        }
       } catch (notifError, stackTrace) {
         print('❌ ERREUR NOTIFICATION PROMO: $notifError');
         print('📋 Stack trace: $stackTrace');
