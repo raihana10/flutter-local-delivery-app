@@ -1,23 +1,31 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:dotenv/dotenv.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 
-/// Envoie des e-mails via [Resend](https://resend.com) si [resendApiKey] est défini.
-/// Sinon, journalise uniquement (aucune erreur bloquante).
+/// Envoie des e-mails via SMTP.
 class EmailService {
   EmailService({
-    required this.resendApiKey,
+    required this.smtpHost,
+    required this.smtpPort,
+    required this.smtpUser,
+    required this.smtpPass,
     required this.fromAddress,
     this.adminEmails = const [],
   });
 
-  final String? resendApiKey;
+  final String smtpHost;
+  final int smtpPort;
+  final String smtpUser;
+  final String smtpPass;
   final String fromAddress;
   final List<String> adminEmails;
 
   bool get _enabled =>
-      resendApiKey != null &&
-      resendApiKey!.isNotEmpty &&
+      smtpHost.isNotEmpty &&
+      smtpPort > 0 &&
+      smtpUser.isNotEmpty &&
+      smtpPass.isNotEmpty &&
       fromAddress.isNotEmpty;
 
   Future<void> sendToUser({
@@ -29,7 +37,7 @@ class EmailService {
       print('[EmailService] (désactivé) → $to : $subject');
       return;
     }
-    await _postResend(toSingle: to, subject: subject, html: html);
+    await _sendSmtp(toSingle: to, subject: subject, html: html);
   }
 
   Future<void> notifyAdmins({
@@ -46,10 +54,10 @@ class EmailService {
     }
     final to = adminEmails.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
     if (to.isEmpty) return;
-    await _postResend(recipients: to, subject: subject, html: html);
+    await _sendSmtp(recipients: to, subject: subject, html: html);
   }
 
-  Future<void> _postResend({
+  Future<void> _sendSmtp({
     List<String>? recipients,
     String? toSingle,
     required String subject,
@@ -63,25 +71,26 @@ class EmailService {
     } else {
       return;
     }
+
     try {
-      final res = await http.post(
-        Uri.parse('https://api.resend.com/emails'),
-        headers: {
-          'Authorization': 'Bearer $resendApiKey',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'from': fromAddress,
-          'to': toList,
-          'subject': subject,
-          'html': html,
-        }),
+      final smtpServer = SmtpServer(
+        smtpHost,
+        port: smtpPort,
+        username: smtpUser,
+        password: smtpPass,
+        ignoreBadCertificate: true,
+        ssl: smtpPort == 465,
+        allowInsecure: smtpPort == 587,
       );
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        print('[EmailService] Envoyé → ${toList.join(", ")} : $subject');
-      } else {
-        print('[EmailService] Resend ${res.statusCode}: ${res.body}');
-      }
+
+      final message = Message()
+        ..from = Address(fromAddress)
+        ..recipients.addAll(toList)
+        ..subject = subject
+        ..html = html;
+
+      final sendReport = await send(message, smtpServer);
+      print('[EmailService] Envoyé → ${toList.join(", ")} : $subject');
     } catch (e) {
       print('[EmailService] Erreur: $e');
     }
@@ -95,7 +104,10 @@ class EmailService {
         .where((e) => e.isNotEmpty)
         .toList();
     return EmailService(
-      resendApiKey: env['RESEND_API_KEY'],
+      smtpHost: env['SMTP_HOST'] ?? '',
+      smtpPort: int.tryParse(env['SMTP_PORT'] ?? '587') ?? 587,
+      smtpUser: env['SMTP_USER'] ?? '',
+      smtpPass: env['SMTP_PASS'] ?? '',
       fromAddress: env['EMAIL_FROM'] ?? '',
       adminEmails: admins,
     );

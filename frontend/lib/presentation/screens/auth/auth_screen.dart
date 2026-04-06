@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../core/constants/app_colors.dart';
+import 'verify_email_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -181,10 +182,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         documentsValidation: _documentPaths.isNotEmpty ? _documentPaths.join(',') : null,
       );
 
-      final success = await authProvider.register(request);
+      final registerResult = await authProvider.register(request);
 
-      if (success && mounted) {
-        _navigateToHome();
+      if (registerResult.success && mounted) {
+        if (registerResult.verificationRequired) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => VerifyEmailScreen(email: request.email, password: request.password),
+            ),
+          );
+        } else {
+          _navigateToHome();
+        }
       }
     }
   }

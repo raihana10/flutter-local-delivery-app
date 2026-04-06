@@ -11,6 +11,9 @@ import 'gains_screen.dart';
 import 'livreur_notifications_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:app/presentation/screens/client/support_screen.dart';
+import 'package:app/presentation/screens/client/about_screen.dart';
+import 'package:app/presentation/screens/livreur/livreur_documents_screen.dart';
 
 class LivreurProfileScreen extends StatelessWidget {
   const LivreurProfileScreen({super.key});
@@ -66,11 +69,11 @@ class LivreurProfileScreen extends StatelessWidget {
                       _buildListTile(
                           Icons.pedal_bike_outlined, 'Véhicule et documents',
                           onTap: () {
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //       builder: (_) => const LivreurDocumentsScreen()),
-                        // );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LivreurDocumentsScreen()),
+                        );
                       }),
                     ],
                   ),
@@ -78,13 +81,7 @@ class LivreurProfileScreen extends StatelessWidget {
                   _buildSection(
                     title: 'Préférences',
                     items: [
-                      _buildListTile(Icons.language, 'Langue',
-                          trailing: Text('Français',
-                              style:
-                                  TextStyle(color: AppColors.mutedForeground)),
-                          onTap: () {
-                        // show dialog
-                      }),
+
                       _buildListTile(Icons.notifications_outlined, 'Notifications',
                           trailing: const Text('Voir', style: TextStyle(color: AppColors.primary)),
                           onTap: () {
@@ -97,9 +94,13 @@ class LivreurProfileScreen extends StatelessWidget {
                     title: 'Autre',
                     items: [
                       _buildListTile(Icons.help_outline, 'Aide et support',
-                          onTap: () {}),
+                          onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()));
+                      }),
                       _buildListTile(Icons.info_outline, 'À propos',
-                          onTap: () {}),
+                          onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
+                      }),
                     ],
                   ),
                   const SizedBox(height: 32),

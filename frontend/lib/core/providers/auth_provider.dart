@@ -23,12 +23,24 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
 
-  Future<void> init() async {
-    // We are no longer reliably using Supabase Auth session because of confirmation issues.
-    // We rely on login() setting the _user variable.
-    // For persistence, you'd want to store the user ID in SharedPreferences, but for now we skip session loading.
+  // ✅ Méthode utilitaire pour vérifier le succès quel que soit le type
+  bool _isSuccess(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value == 'true' || value == '1';
+    return false;
+  }
 
-    // Listen to auth state changes
+  // ✅ Méthode utilitaire pour convertir en int
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  Future<void> init() async {
     _supabase.auth.onAuthStateChange.listen((data) async {
       final supa.AuthChangeEvent event = data.event;
       final supa.Session? session = data.session;
@@ -44,7 +56,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _fetchUserDetails(String email) async {
     try {
-      // First try to fetch from the public user table
       final response = await _supabase
           .from('app_user')
           .select()
@@ -54,9 +65,7 @@ class AuthProvider extends ChangeNotifier {
       if (response != null) {
         _user = User.fromJson(response);
         
-        // Fetch role-specific ID and est_actif status
         final role = _user!.role.value;
-        Map<String, dynamic> userData = _user!.toJson();
         
         if (role == 'livreur') {
           final roleData = await _supabase
@@ -90,8 +99,6 @@ class AuthProvider extends ChangeNotifier {
         }
         debugPrint("AuthProvider: Logged in as $role with roleId: $_roleId, active: ${_user!.estActif}");
       } else {
-        // Fallback if user is in auth but not in public schema yet
-        // Attempt to create the user by assuming it's a new Google sign-in redirect.
         final session = _supabase.auth.currentSession;
         if (session != null && session.user.email == email) {
           final nom = session.user.userMetadata?['full_name']?.toString() ??
@@ -109,7 +116,6 @@ class AuthProvider extends ChangeNotifier {
             );
           }
           
-          // Re-fetch after creation
           final retryResponse = await _supabase
               .from('app_user')
               .select()
@@ -141,12 +147,11 @@ class AuthProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint("Error fetching user details: \${e}");
+      debugPrint("Error fetching user details: ${e.toString()}");
     }
   }
 
-  Future<bool> updateUserProfile(
-      {required String nom, required String numTl}) async {
+  Future<bool> updateUserProfile({required String nom, required String numTl}) async {
     if (_user == null) return false;
     _setLoading(true);
     _clearError();
@@ -159,7 +164,7 @@ class AuthProvider extends ChangeNotifier {
       await _fetchUserDetails(_user!.email);
       return true;
     } catch (e) {
-      _setError('Erreur lors de la mise à jour: \${e.toString()}');
+      _setError('Erreur lors de la mise à jour: ${e.toString()}');
       return false;
     } finally {
       _setLoading(false);
@@ -209,7 +214,6 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // Check against app_user table directly to bypass Supabase Auth confirmation issues
       final response = await _supabase
           .from('app_user')
           .select()
@@ -222,7 +226,6 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // We assume passwords in the DB are hashed with SHA256 as per the register method below
       final bytes = utf8.encode(password);
       final digest = sha256.convert(bytes);
       final hashedPassword = digest.toString();
@@ -243,121 +246,179 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(RegisterRequest request) async {
+  Future<RegisterResult> register(RegisterRequest request) async {
     _setLoading(true);
     _errorMessage = null;
 
     try {
-      if (request.email.isEmpty ||
-          request.password.isEmpty ||
-          request.nom.isEmpty) {
+      if (request.email.isEmpty || request.password.isEmpty || request.nom.isEmpty) {
         _setError('Tous les champs sont requis');
-        return false;
+        return RegisterResult(success: false);
       }
 
       if (request.password.length < 6) {
         _setError('Le mot de passe doit contenir au moins 6 caractères');
-        return false;
+        return RegisterResult(success: false);
       }
 
-      // 1. Sign up the user in Supabase Auth
-      final response = await _supabase.auth.signUp(
-        email: request.email,
-        password: request.password,
-      );
-
-      // 2. Insert into the public custom 'user' table
-      if (response.user != null) {
-        // Hash the password for the custom `user` table using crypto SHA256
-        final bytes = utf8.encode(request.password);
-        final digest = sha256.convert(bytes);
-        final hashedPassword = digest.toString();
-
-        final userData = {
+      final base = dotenv.env['API_URL'] ?? 'http://localhost:8084';
+      
+      final response = await Dio().post(
+        '$base/auth/register',
+        data: {
           'email': request.email,
-          'password': hashedPassword,
+          'password': request.password,
           'nom': request.nom,
           'num_tl': request.numTl,
           'role': request.role.value,
-        };
+          'sexe': request.sexe,
+          'date_naissance': request.dateNaissance?.toIso8601String(),
+          'cni': request.cni,
+          'business_type': request.businessType,
+          'business_description': request.businessDescription,
+          'business_pdp': request.profileImageUrl,
+          'documents_validation': request.documentsValidation,
+          'latitude': request.latitude,
+          'longitude': request.longitude,
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
 
-        final responseUser =
-            await _supabase.from('app_user').insert(userData).select().single();
-        final int userId = responseUser['id_user'];
-
-        // 3. Insert into the role-specific table based on UserRole
-        if (request.role == UserRole.client) {
-          await _supabase.from('client').insert({
-            'id_user': userId,
-            'sexe': request.sexe,
-          });
-        } else if (request.role == UserRole.livreur) {
-          await _supabase.from('livreur').insert({
-            'id_user': userId,
-            'sexe': request.sexe,
-            'date_naissance': request.dateNaissance != null
-                ? request.dateNaissance!.toIso8601String().split('T').first
-                : null,
-            'cni': request.cni,
-            'documents_validation': request.documentsValidation,
-            'est_actif': false,
-          });
-        } else if (request.role == UserRole.business) {
-          String bt = 'restaurant';
-          if (request.businessType != null) {
-            final lowerBt = request.businessType!.toLowerCase();
-            if (lowerBt.contains('super')) {
-              bt = 'super-marche';
-            } else if (lowerBt.contains('pharmacie')) {
-              bt = 'pharmacie';
-            }
-          }
-          await _supabase.from('business').insert({
-            'id_user': userId,
-            'type_business': bt,
-            'description': request.businessDescription,
-            'pdp': request.profileImageUrl,
-            'documents_validation': request.documentsValidation,
-            'est_actif': false,
-            'is_open': false,
-          });
-        }
-
-        if (request.latitude != null && request.longitude != null) {
-          final adresse = await _supabase.from('adresse').insert({
-            'ville': request.ville ?? 'Localisation GPS',
-            'latitude': request.latitude,
-            'longitude': request.longitude,
-          }).select().single();
-          await _supabase.from('user_adresse').insert({
-            'id_user': userId,
-            'id_adresse': adresse['id_adresse'],
-            'is_default': true,
-          });
-        }
-
-        await _notifyBackendNewRegistration(
-          email: request.email,
-          nom: request.nom,
-          role: request.role.value,
+      if (response.statusCode == 200 && _isSuccess(response.data['success'])) {
+        return RegisterResult(
+          success: true,
+          verificationRequired: _isSuccess(response.data['verification_required']),
+          userId: _toInt(response.data['id_user']),
+          role: response.data['role'] as String?,
         );
-
-        // Fetch details synchronously before returning true so the UI has the role
-        await _fetchUserDetails(request.email);
-        return true;
       }
-      return false;
-    } on supa.AuthException catch (e) {
-      _setError('Erreur d\'inscription: ${e.message}');
-      return false;
+      
+      _setError(response.data['error'] ?? 'Erreur d\'inscription');
+      return RegisterResult(success: false);
     } catch (e) {
       _setError('Erreur d\'inscription: ${e.toString()}');
-      return false;
+      return RegisterResult(success: false);
     } finally {
       _setLoading(false);
     }
   }
 
+  // ✅ MÉTHODE CORRIGÉE - Utilise _isSuccess()
+ Future<bool> forgotPassword(String email) async {
+  _setLoading(true);
+  _clearError();
+
+  try {
+    final base = dotenv.env['API_URL'] ?? 'http://localhost:8084';
+
+    final response = await Dio().post(
+      '$base/auth/forgot-password',
+      data: {'email': email},
+      options: Options(
+        headers: {'Content-Type': 'application/json'},
+        responseType: ResponseType.json, // ✅ Force JSON parsing
+      ),
+    );
+
+    // Safely decode if still a String
+    final responseData = response.data is String
+        ? jsonDecode(response.data)
+        : response.data;
+
+    if (response.statusCode == 200 && _isSuccess(responseData['success'])) {
+      return true;
+    }
+
+    _setError(responseData['error'] ?? 'Erreur lors de la demande');
+    return false;
+  } catch (e) {
+    _setError('Erreur lors de la demande: ${e.toString()}');
+    return false;
+  } finally {
+    _setLoading(false);
+  }
+}
+  // ✅ MÉTHODE CORRIGÉE - Utilise _isSuccess()
+Future<bool> verifyEmail(String email, String code) async {
+  _setLoading(true);
+  _clearError();
+
+  try {
+    final base = dotenv.env['API_URL'] ?? 'http://localhost:8084';
+
+    final response = await Dio().post(
+      '$base/auth/verify-email',
+      data: {'email': email, 'code': code},
+      options: Options(
+        headers: {'Content-Type': 'application/json'},
+        responseType: ResponseType.json, // ✅
+      ),
+    );
+
+    // ✅ Safe decode if Dio returned a String instead of Map
+    final responseData = response.data is String
+        ? jsonDecode(response.data)
+        : response.data;
+
+    if (response.statusCode == 200 && _isSuccess(responseData['success'])) {
+      return true;
+    }
+
+    _setError(responseData['error'] ?? 'Erreur de vérification');
+    return false;
+  } catch (e) {
+    _setError('Erreur de vérification: ${e.toString()}');
+    return false;
+  } finally {
+    _setLoading(false);
+  }
+}
+  // ✅ MÉTHODE CORRIGÉE - Utilise _isSuccess()
+  Future<bool> resetPassword(String email, String code, String newPassword) async {
+  _setLoading(true);
+  _clearError();
+
+  try {
+    if (newPassword.length < 6) {
+      _setError('Le mot de passe doit contenir au moins 6 caractères');
+      return false;
+    }
+
+    final base = dotenv.env['API_URL'] ?? 'http://localhost:8084';
+
+    final response = await Dio().post(
+      '$base/auth/reset-password',
+      data: {
+        'email': email,
+        'code': code,
+        'new_password': newPassword,
+      },
+      options: Options(
+        headers: {'Content-Type': 'application/json'},
+        responseType: ResponseType.json, // ✅
+      ),
+    );
+
+    // ✅ Safe decode if Dio returned a String instead of Map
+    final responseData = response.data is String
+        ? jsonDecode(response.data)
+        : response.data;
+
+    if (response.statusCode == 200 && _isSuccess(responseData['success'])) {
+      return true;
+    }
+
+    _setError(responseData['error'] ?? 'Erreur de réinitialisation');
+    return false;
+  } catch (e) {
+    _setError('Erreur de réinitialisation: ${e.toString()}');
+    return false;
+  } finally {
+    _setLoading(false);
+  }
+}
   Future<void> _notifyBackendNewRegistration({
     required String email,
     required String nom,
@@ -365,46 +426,30 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     final secret = dotenv.env['NOTIFY_SECRET'];
     if (secret == null || secret.isEmpty) return;
-    final base =
-        dotenv.env['API_URL'] ?? const String.fromEnvironment('API_URL', defaultValue: 'http://192.168.100.10:8084');
+    final base = dotenv.env['API_URL'] ?? 'http://localhost:8084';
     try {
       await Dio().post(
         '$base/auth/register-notify',
         data: {'email': email, 'nom': nom, 'role': role},
         options: Options(
           headers: {'X-Notify-Secret': secret, 'Content-Type': 'application/json'},
-          sendTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
         ),
       );
-    } catch (_) {
-      // Ne bloque pas l'inscription si l'API mail est indisponible
-    }
+    } catch (_) {}
   }
 
-  /// Connexion / inscription via Google (compte [UserRole.client] si nouveau).
-  ///
-  /// - **Web** : [GoogleSignIn] requiert [clientId] (même valeur que l’ID client OAuth « Web »).
-  /// - **Android/iOS/macOS** : [clientId] = ID client iOS pur pour le login, [serverClientId] = ID client Web pour l’ID token.
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
     _errorMessage = null;
     try {
       if (kIsWeb) {
-        // ─── Web : OAuth redirect via Supabase ────────────────────────────────
-        // signInWithOAuth ouvre la popup/redirect Google et Supabase récupère
-        // lui-même le token. L'événement onAuthStateChange(signedIn) gère la suite.
         await _supabase.auth.signInWithOAuth(
           supa.OAuthProvider.google,
-          redirectTo: Uri.base.origin, // redirige vers la même origine
+          redirectTo: Uri.base.origin,
         );
-        // Sur web, signInWithOAuth déclenche une navigation (redirect).
-        // Le retour ici n'arrive que si le provider utilise le mode popup.
-        // Dans tous les cas, onAuthStateChange gère _fetchUserDetails.
         return true;
       }
 
-      // ─── Mobile (Android / iOS) ────────────────────────────────────────────
       final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
       final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
 
@@ -413,49 +458,39 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      final GoogleSignIn googleSignIn;
-
-      if (kIsWeb) {
-        googleSignIn = GoogleSignIn(
-          scopes: const ['email', 'profile'],
-          clientId: webClientId,
-        );
-      } else {
-        // Sur Mobile/macOS, clientId doit être l'ID iOS (ou null si Info.plist est parfait)
-        // et serverClientId doit être l'ID Web pour obtenir le token validable par Supabase.
-        googleSignIn = GoogleSignIn(
-          scopes: const ['email', 'profile'],
-          clientId: (Platform.isIOS || Platform.isMacOS) ? iosClientId : null,
-          serverClientId: webClientId,
-        );
-      }
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        clientId: (Platform.isIOS || Platform.isMacOS) ? iosClientId : null,
+        serverClientId: webClientId,
+      );
 
       final account = await googleSignIn.signIn();
-      if (account == null) {
-        return false;
-      }
+      if (account == null) return false;
+      
       final googleAuth = await account.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null) {
-        _setError(
-          'Jeton Google indisponible. Vérifiez GOOGLE_WEB_CLIENT_ID et le SHA-1 Android.',
-        );
+        _setError('Jeton Google indisponible.');
         return false;
       }
+      
       await _supabase.auth.signInWithIdToken(
         provider: supa.OAuthProvider.google,
         idToken: idToken,
         accessToken: googleAuth.accessToken,
       );
+      
       final email = account.email;
       if (email.isEmpty) {
         _setError('Email Google introuvable');
         return false;
       }
+      
       final isNew = await _ensureAppUserFromGoogle(
         email: email,
         nom: account.displayName ?? email.split('@').first,
       );
+      
       if (isNew) {
         await _notifyBackendNewRegistration(
           email: email,
@@ -463,6 +498,7 @@ class AuthProvider extends ChangeNotifier {
           role: 'client',
         );
       }
+      
       await _fetchUserDetails(email);
       return true;
     } catch (e) {
@@ -473,7 +509,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Retourne true si un nouvel [app_user] a été créé.
   Future<bool> _ensureAppUserFromGoogle({
     required String email,
     required String nom,

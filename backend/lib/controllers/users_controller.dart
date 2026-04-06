@@ -18,23 +18,82 @@ class UsersController {
     final nom = u['nom'] as String? ?? '';
     if (email == null || email.isEmpty) return;
     final mail = EmailService.fromEnv();
-    if (estActif) {
-      await mail.sendToUser(
-        to: email,
-        subject: 'Compte activé — LivrApp',
-        html:
-            '<p>Bonjour ${nom.isEmpty ? '' : nom},</p>'
-            '<p>Votre compte a été <strong>activé</strong>. Vous pouvez vous connecter à l’application.</p>',
-      );
-    } else {
-      await mail.sendToUser(
-        to: email,
-        subject: 'Compte suspendu — LivrApp',
-        html:
-            '<p>Bonjour ${nom.isEmpty ? '' : nom},</p>'
-            '<p>Votre compte a été <strong>suspendu</strong>. Pour toute question, contactez le support.</p>',
-      );
-    }
+    final status = estActif ? 'activé' : 'suspendu';
+    final message = estActif
+        ? 'Votre compte a été activé. Vous pouvez maintenant vous connecter et utiliser toutes les fonctionnalités de l\'application.'
+        : 'Votre compte a été suspendu. Pour toute question ou pour contester cette décision, veuillez contacter notre support.';
+
+    final html = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+      <div style="width: 60px; height: 60px; background-color: #ffffff; border-radius: 12px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+        <span style="font-size: 24px; font-weight: bold; color: #667eea;">LD</span>
+      </div>
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Local Delivery</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">Mise à jour de votre compte</p>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 40px 30px;">
+      <h2 style="color: #1f2937; margin: 0 0 20px; font-size: 20px; font-weight: 600;">
+        Bonjour ${nom.isEmpty ? 'Utilisateur' : nom},
+      </h2>
+
+      <div style="background-color: ${estActif ? '#ecfdf5' : '#fef2f2'}; border: 1px solid ${estActif ? '#d1fae5' : '#fecaca'}; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <div style="display: flex; align-items: center;">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background-color: ${estActif ? '#10b981' : '#ef4444'}; margin-right: 12px; flex-shrink: 0;"></div>
+          <div>
+            <p style="margin: 0; font-size: 16px; font-weight: 600; color: ${estActif ? '#065f46' : '#991b1b'};">
+              Compte ${status}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p style="color: #4b5563; line-height: 1.6; margin: 20px 0; font-size: 16px;">
+        $message
+      </p>
+
+      ${estActif ? '''
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="#" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Se connecter maintenant
+        </a>
+      </div>
+      ''' : ''}
+
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+        <p style="color: #6b7280; font-size: 14px; margin: 0;">
+          Si vous avez des questions, n'hésitez pas à nous contacter à l'adresse
+          <a href="mailto:support@localdelivery.com" style="color: #667eea; text-decoration: none;">support@localdelivery.com</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f9fafb; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #6b7280; font-size: 12px; margin: 0;">
+        © 2024 Local Delivery. Tous droits réservés.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+
+    await mail.sendToUser(
+      to: email,
+      subject: 'Compte $status — Local Delivery',
+      html: html,
+    );
   }
 
   Future<void> _sendDocumentsValidatedEmail(String idUser) async {
@@ -48,13 +107,75 @@ class UsersController {
     final nom = u['nom'] as String? ?? '';
     if (email == null || email.isEmpty) return;
     final mail = EmailService.fromEnv();
+
+    final html = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
+      <div style="width: 60px; height: 60px; background-color: #ffffff; border-radius: 12px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+        <span style="font-size: 24px; font-weight: bold; color: #10b981;">✓</span>
+      </div>
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Documents Approuvés</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">Local Delivery</p>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 40px 30px;">
+      <h2 style="color: #1f2937; margin: 0 0 20px; font-size: 20px; font-weight: 600;">
+        Félicitations ${nom.isEmpty ? 'Utilisateur' : nom} !
+      </h2>
+
+      <div style="background-color: #ecfdf5; border: 1px solid #d1fae5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <div style="display: flex; align-items: center;">
+          <div style="width: 20px; height: 20px; border-radius: 50%; background-color: #10b981; margin-right: 12px; flex-shrink: 0;"></div>
+          <div>
+            <p style="margin: 0; font-size: 16px; font-weight: 600; color: #065f46;">
+              Documents validés avec succès
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p style="color: #4b5563; line-height: 1.6; margin: 20px 0; font-size: 16px;">
+        Vos documents ont été examinés et approuvés par notre équipe. Votre compte est désormais actif et vous pouvez utiliser toutes les fonctionnalités de l'application Local Delivery.
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="#" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          Commencer maintenant
+        </a>
+      </div>
+
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+        <p style="color: #6b7280; font-size: 14px; margin: 0;">
+          Bienvenue dans la communauté Local Delivery ! Si vous avez des questions, contactez-nous à
+          <a href="mailto:support@localdelivery.com" style="color: #10b981; text-decoration: none;">support@localdelivery.com</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f9fafb; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #6b7280; font-size: 12px; margin: 0;">
+        © 2024 Local Delivery. Tous droits réservés.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+
     await mail.sendToUser(
       to: email,
-      subject: 'Documents approuvés — LivrApp',
-      html:
-          '<p>Bonjour ${nom.isEmpty ? '' : nom},</p>'
-          '<p>Vos documents ont été <strong>validés</strong> et votre compte est désormais actif. '
-          'Vous pouvez utiliser l’application.</p>',
+      subject: 'Documents approuvés — Local Delivery',
+      html: html,
     );
   }
 
