@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
 import '../services/email_service.dart';
@@ -367,8 +368,14 @@ class BusinessController {
 
   Future<Response> createPromotion(Request request, String id) async {
     try {
+      print('🔴 START: createPromotion appelé pour business $id');
+      stdout.flush(); // Force flush
+      
       final body = await request.readAsString();
       final data = jsonDecode(body);
+
+      print('📦 Données reçues: $data');
+      stdout.flush();
 
       // 1. Insérer la promotion (select simple — pas de join complexe)
       final result = await SupabaseConfig.client
@@ -378,6 +385,7 @@ class BusinessController {
           .single();
 
       print('✅ PROMOTION CRÉÉE: ID=${result['id_promotion']}');
+      stdout.flush();
 
       // 2. Récupérer le nom du produit et du business séparément
       String businessName = 'Un commerce';
@@ -651,6 +659,9 @@ class BusinessController {
 
   Future<void> _createNotification(dynamic idUser, String titre, String message, String type) async {
     try {
+      print('📝 Création notification: titre=$titre, user=$idUser, type=$type');
+      
+      // Étape 1: Créer la notification
       final notif = await SupabaseConfig.client
           .from('notification')
           .insert({
@@ -661,13 +672,26 @@ class BusinessController {
           .select()
           .single();
 
+      print('✅ Notification créée: id_not=${notif['id_not']}');
+
+      // Étape 2: Créer la liaison user_notification
+      final idNot = notif['id_not'];
+      if (idNot == null) {
+        throw Exception('❌ id_not est null après insertion');
+      }
+
       await SupabaseConfig.client.from('user_notification').insert({
         'id_user': idUser,
-        'id_not': notif['id_not'] ?? notif['id'],
+        'id_not': idNot,
         'est_lu': false,
       });
+
+      print('✅ Liaison user_notification créée: user=$idUser, not=$idNot');
     } catch (e) {
-      print('Error creating notification: $e');
+      print('❌ ERREUR CRÉATION NOTIFICATION: $e');
+      print('📋 Stack trace:');
+      print(e);
+      rethrow; // Relancer l'erreur pour mieux la voir
     }
   }
 }

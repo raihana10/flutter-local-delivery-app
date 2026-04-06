@@ -5,6 +5,7 @@ import 'business_stats_routes.dart';
 import 'business_profile_routes.dart';
 import 'business_notifications_routes.dart';
 import 'business_orders_routes.dart';
+import 'business_products_routes.dart';
 
 class BusinessMainRoutes {
   Handler get router {
@@ -13,7 +14,8 @@ class BusinessMainRoutes {
     router.mount('/stats', BusinessStatsRoutes().router);
     router.mount('/profile', BusinessProfileRoutes().router);
     router.mount('/notifications', BusinessNotificationsRoutes().router);
-    router.mount('/', BusinessOrdersRoutes().router);
+    router.mount('/', BusinessProductsRoutes().router);  // ← Produits + Promotions sur /
+    router.mount('/', BusinessOrdersRoutes().router);    // ← Commandes aussi sur /
 
     return router;
   }
