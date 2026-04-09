@@ -850,12 +850,13 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                 ),
 
                         // Nearby Restaurants Section
-                        _buildSectionTitle(
-                            'Pharmacies proches', _showAll ? 'Voir moins' : 'Voir tout', () {
-                              setState(() {
-                                _showAll = !_showAll;
-                              });
-                            }),
+                        _buildSectionTitle('Pharmacies proches', 'Voir tout', () {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => GenericVerticalListScreen(
+        title: 'Pharmacies proches',
+        category: 'restaurants',
+        items: _filteredRestaurants
+      )));
+    }),
                         const SizedBox(height: 12),
 
                               // Display message if no restaurants found

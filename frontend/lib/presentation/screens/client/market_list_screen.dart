@@ -803,16 +803,18 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ),
 
                               // Nearby Restaurants Section
+                              /*
                               _buildSectionTitle(
                                   'Magasins proches', 'Voir tout', () {}),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 12),*/
                         // Nearby Restaurants Section
-                        _buildSectionTitle(
-                            'Magasins proches', _showAll ? 'Voir moins' : 'Voir tout', () {
-                              setState(() {
-                                _showAll = !_showAll;
-                              });
-                            }),
+                        _buildSectionTitle('Magasins proches', 'Voir tout', () {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => GenericVerticalListScreen(
+        title: 'Pharmacies proches',
+        category: 'restaurants',
+        items: _filteredRestaurants
+      )));
+    }),
                         const SizedBox(height: 12),
 
                               // Display message if no restaurants found

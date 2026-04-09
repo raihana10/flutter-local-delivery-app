@@ -17,6 +17,7 @@ class OrderConfirmationScreen extends StatefulWidget {
 class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
   int _selectedAddressIndex = 0;
   int _selectedPaymentMethod = 0; // 0 = cash, 1 = card
+  String? _selectedCardId; // ID of selected card
   bool _isSubmitting = false;
   double? _distanceKm;
   final TextEditingController _monnaieController = TextEditingController();
@@ -54,9 +55,17 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
       if (defaultCard.isNotEmpty) {
         setState(() {
           _selectedPaymentMethod = 1; // card
+          _selectedCardId = defaultCard['id_carte']?.toString();
         });
         return;
       }
+    }
+    
+    // Set default card to first available if payment method might be card
+    if (paymentMethods.isNotEmpty) {
+      setState(() {
+        _selectedCardId = paymentMethods.first['id_carte']?.toString();
+      });
     }
     
     setState(() {
@@ -211,6 +220,12 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   _paymentMethods.length,
                   (index) => _buildPaymentMethod(index, _paymentMethods[index]),
                 ),
+                // Card selection – visible only for card payment
+                if (_selectedPaymentMethod == 1) ...
+                  [
+                    const SizedBox(height: 16),
+                    _buildCardSelectionSection(clientData),
+                  ],
                 // Monnaie donnée – visible only for cash payment
                 if (_selectedPaymentMethod == 0) ...
                   [
@@ -425,6 +440,112 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
     );
   }
 
+  Widget _buildCardSelectionSection(ClientDataProvider clientData) {
+    final cards = clientData.paymentMethods;
+    
+    if (cards.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Aucune carte bancaire',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 15)),
+            const SizedBox(height: 4),
+            const Text('Veuillez ajouter une carte bancaire dans les paramètres de paiement',
+                style: TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Sélectionner une carte',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 15)),
+          const SizedBox(height: 12),
+          ...cards.map((card) {
+            final cardId = card['id_carte']?.toString() ?? '';
+            final cardNumber = card['numero_carte']?.toString() ?? '****';
+            final last4 = cardNumber.length > 4
+                ? cardNumber.substring(cardNumber.length - 4)
+                : cardNumber;
+            final isSelected = _selectedCardId == cardId;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedCardId = cardId;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.border,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.credit_card,
+                      color: isSelected ? AppColors.primary : AppColors.mutedForeground,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Carte **** **** **** $last4',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isSelected ? AppColors.primary : AppColors.foreground,
+                            ),
+                          ),
+                          if (card['is_default'] == true)
+                            const Text(
+                              'Carte par défaut',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(Icons.check_circle, color: AppColors.primary, size: 24),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOrderSummaryWidget(
       int itemsCount, double subtotal, double deliveryFee, double total) {
     return Container(
@@ -550,12 +671,24 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                     }
                   }
 
+                  // Validate card selection for card payment
+                  if (_selectedPaymentMethod == 1) {
+                    if (_selectedCardId == null || _selectedCardId!.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Veuillez sélectionner une carte bancaire')));
+                      setState(() => _isSubmitting = false);
+                      return;
+                    }
+                  }
+
                   final payload = {
                     'id_adresse': selectedAddress['id_adresse'] ?? selectedAddress['adresse']?['id_adresse'],
                     'type_commande': isHybrid ? 'hybride' : 'food_delivery',
                     'mode_paiement': _selectedPaymentMethod == 0 ? 'cash' : 'card',
                     if (_selectedPaymentMethod == 0)
                       'prix_donne': prixDonne,
+                    if (_selectedPaymentMethod == 1 && _selectedCardId != null)
+                      'id_carte': _selectedCardId,
                     if (_distanceKm != null)
                       'distance_km': double.parse(_distanceKm!.toStringAsFixed(2)),
                     'id_business': cartItems.first['id_business'],
