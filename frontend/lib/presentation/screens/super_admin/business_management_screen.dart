@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/super_admin_api_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../data/datasources/super_admin_api_service.dart';
 import 'business_detail_admin_screen.dart';
 
 class BusinessManagementScreen extends StatefulWidget {

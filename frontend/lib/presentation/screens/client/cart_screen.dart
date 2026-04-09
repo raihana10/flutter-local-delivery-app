@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import 'package:app/core/providers/client_data_provider.dart';
+import '../../../core/providers/client_data_provider.dart';
 import '../../widgets/product_image_placeholder.dart';
 import 'order_confirmation_screen.dart';
 
@@ -236,16 +237,72 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  double? _calcDistance(List<dynamic> addresses, int idx, ClientDataProvider clientData) {
+    if (idx < 0 || idx >= addresses.length) return null;
+    final adresse = addresses[idx]['adresse'] ?? {};
+    final clientLat = double.tryParse(adresse['latitude']?.toString() ?? '');
+    final clientLng = double.tryParse(adresse['longitude']?.toString() ?? '');
+    
+    final cartItems = clientData.cartItems;
+    if (cartItems.isEmpty) return null;
+
+    final businessIds = <String>{};
+    for (var item in cartItems) {
+      final bizId = item['business_id'];
+      if (bizId != null) {
+        businessIds.add(bizId.toString());
+      }
+    }
+
+    if (businessIds.length <= 1) {
+      final businessAddr = clientData.businessAddress;
+      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+        return meters / 1000; // km
+      }
+    } else {
+      final businessAddr = clientData.businessAddress;
+      final bizLat = double.tryParse(businessAddr?['latitude']?.toString() ?? '');
+      final bizLng = double.tryParse(businessAddr?['longitude']?.toString() ?? '');
+      if (clientLat != null && clientLng != null && bizLat != null && bizLng != null) {
+        final meters = Geolocator.distanceBetween(bizLat, bizLng, clientLat, clientLng);
+        return meters / 1000; // km
+      }
+    }
+    
+    return null;
+  }
+
+  double _calculateDeliveryFee(double? distanceKm) {
+    final clientData = context.read<ClientDataProvider>();
+    final rate = clientData.deliveryFeeRate;
+    
+    if (distanceKm == null || distanceKm <= 0) {
+      return rate;
+    }
+    double baseFee = distanceKm * rate;
+    double integerPart = baseFee.truncateToDouble();
+    double fraction = baseFee - integerPart;
+    
+    if (fraction == 0) return baseFee;
+    if (fraction <= 0.5) return integerPart + 0.5;
+    return integerPart + 1.0;
+  }
+
   // ─── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final clientData = context.watch<ClientDataProvider>();
     final cartItems = clientData.cartItems;
+    final addresses = clientData.addresses;
+
+    int defaultAddrIdx = addresses.indexWhere((a) => a['is_default'] == true);
+    if (defaultAddrIdx == -1 && addresses.isNotEmpty) defaultAddrIdx = 0;
 
     double subtotal = clientData.cartSubtotal;
-    double deliveryFee = 10.0;
-    double total = subtotal + deliveryFee;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -268,11 +325,11 @@ class _CartScreenState extends State<CartScreen> {
                       ...cartItems.map((item) => _buildCartItem(item)),
                       const SizedBox(height: 24),
                       const SizedBox(height: 24),
-                      _buildOrderSummary(subtotal, deliveryFee, total),
+                      _buildOrderSummary(subtotal),
                     ],
                   ),
                 ),
-                _buildCheckoutBar(total),
+                _buildCheckoutBar(subtotal),
               ],
             ),
     );
@@ -466,7 +523,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildOrderSummary(double subtotal, double deliveryFee, double total) {
+  Widget _buildOrderSummary(double subtotal) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -492,14 +549,14 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildSummaryRow('Sous-total', '$subtotal DH'),
+          _buildSummaryRow('Sous-total', '${subtotal.toStringAsFixed(2)} DH'),
           const SizedBox(height: 8),
-          _buildSummaryRow('Frais de livraison', '$deliveryFee DH'),
+          _buildSummaryRow('Frais de livraison', 'Calculés après'),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: AppColors.border),
           ),
-          _buildSummaryRow('Total', '$total DH', isTotal: true),
+          _buildSummaryRow('Total Produits', '${subtotal.toStringAsFixed(2)} DH', isTotal: true),
         ],
       ),
     );
@@ -532,7 +589,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCheckoutBar(double total) {
+  Widget _buildCheckoutBar(double subtotal) {
     return Container(
       padding: EdgeInsets.only(
         left: 20,
@@ -562,14 +619,14 @@ class _CartScreenState extends State<CartScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Total',
+                  'Total Produits',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.mutedForeground,
                   ),
                 ),
                 Text(
-                  '$total DH',
+                  '${subtotal.toStringAsFixed(2)} DH',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -590,6 +647,15 @@ class _CartScreenState extends State<CartScreen> {
                   elevation: 5,
                 ),
                 onPressed: () {
+                  if (!context.read<ClientDataProvider>().isCurrentBusinessOpen) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Désolé, ce commerce est actuellement fermé.'),
+                        backgroundColor: AppColors.destructive,
+                      ),
+                    );
+                    return;
+                  }
                   Navigator.push(
                     context,
                     MaterialPageRoute(

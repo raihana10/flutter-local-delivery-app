@@ -43,17 +43,27 @@ class LocationService {
           'format': 'json',
           'addressdetails': 1,
           'limit': 5,
-          'countrycodes': 'ma', // Limiting to Morocco for relevance, can be adjusted or removed
+          'countrycodes': 'ma',
         },
         options: Options(
-          headers: {'User-Agent': 'LivrApp/1.0 (contact@livrapp.local)'},
+          headers: {
+            'User-Agent': 'LivrApp/1.0 (contact@livrapp.local)',
+            'Accept': 'application/json',
+          },
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
         ),
       );
 
       final List data = response.data;
       return data.map((e) => e as Map<String, dynamic>).toList();
     } catch (e) {
-      print('Nominatim Search Error: $e');
+      // Nominatim may be blocked on web (CORS) or timeout — silently return empty
+      if (e is DioException) {
+        print('Nominatim Search Error (${e.type}): ${e.message}');
+      } else {
+        print('Nominatim Search Error: $e');
+      }
       return [];
     }
   }

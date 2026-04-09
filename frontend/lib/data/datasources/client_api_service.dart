@@ -4,7 +4,7 @@ import '../../core/providers/auth_provider.dart';
 
 class ClientApiService {
   static const String baseUrl =
-      String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+      String.fromEnvironment('API_URL', defaultValue: 'http://192.168.100.10:8084');
   final Dio _dio = Dio();
   final AuthProvider authProvider;
 
@@ -64,7 +64,8 @@ class ClientApiService {
           '$baseUrl/client/profile-address/addresses',
           data: data,
           options: _getAuthOptions());
-      return response.data['success'] == true;
+      // Backend returns {data: {...}} when address is created/found
+      return response.data['data'] != null || response.data['success'] == true;
     } catch (e) {
       print('addAddress Error: $e');
       return false;

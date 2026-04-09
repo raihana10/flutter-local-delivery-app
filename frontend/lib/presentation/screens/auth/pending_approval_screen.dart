@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:app/core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:provider/provider.dart';
-import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/presentation/screens/auth/register_screen.dart';
+import '../../../core/providers/auth_provider.dart';
+import 'register_screen.dart';
 
 class PendingApprovalScreen extends StatelessWidget {
   const PendingApprovalScreen({super.key});

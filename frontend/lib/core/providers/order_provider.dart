@@ -31,6 +31,7 @@ class OrderProvider with ChangeNotifier {
           .select('''
             id_commande,
             prix_total,
+            frais_livraison,
             created_at,
             statut_commande,
             ligne_commande (

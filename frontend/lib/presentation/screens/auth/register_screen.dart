@@ -5,11 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:app/data/models/auth_models.dart' as auth;
+import '../../../data/models/auth_models.dart' as auth;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/auth_provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'verify_email_screen.dart';
 
 enum UserRole { client, livreur, business }
 
@@ -329,22 +330,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     print('📤 REGISTER REQUEST: ${request.toJson()}'); // ← debug crucial
 
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.register(request);
+    final result = await authProvider.register(request);
 
-    if (success && mounted) {
-      print('REGISTERED ROLE: \${authProvider.user?.role.value}');
-      
-      switch (authProvider.user?.role) {
-        case UserRole.client:
+    if (result.success && mounted) {
+      if (result.verificationRequired == true) {
+        // Redirect to email verification
+// ✅ APRÈS
+Navigator.of(context).pushReplacement(
+  MaterialPageRoute(
+    builder: (context) => VerifyEmailScreen(
+      email: request.email,
+      password: request.password, // ✅ passe le password
+    ),
+  ),
+);
+      } else {
+        print('REGISTERED ROLE: ${result.role}');
+        
+        final role = result.role;
+        if (role == 'client') {
           Navigator.of(context).pushReplacementNamed('/client/home');
-          break;
-        case UserRole.livreur:
-        case UserRole.business:
-          // ✅ Rediriger vers la page d'attente de validation
+        } else if (role == 'livreur' || role == 'business') {
+          // Redirect to pending approval
           Navigator.of(context).pushReplacementNamed('/pending-approval');
-          break;
-        default:
+        } else {
           Navigator.of(context).pushReplacementNamed('/');
+        }
       }
     } else if (mounted) {
       _showErrorSnackBar(

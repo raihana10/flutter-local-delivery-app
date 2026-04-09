@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:app/core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 
 import 'dashboard_screen.dart';
 import 'users_management_screen.dart';

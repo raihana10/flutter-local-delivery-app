@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import 'package:app/core/providers/client_data_provider.dart';
+import '../../../core/providers/client_data_provider.dart';
 import '../../widgets/product_image_placeholder.dart';
 import '../../../core/providers/product_provider.dart';
 import '../../../data/models/business_model.dart';
@@ -45,18 +45,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
   }
 
   Future<void> _fetchDetails() async {
-    setState(() => _isLoadingDetails = true);
-    try {
-      final bizId = int.tryParse(widget.businessId) ?? 0;
-      final response = await context.read<ProductProvider>().fetchBusinessById(bizId);
-      if (mounted) {
-        setState(() {
-          _businessInfo = response;
-          _isLoadingDetails = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingDetails = false);
+    final provider = context.read<ClientDataProvider>();
+    final details = await provider.getBusinessDetails(widget.businessId);
+    if (mounted) {
+      print('Details for ${widget.businessId}: ${details?['type_business']}');
+      setState(() {
+        _businessInfo = details;
+        _isLoadingDetails = false;
+      });
+      provider.setCurrentBusiness(details);
     }
   }
 
@@ -85,7 +82,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       
       if (mounted) {
         setState(() {
-          // Map BusinessModel.Produit to expected map format for UI
           _products = productProvider.businessProducts.map((p) => {
             'id_produit': p.id,
             'nom_produit': p.nom,
@@ -94,6 +90,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             'image': p.image,
             'type_produit': p.type,
             'deleted_at': p.deletedAt,
+            'promotion': p.promotion,
           }).toList();
           _isLoadingProducts = false;
         });
@@ -124,12 +121,28 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
     return Icons.restaurant_menu;
   }
 
+  String _getAddress() {
+    if (_businessInfo == null) return '';
+    final appUser = _businessInfo!['app_user'] ?? {};
+    final userAdresse = appUser['user_adresse'] as List<dynamic>? ?? [];
+    if (userAdresse.isEmpty) return 'Adresse non renseignée';
+    final adresse = userAdresse[0]['adresse'] ?? {};
+    
+    final ville = adresse['ville'] ?? '';
+    final quartier = adresse['quartier'] ?? '';
+    final details = adresse['adresse_detaillee'] ?? '';
+    
+    final String complete = [details, quartier, ville].where((s) => s.toString().isNotEmpty).join(', ');
+    return complete.isEmpty ? 'Adresse non renseignée' : complete;
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     final int reviewCount = _reviews.length;
     final double averageRating = reviewCount == 0 ? 0.0 : 
@@ -170,17 +183,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     ),
                   );
                 }
-              ),
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.share, color: AppColors.card),
-                  onPressed: () {},
-                ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -253,13 +255,27 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   Row(
                     children: [
                       _buildInfoBadge(Icons.star, '${averageRating.toStringAsFixed(1)} ($reviewCount avis)', AppColors.accent),
-                      const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.access_time, '25-35 min', AppColors.primary),
-                      const SizedBox(width: 12),
-                      _buildInfoBadge(Icons.delivery_dining, '10 DH', AppColors.secondary),
                     ],
                   ),
                   const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.location_on, size: 18, color: AppColors.mutedForeground),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getAddress(),
+                          style: const TextStyle(
+                            color: AppColors.mutedForeground,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     _businessInfo?['description'] ?? '',
                     style: const TextStyle(
@@ -316,6 +332,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                             'price': p['prix_unitaire'] ?? 0,
                             'image': p['image'],
                             'type': p['type_produit'] ?? 'meal',
+                            'promotion': p['promotion'],
                           });
                         },
                       ),
@@ -423,8 +440,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
             ),
           ],
         ),
-        child: Row(
-          children: [
+        child: Opacity(
+          opacity: (_businessInfo?['is_open'] == true) ? 1.0 : 0.6,
+          child: Row(
+            children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,41 +468,75 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '${item['price']} DH',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.gold,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final promo = item['promotion'];
+                      final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
+                      
+                      if (promo != null && promo is Promotion) {
+                        final double promoPrice = originalPrice * (1 - (promo.pourcentage / 100));
+                        return Row(
+                          children: [
+                            Text(
+                              '${promoPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.destructive,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${originalPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                decoration: TextDecoration.lineThrough,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      
+                      return Text(
+                        '${item['price']} DH',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.gold,
+                        ),
+                      );
+                    }
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: (item['image'] != null && item['image'].toString().startsWith('http'))
-                  ? Image.network(
-                      item['image'].toString(),
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => ProductImagePlaceholder(
-                        type: item['type'],
-                        size: 80,
-                      ),
-                    )
-                  : ProductImagePlaceholder(
-                      type: item['type'],
-                      size: 80,
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                image: (item['image'] != null && item['image'].toString().startsWith('http'))
+                    ? DecorationImage(image: NetworkImage(item['image'].toString()), fit: BoxFit.cover)
+                    : null,
+              ),
+              child: (item['image'] == null || !item['image'].toString().startsWith('http'))
+                ? Center(
+                    child: Text(
+                      getHeaderEmoji(),
+                      style: const TextStyle(fontSize: 40),
                     ),
+                  )
+                : null,
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showProductOptions(Map<String, dynamic> item) {
     int quantity = 1;
@@ -493,8 +546,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
       backgroundColor: Colors.transparent,
       builder: (modalContext) => StatefulBuilder(
         builder: (innerModalContext, setModalState) {
-          final double basePrice = double.tryParse(item['price'].toString()) ?? 0.0;
-          final double totalPrice = basePrice * quantity;
+          final promo = item['promotion'];
+          final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
+          double unitPrice = originalPrice;
+          
+          if (promo != null && promo is Promotion) {
+            unitPrice = originalPrice * (1 - (promo.pourcentage / 100));
+          }
+          
+          final double totalPrice = unitPrice * quantity;
           
           return Container(
             height: MediaQuery.of(context).size.height * 0.75,
@@ -546,13 +606,43 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  '${item['price']} DH',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.gold,
-                  ),
+                 Builder(
+                  builder: (context) {
+                    final promo = item['promotion'];
+                    final double originalPrice = double.tryParse(item['price'].toString()) ?? 0.0;
+                    
+                    if (promo != null && promo is Promotion) {
+                      final double promoPrice = originalPrice * (1 - (promo.pourcentage / 100));
+                      return Column(
+                         children: [
+                            Text(
+                              '${promoPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.destructive,
+                              ),
+                            ),
+                            Text(
+                              '${originalPrice.toStringAsFixed(1)} DH',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                decoration: TextDecoration.lineThrough,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ),
+                         ],
+                      );
+                    }
+                    return Text(
+                      '${item['price']} DH',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.gold,
+                      ),
+                    );
+                  }
                 ),
                 
                 Expanded(
@@ -636,17 +726,17 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
+                          onPressed: (_businessInfo?['is_open'] == true) ? () {
                             context.read<ClientDataProvider>().addToCart({
                               'id': item['id'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, 
                               'id_produit': item['id'],
                               'id_business': widget.businessId,
                               'name': item['name'],
                               'options': '', // Removed options tracking
-                              'price': basePrice,
+                              'price': unitPrice,
                               'quantity': quantity,
-                              'image': item['image'],
-                              'type': item['type'],
+                              'image': item['image'] ?? '🍽️',
+                              'business_id': widget.businessId, // Add business_id for hybrid order detection
                             });
                             Navigator.pop(innerModalContext);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -669,9 +759,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> with Si
                                 ),
                               ),
                             );
-                          },
+                          } : null,
                           child: Text(
-                            'Ajouter - $totalPrice DH',
+                            (_businessInfo?['is_open'] == true) ? 'Ajouter - $totalPrice DH' : 'Fermé actuellement',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

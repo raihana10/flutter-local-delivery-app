@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/core/providers/livreur_dashboard_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/livreur_dashboard_provider.dart';
 
 class LivreurNotificationsScreen extends StatelessWidget {
   const LivreurNotificationsScreen({super.key});

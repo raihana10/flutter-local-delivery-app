@@ -289,6 +289,20 @@ class Livreur {
   }
 }
 
+class RegisterResult {
+  final bool success;
+  final bool verificationRequired;
+  final int? userId;
+  final String? role;
+
+  const RegisterResult({
+    required this.success,
+    this.verificationRequired = false,
+    this.userId,
+    this.role,
+  });
+}
+
 class AuthResponse {
   final User user;
   final String token;

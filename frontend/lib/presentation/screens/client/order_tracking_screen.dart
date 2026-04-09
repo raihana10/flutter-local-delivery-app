@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/core/constants/app_strings.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_strings.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/core/providers/order_provider.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/order_provider.dart';
 import 'package:provider/provider.dart';
 
 class OrderTrackingScreen extends StatefulWidget {

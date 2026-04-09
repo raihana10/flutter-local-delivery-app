@@ -401,10 +401,7 @@ class _MarketListScreenState extends State<MarketListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Prioritize businesses fetched from ProductProvider (Supabase) over failing legacy API
-    final baseMarkets = _allRestaurants.isNotEmpty 
-        ? _allRestaurants 
-        : clientData.filteredSuperMarkets;
+    final baseMarkets = _showAll ? clientData.allSuperMarkets : clientData.filteredSuperMarkets;
     
     _filteredRestaurants = baseMarkets.where((market) {
       final nameStr = (market['name'] ?? '').toString().toLowerCase();
@@ -481,16 +478,37 @@ class _MarketListScreenState extends State<MarketListScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  'Bonjour, ${user?.nom ?? 'Client'}',
-                                                  style: const TextStyle(
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.textWhite,
-                                                    height: 1.2,
-                                                    letterSpacing: -0.5,
+                                                AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                      milliseconds: 300),
+                                                  child: Row(
+                                                    key: ValueKey(user?.nom),
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      const Icon(
+                                                        Icons.waving_hand,
+                                                        color: AppColors.accent,
+                                                        size: 28,
+                                                      ),
+                                                    ],
                                                   ),
-                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Container(
@@ -573,7 +591,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -785,9 +803,19 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ),
 
                               // Nearby Restaurants Section
+                              /*
                               _buildSectionTitle(
                                   'Magasins proches', 'Voir tout', () {}),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 12),*/
+                        // Nearby Restaurants Section
+                        _buildSectionTitle('Magasins proches', 'Voir tout', () {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => GenericVerticalListScreen(
+        title: 'Pharmacies proches',
+        category: 'restaurants',
+        items: _filteredRestaurants
+      )));
+    }),
+                        const SizedBox(height: 12),
 
                               // Display message if no restaurants found
                               if (_filteredRestaurants.isEmpty)
@@ -1154,6 +1182,16 @@ class _MarketListScreenState extends State<MarketListScreen>
 
 
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> marketInfo, int index) {
     final businessUser = marketInfo['app_user'] ?? {};
     final idBusiness = marketInfo['id_business'] ?? '0';
@@ -1211,14 +1249,14 @@ class _MarketListScreenState extends State<MarketListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: marketInfo['pdp'] != null 
+                        image: (marketInfo['pdp'] != null && marketInfo['pdp'].toString().startsWith('http'))
                             ? DecorationImage(
-                                image: ImageUtils.getImageProvider(marketInfo['pdp']),
+                                image: NetworkImage(marketInfo['pdp'].toString()),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: marketInfo['pdp'] == null 
+                      child: (marketInfo['pdp'] == null || !marketInfo['pdp'].toString().startsWith('http'))
                           ? Center(
                               child: Text(
                                 '🛒',
@@ -1250,24 +1288,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ),
                               ),
                             ),
-                            Consumer<ClientDataProvider>(
-                                builder: (context, clientData, _) {
-                              final id = marketInfo['id_business']
-                                      ?.toString() ??
-                                  '0';
-                              final isFav = clientData.isFavoriteBusiness(id);
-                              return IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(
-                                  isFav ? Icons.favorite : Icons.favorite_border,
-                                  color: isFav ? AppColors.destructive : AppColors.mutedForeground,
-                                  size: 22,
-                                ),
-                                onPressed: () => clientData.toggleFavorite(id),
-                              );
-                            }),
-                            const SizedBox(width: 8),
+
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -1314,7 +1335,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.4',
+                                    _calculateRating(marketInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
@@ -1324,60 +1345,7 @@ class _MarketListScreenState extends State<MarketListScreen>
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${marketInfo['temps_preparation'] ?? 30} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '2.0 km',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+
                           ],
                         ),
                         const SizedBox(height: 10),

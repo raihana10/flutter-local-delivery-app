@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:app/presentation/screens/client/order_tracking_screen.dart';
-import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/core/providers/client_data_provider.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/presentation/screens/client/restaurant_detail_screen.dart';
-import 'package:app/presentation/screens/client/cart_screen.dart';
-import 'package:app/presentation/screens/client/order_history_screen.dart';
-import 'package:app/presentation/screens/client/client_profile_screen.dart';
-import 'package:app/presentation/screens/client/client_notifications_screen.dart';
-import 'package:app/presentation/screens/client/restaurant_list_screen.dart';
-import 'package:app/presentation/screens/client/pharmacy_list_screen.dart';
-import 'package:app/presentation/screens/client/market_list_screen.dart';
-import 'package:app/presentation/screens/client/client_addresses_screen.dart';
-import 'package:app/core/providers/product_provider.dart';
+import 'order_tracking_screen.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/client_data_provider.dart';
+import '../../../core/constants/app_colors.dart';
+import 'restaurant_detail_screen.dart';
+import 'cart_screen.dart';
+import 'order_history_screen.dart';
+import 'client_profile_screen.dart';
+import 'client_notifications_screen.dart';
+import 'restaurant_list_screen.dart';
+import 'pharmacy_list_screen.dart';
+import 'market_list_screen.dart';
+import 'client_addresses_screen.dart';
+import '../../../core/providers/product_provider.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -374,19 +374,31 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                       ),
                       Consumer<ClientDataProvider>(
                         builder: (context, data, _) {
-                          final hasUnread =
-                              data.notifications.any((n) => n['lu'] == false);
-                          if (!hasUnread) return const SizedBox.shrink();
+                          final count = data.unreadNotificationsCount;
+                          if (count == 0) return const SizedBox.shrink();
 
                           return Positioned(
-                            top: 12,
-                            right: 12,
+                            top: 4,
+                            right: 4,
                             child: Container(
-                              width: 8,
-                              height: 8,
+                              padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
                                 color: AppColors.destructive,
                                 shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           );

@@ -432,10 +432,9 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Prioritize businesses fetched from ProductProvider (Supabase) over failing legacy API
-    final baseRestaurants = _allRestaurants.isNotEmpty 
-        ? _allRestaurants 
-        : clientData.filteredRestaurants;
+    // In production, filtering should probably be done effectively either via provider sorting 
+    // or by backend endpoints passing '?search=' and '?category='. 
+    final baseRestaurants = _showAll ? clientData.allRestaurants : clientData.filteredRestaurants;
     
     _filteredRestaurants = baseRestaurants.where((restaurant) {
       final String nameStr = (restaurant['name'] ?? '').toString().toLowerCase();
@@ -514,19 +513,37 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  'Bonjour, ${user?.nom ?? 'Client'}',
-                                                  style: const TextStyle(
-                                                    fontSize: 28,
-                                                    fontWeight:
-                                                        FontWeight.bold,
-                                                    color:
-                                                        AppColors.textWhite,
-                                                    height: 1.2,
-                                                    letterSpacing: -0.5,
+                                                AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                      milliseconds: 300),
+                                                  child: Row(
+                                                    key: ValueKey(user?.nom),
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      const Icon(
+                                                        Icons.waving_hand,
+                                                        color: AppColors.accent,
+                                                        size: 28,
+                                                      ),
+                                                    ],
                                                   ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Container(
@@ -613,7 +630,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -801,95 +818,93 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
 
 
-                              // Results count
-                              if (_searchQuery.isNotEmpty ||
-                                  _selectedCategory != 'all')
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Text(
-                                    '${_filteredRestaurants.length} restaurant${_filteredRestaurants.length > 1 ? 's' : ''} trouvé${_filteredRestaurants.length > 1 ? 's' : ''}',
-                                    style: TextStyle(
-                                      color: AppColors.mutedForeground,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
+                        // Results count
+                        if (_searchQuery.isNotEmpty ||
+                            _selectedCategory != 'all')
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              '${_filteredRestaurants.length} restaurant${_filteredRestaurants.length > 1 ? 's' : ''} trouvé${_filteredRestaurants.length > 1 ? 's' : ''}',
+                              style: TextStyle(
+                                color: AppColors.mutedForeground,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+
+                        // Nearby Restaurants Section
+                         _buildSectionTitle('Restaurants proches', 'Voir tout', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => GenericVerticalListScreen(
+                            title: 'Restaurants proches',
+                            category: 'restaurants',
+                            items: _filteredRestaurants)));
+                          }),
+                        const SizedBox(height: 12),
+
+                        // Display message if no restaurants found
+                        if (_filteredRestaurants.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.restaurant_menu,
+                                  size: 64,
+                                  color: AppColors.mutedForeground
+                                      .withOpacity(0.3),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Aucun restaurant trouvé',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.foreground,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Essayez de modifier vos filtres ou votre recherche',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.mutedForeground,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedCategory = 'all';
+                                      _searchQuery = '';
+                                      _searchTextController.clear();
+                                      _applyFilters();
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.textWhite,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
+                                  child:
+                                      const Text('Réinitialiser les filtres'),
                                 ),
-
-                              // Nearby Restaurants Section
-                              _buildSectionTitle('Restaurants proches', 'Voir tout', () {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => GenericVerticalListScreen(
-        title: 'Restaurants proches',
-        category: 'restaurants',
-        items: _filteredRestaurants
-      )));
-    }),
-                              const SizedBox(height: 12),
-
-                              // Display message if no restaurants found
-                              if (_filteredRestaurants.isEmpty)
-                                Container(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.restaurant_menu,
-                                        size: 64,
-                                        color: AppColors.mutedForeground
-                                            .withOpacity(0.3),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Aucun restaurant trouvé',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.foreground,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Essayez de modifier vos filtres ou votre recherche',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.mutedForeground,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _selectedCategory = 'all';
-                                            _searchQuery = '';
-                                            _searchTextController.clear();
-                                            _applyFilters();
-                                          });
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: AppColors.textWhite,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                        child: const Text(
-                                            'Réinitialiser les filtres'),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                ListView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: _filteredRestaurants.length,
-                                  itemBuilder: (context, index) {
-                                    return _buildRestaurantCard(
-                                        _filteredRestaurants[index], index);
-                                  },
-                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _showAll ? _filteredRestaurants.length : min(_filteredRestaurants.length, 3),
+                            itemBuilder: (context, index) {
+                              return _buildRestaurantCard(
+                                  _filteredRestaurants[index], index);
+                            },
+                          ),
 
                               const SizedBox(height: 120), // Bottom nav padding
                             ],
@@ -1352,10 +1367,20 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
     );
   }
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> restaurantInfo, int index) {
-      final businessUser = restaurantInfo['app_user'] ?? {};
-      final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
-      final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
+    final businessUser = restaurantInfo['app_user'] ?? {};
+    final String name = businessUser['nom'] ?? 'Restaurant Inconnu';
+    final String idBusiness = restaurantInfo['id_business']?.toString() ?? '0';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1410,14 +1435,14 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: restaurantInfo['pdp'] != null 
+                        image: restaurantInfo['pdp'] != null
                             ? DecorationImage(
                                 image: ImageUtils.getImageProvider(restaurantInfo['pdp']),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: restaurantInfo['pdp'] == null 
+                      child: restaurantInfo['pdp'] == null
                           ? Center(
                               child: Text(
                                 '🍔',
@@ -1449,24 +1474,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                 ),
                               ),
                             ),
-                            Consumer<ClientDataProvider>(
-                                builder: (context, clientData, _) {
-                              final id = restaurantInfo['id_business']
-                                      ?.toString() ??
-                                  '0';
-                              final isFav = clientData.isFavoriteBusiness(id);
-                              return IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(
-                                  isFav ? Icons.favorite : Icons.favorite_border,
-                                  color: isFav ? AppColors.destructive : AppColors.mutedForeground,
-                                  size: 22,
-                                ),
-                                onPressed: () => clientData.toggleFavorite(id),
-                              );
-                            }),
-                            const SizedBox(width: 8),
+
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -1513,64 +1521,10 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.5',
+                                    _calculateRating(restaurantInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${restaurantInfo['temps_preparation'] ?? 30} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '1.2 km', // Mock distance
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -1602,7 +1556,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen>
 
                   Consumer<ClientDataProvider>(
                     builder: (context, provider, _) {
-                      final idB = int.tryParse(idBusiness) ?? 0;
+                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
                       final isFav = provider.isFavorite(idB);
                       return GestureDetector(
                         onTap: () {

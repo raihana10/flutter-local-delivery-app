@@ -15,7 +15,6 @@ class _ClientPaymentMethodsScreenState
     extends State<ClientPaymentMethodsScreen> {
   final TextEditingController _cardNumberController = TextEditingController();
   final TextEditingController _expiryController = TextEditingController();
-  final TextEditingController _cvcController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
   @override
@@ -30,7 +29,6 @@ class _ClientPaymentMethodsScreenState
   void dispose() {
     _cardNumberController.dispose();
     _expiryController.dispose();
-    _cvcController.dispose();
     _nameController.dispose();
     super.dispose();
   }
@@ -42,6 +40,7 @@ class _ClientPaymentMethodsScreenState
     final isLoading = provider.isLoading;
 
     final hasDefaultCard = methods.any((m) => m['is_default'] == true);
+    final isCashDefault = provider.preferredPaymentMethod == 'cash' || (!hasDefaultCard && provider.preferredPaymentMethod == null);
 
     final cashMethod = {
       'id': 'cash',
@@ -49,7 +48,7 @@ class _ClientPaymentMethodsScreenState
       'title': 'Paiement à la livraison',
       'subtitle': 'Payez en espèces au livreur',
       'icon': Icons.money,
-      'is_default': !hasDefaultCard,
+      'is_default': isCashDefault,
       'color': Colors.green,
     };
 
@@ -74,7 +73,7 @@ class _ClientPaymentMethodsScreenState
                 children: [
                   _buildPaymentMethodItem(cashMethod, isLocal: true),
                   ...methods.map((method) {
-                    final isDefault = method['is_default'] == true;
+                    final isDefault = method['is_default'] == true && provider.preferredPaymentMethod != 'cash';
                     final String cardNum =
                         method['numero_carte']?.toString() ?? '****';
                     final String last4 = cardNum.length > 4
@@ -137,9 +136,12 @@ class _ClientPaymentMethodsScreenState
         ),
         title: Row(
           children: [
-            Text(
-              method['title'],
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Flexible(
+              child: Text(
+                method['title'],
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (method['is_default']) ...[
               const SizedBox(width: 8),
@@ -202,7 +204,7 @@ class _ClientPaymentMethodsScreenState
                 ],
               ),
         onTap: () async {
-          if (!method['is_default'] && !isLocal) {
+          if (!method['is_default']) {
             await context
                 .read<ClientDataProvider>()
                 .setDefaultPaymentMethod(method['id']);
@@ -219,7 +221,6 @@ class _ClientPaymentMethodsScreenState
   void _showAddCardBottomSheet() {
     _cardNumberController.clear();
     _expiryController.clear();
-    _cvcController.clear();
     _nameController.clear();
 
     showModalBottomSheet(
@@ -260,40 +261,17 @@ class _ClientPaymentMethodsScreenState
                 ),
                 keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _expiryController,
-                      decoration: InputDecoration(
-                        labelText: 'Date d\'expiration (MM/AA)',
-                        filled: true,
-                        fillColor: AppColors.card,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none),
-                      ),
-                      keyboardType: TextInputType.datetime,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      controller: _cvcController,
-                      decoration: InputDecoration(
-                        labelText: 'CVC',
-                        filled: true,
-                        fillColor: AppColors.card,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none),
-                      ),
-                      keyboardType: TextInputType.number,
-                      obscureText: true,
-                    ),
-                  ),
-                ],
+              TextField(
+                controller: _expiryController,
+                decoration: InputDecoration(
+                  labelText: 'Date d\'expiration (MM/AA)',
+                  filled: true,
+                  fillColor: AppColors.card,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                ),
+                keyboardType: TextInputType.datetime,
               ),
               const SizedBox(height: 16),
               TextField(
@@ -325,7 +303,7 @@ class _ClientPaymentMethodsScreenState
                     'numero_carte': _cardNumberController.text.trim(),
                     'date_expiration': _expiryController.text.trim(),
                     'nom_carte': _nameController.text.trim(),
-                    'is_default': true, // Make new card default by default
+                    'is_default': true,
                   };
 
                   Navigator.pop(ctx);

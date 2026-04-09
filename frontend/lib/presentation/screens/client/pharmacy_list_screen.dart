@@ -419,10 +419,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     final user = context.watch<AuthProvider>().user;
     final clientData = context.watch<ClientDataProvider>();
     
-    // Prioritize businesses fetched from ProductProvider (Supabase) over failing legacy API
-    final basePharmacies = _allRestaurants.isNotEmpty 
-        ? _allRestaurants 
-        : clientData.filteredPharmacies;
+    final basePharmacies = _showAll ? clientData.allPharmacies : clientData.filteredPharmacies;
     
     _filteredRestaurants = basePharmacies.where((pharmacy) {
       final nameStr = (pharmacy['name'] ?? '').toString().toLowerCase();
@@ -501,14 +498,36 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                Text(
-                                                  'Bonjour, ${user?.nom ?? 'Client'}',
-                                                  style: const TextStyle(
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.textWhite,
-                                                    height: 1.2,
-                                                    letterSpacing: -0.5,
+                                                AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                      milliseconds: 300),
+                                                  child: Row(
+                                                    key: ValueKey(user?.nom),
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          'Bonjour, ${user?.nom ?? 'Client'}',
+                                                          style: const TextStyle(
+                                                            fontSize: 28,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .textWhite,
+                                                            height: 1.2,
+                                                            letterSpacing: -0.5,
+                                                          ),
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      const Icon(
+                                                        Icons.waving_hand,
+                                                        color: AppColors.accent,
+                                                        size: 28,
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
@@ -592,7 +611,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                                       ),
                                                       Consumer<ClientDataProvider>(
                                                         builder: (context, data, _) {
-                                                          final hasUnread = data.notifications.any((n) => n['lu'] == false);
+                                                          final hasUnread = data.unreadNotificationsCount > 0;
                                                           if (!hasUnread) return const SizedBox.shrink();
                                                           return Positioned(
                                                             top: 8,
@@ -830,15 +849,15 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                 ),
 
-                              // Nearby Restaurants Section
-                              _buildSectionTitle('Pharmacies proches', 'Voir tout', () {
+                        // Nearby Restaurants Section
+                        _buildSectionTitle('Pharmacies proches', 'Voir tout', () {
       Navigator.push(context, MaterialPageRoute(builder: (_) => GenericVerticalListScreen(
         title: 'Pharmacies proches',
         category: 'restaurants',
         items: _filteredRestaurants
       )));
     }),
-                              const SizedBox(height: 12),
+                        const SizedBox(height: 12),
 
                               // Display message if no restaurants found
                               if (_filteredRestaurants.isEmpty)
@@ -1365,6 +1384,16 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
     );
   }
 
+  String _calculateRating(Map<String, dynamic> business) {
+    final reviews = business['store_review'] as List<dynamic>? ?? [];
+    if (reviews.isEmpty) return '0.0';
+    double sum = 0;
+    for (var r in reviews) {
+      sum += (r['evaluation'] as num).toDouble();
+    }
+    return (sum / reviews.length).toStringAsFixed(1);
+  }
+
   Widget _buildRestaurantCard(Map<String, dynamic> pharmacyInfo, int index) {
     final businessUser = pharmacyInfo['app_user'] ?? {};
     final idBusiness = pharmacyInfo['id_business'] ?? '0';
@@ -1422,14 +1451,14 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        image: pharmacyInfo['pdp'] != null 
+                        image: (pharmacyInfo['pdp'] != null && pharmacyInfo['pdp'].toString().startsWith('http'))
                             ? DecorationImage(
-                                image: ImageUtils.getImageProvider(pharmacyInfo['pdp']),
+                                image: NetworkImage(pharmacyInfo['pdp'].toString()),
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: pharmacyInfo['pdp'] == null 
+                      child: (pharmacyInfo['pdp'] == null || !pharmacyInfo['pdp'].toString().startsWith('http'))
                           ? Center(
                               child: Text(
                                 '💊',
@@ -1461,24 +1490,7 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                 ),
                               ),
                             ),
-                            Consumer<ClientDataProvider>(
-                                builder: (context, clientData, _) {
-                              final id = pharmacyInfo['id_business']
-                                      ?.toString() ??
-                                  '0';
-                              final isFav = clientData.isFavoriteBusiness(id);
-                              return IconButton(
-                                constraints: const BoxConstraints(),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(
-                                  isFav ? Icons.favorite : Icons.favorite_border,
-                                  color: isFav ? AppColors.destructive : AppColors.mutedForeground,
-                                  size: 22,
-                                ),
-                                onPressed: () => clientData.toggleFavorite(id),
-                              );
-                            }),
-                            const SizedBox(width: 8),
+
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -1525,64 +1537,10 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    '4.8',
+                                    _calculateRating(pharmacyInfo),
                                     style: const TextStyle(
                                       color: AppColors.accent,
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    color: AppColors.primary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${pharmacyInfo['temps_preparation'] ?? 15} min',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: AppColors.secondary,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '1.5 km',
-                                    style: TextStyle(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -1608,6 +1566,33 @@ class _PharmacyListScreenState extends State<PharmacyListScreen>
                         ),
                       ],
                     ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // Favorite button
+                  Consumer<ClientDataProvider>(
+                    builder: (context, provider, _) {
+                      final idB = int.tryParse(idBusiness.toString()) ?? 0;
+                      final isFav = provider.isFavorite(idB);
+                      return GestureDetector(
+                        onTap: () {
+                          if (idB > 0) provider.toggleFavorite(idB);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isFav ? AppColors.destructive.withOpacity(0.1) : AppColors.background,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                            size: 22,
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(width: 8),

@@ -13,6 +13,9 @@ Middleware authMiddleware() {
         'auth/login',
         'auth/register',
         'auth/register-notify',
+        'auth/verify-email',      // ← AJOUTEZ CETTE LIGNE
+        'auth/forgot-password',   // ← AJOUTEZ CETTE LIGNE
+        'auth/reset-password',
         'client/auth/login',
         'client/auth/register',
         '', // Health check root

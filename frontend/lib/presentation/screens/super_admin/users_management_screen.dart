@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:app/core/constants/app_colors.dart';
-import 'package:app/data/datasources/super_admin_api_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../data/datasources/super_admin_api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../business/business_main_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:app/core/providers/auth_provider.dart';
-import 'package:app/core/providers/business_data_provider.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/business_data_provider.dart';
 
 /// Construit l’URL publique Supabase Storage pour le bucket `alae`, ou renvoie l’URL déjà absolue.
 String _resolveAlaeDisplayUrl(String raw) {
@@ -600,113 +600,116 @@ class _UsersManagementScreenState extends State<UsersManagementScreen>
     );
   }
 
-  Widget _buildPaginatedTable(String role) {
-    // ✅ Vérifier que deleted_at est null, pas que la clé est absente
-var filteredUsers = users
-    .where((u) => u['role'] == role && u['deleted_at'] == null)
-    .toList();
+Widget _buildPaginatedTable(String role) {
+  // ✅ Vérifier que deleted_at est null, pas que la clé est absente
+  var filteredUsers = users
+      .where((u) => u['role'] == role && u['deleted_at'] == null)
+      .toList();
 
-    if (_filterStatus != 'Tous') {
-      final isActif = _filterStatus == 'Actif';
-      filteredUsers =
-          filteredUsers.where((u) => u['est_actif'] == isActif).toList();
-    }
+  if (_filterStatus != 'Tous') {
+    final isActif = _filterStatus == 'Actif';
+    filteredUsers =
+        filteredUsers.where((u) => u['est_actif'] == isActif).toList();
+  }
 
-    if (_filterDate == 'Ce mois-ci') {
-      // Implementation logic for date filtering if necessary
-    }
+  if (_filterDate == 'Ce mois-ci') {
+    // Implementation logic for date filtering if necessary
+  }
 
-    // Tri par date d'inscription décroissante (les plus récents en premier)
-    filteredUsers.sort((a, b) {
-      final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
-      final bDate = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
-      return bDate.compareTo(aDate);
-    });
+  // Tri par date d'inscription décroissante (les plus récents en premier)
+  filteredUsers.sort((a, b) {
+    final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
+    final bDate = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
+    return bDate.compareTo(aDate);
+  });
 
-    List<DataColumn> columns = [
-      const DataColumn(
-          label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(
-          label: Text('Nom', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(
-          label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
-      const DataColumn(
-          label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-    ];
+  List<DataColumn> columns = [
+    const DataColumn(
+        label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
+    const DataColumn(
+        label: Text('Nom', style: TextStyle(fontWeight: FontWeight.bold))),
+    const DataColumn(
+        label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+    const DataColumn(
+        label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+  ];
 
-    if (role == 'business') {
-      columns.add(const DataColumn(
-          label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))));
-      columns.add(const DataColumn(
-          label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
-    } else if (role == 'livreur') {
-      columns.add(const DataColumn(
-          label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
-    }
-
+  if (role == 'business') {
     columns.add(const DataColumn(
-        label: Text('Statut', style: TextStyle(fontWeight: FontWeight.bold))));
+        label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))));
     columns.add(const DataColumn(
-        label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))));
+        label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
+  } else if (role == 'livreur') {
+    columns.add(const DataColumn(
+        label: Text('Docs', style: TextStyle(fontWeight: FontWeight.bold))));
+  }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-        final estimatedColumnWidth = isMobile ? 160.0 : 190.0;
-        final minWidth = (columns.length * estimatedColumnWidth)
-            .clamp(constant 320.0, double.infinity);
+  columns.add(const DataColumn(
+      label: Text('Statut', style: TextStyle(fontWeight: FontWeight.bold))));
+  columns.add(const DataColumn(
+      label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))));
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: minWidth),
-              child: PaginatedDataTable(
-                header: Text('Liste des $role${role.endsWith('s') ? '' : 's'}',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                rowsPerPage: filteredUsers.length > 5
-                    ? 5
-                    : (filteredUsers.isEmpty ? 1 : filteredUsers.length),
-                columns: columns,
-                source: _UserDataTableSource(
-                  data: filteredUsers,
-                  role: role,
-                  onStatusToggle: _showConfirmationDialog,
-                  onViewDetails: _showUserModal,
-                  onValidate: _showDocumentValidationModal,
-                  onManageBusiness: (user) {
-                    // L'admin doit usurper l'identité du business, qui est gérée par son id_user
-                    final idUser = user['id_user'] as int?;
+  // Calculate approximate table width based on column count
+  final double baseColumnWidth = 120;
+  final double actionColumnWidth = 180;
+  final double tableWidth = (columns.length - 1) * baseColumnWidth + actionColumnWidth;
 
-                    if (idUser == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ID user introuvable')),
-                      );
-                      return;
-                    }
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 600;
+      
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: SizedBox(
+          width: isMobile ? constraints.maxWidth : tableWidth.clamp(600.0, double.infinity),
+          child: PaginatedDataTable(
+            columnSpacing: 12,
+            horizontalMargin: 12,
+            headingRowHeight: 56,
+            dataRowHeight: 72,
+            header: Text('Liste des $role${role.endsWith('s') ? '' : 's'}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            rowsPerPage: filteredUsers.length > 5
+                ? 5
+                : (filteredUsers.isEmpty ? 1 : filteredUsers.length),
+            columns: columns,
+            source: _UserDataTableSource(
+              data: filteredUsers,
+              role: role,
+              onStatusToggle: _showConfirmationDialog,
+              onViewDetails: _showUserModal,
+              onValidate: _showDocumentValidationModal,
+              onManageBusiness: (user) {
+                final idUser = user['id_user'] as int?;
 
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChangeNotifierProvider(
-                          create: (ctx) => BusinessDataProvider(
-                            authProvider: ctx.read<AuthProvider>(),
-                            overrideBusinessId: idUser,
-                          ),
-                          child: BusinessMainScreen(idBusiness: idUser),
-                        ),
+                if (idUser == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('ID user introuvable')),
+                  );
+                  return;
+                }
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangeNotifierProvider(
+                      create: (ctx) => BusinessDataProvider(
+                        authProvider: ctx.read<AuthProvider>(),
+                        overrideBusinessId: idUser,
                       ),
-                    );
-                  },
-                ),
-              ),
+                      child: BusinessMainScreen(idBusiness: idUser),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
 }
 
 class _DocumentImageViewer extends StatefulWidget {

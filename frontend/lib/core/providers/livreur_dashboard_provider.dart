@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:app/data/models/commande_supabase_model.dart';
-import 'package:app/core/providers/auth_provider.dart';
+import '../../data/models/commande_supabase_model.dart';
+import 'auth_provider.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:app/data/models/gains_model.dart' as app_models;
+import '../../data/models/gains_model.dart' as app_models;
 
 class LivreurDashboardProvider extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;

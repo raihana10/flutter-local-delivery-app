@@ -1,11 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
 import '../../data/models/business_model.dart';
-import 'package:app/core/services/image_upload_service.dart';
+import '../services/image_upload_service.dart';
 
 class ProductProvider with ChangeNotifier {
   final _supabase = Supabase.instance.client;
@@ -130,7 +130,7 @@ class ProductProvider with ChangeNotifier {
     try {
       final response = await _supabase
           .from('produit')
-          .select('*')
+          .select('*, promotion(*)')
           .eq('id_business', businessId);
 
       _businessProducts = (response as List).map((json) => Produit.fromJson(json)).toList();
@@ -169,11 +169,14 @@ class ProductProvider with ChangeNotifier {
 
   // --- Business Specific Methods ---
 
-  Future<String?> uploadImage(File file) async {
+  Future<String?> uploadImage(XFile file) async {
     _isLoading = true;
     notifyListeners();
     try {
       final url = await _imageService.uploadProductImage(file);
+      if (url == null) {
+        throw Exception("L'upload de l'image a échoué. Vérifiez que le bucket 'alae' existe et est public dans Supabase.");
+      }
       return url;
     } finally {
       _isLoading = false;
@@ -204,10 +207,23 @@ class ProductProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _supabase
+      final json = produit.toJson();
+      final id = json.remove('id_produit'); // Remove PK from body for cleaner update
+
+      print('DEBUG: Updating product ID: $id');
+      print('DEBUG: Product Payload: $json');
+
+      final response = await _supabase
           .from('produit')
-          .update(produit.toJson())
-          .eq('id_produit', produit.id);
+          .update(json)
+          .eq('id_produit', id)
+          .select();
+      
+      if (response == null || (response as List).isEmpty) {
+        throw Exception("Aucune ligne modifiée. Vérifiez que l'ID produit ($id) est correct.");
+      }
+
+      print('DEBUG: Update successful, response: ${response.first}');
       await fetchProductsByBusiness(produit.idBusiness);
       return true;
     } catch (e) {
@@ -277,6 +293,7 @@ class ProductProvider with ChangeNotifier {
       }
     } else if (extension == 'xlsx' || extension == 'xls') {
       final bytes = file.readAsBytesSync();
+      final String filePath = 'prod_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final excel = Excel.decodeBytes(bytes);
       for (final table in excel.tables.keys) {
         final sheet = excel.tables[table];

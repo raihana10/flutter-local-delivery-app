@@ -163,14 +163,31 @@ class BusinessNotificationsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 14)),
-                    Text(time, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11)),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 14),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      time,
+                      style: const TextStyle(color: AppColors.mutedForeground, fontSize: 11),
+                      textAlign: TextAlign.end,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(message, style: TextStyle(color: isUnread ? AppColors.forest : AppColors.mutedForeground, fontSize: 13, height: 1.4)),
+                Text(
+                  message,
+                  style: TextStyle(color: isUnread ? AppColors.forest : AppColors.mutedForeground, fontSize: 13, height: 1.4),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
               ],
             ),
           ),

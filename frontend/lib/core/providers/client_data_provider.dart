@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/client_api_service.dart';
 import 'auth_provider.dart';
@@ -9,6 +10,7 @@ class ClientDataProvider extends ChangeNotifier {
 
   ClientDataProvider({required this.authProvider}) {
     apiService = ClientApiService(authProvider);
+    _loadPaymentPreference();
   }
 
   bool isLoading = false;
@@ -56,15 +58,56 @@ class ClientDataProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get filteredPharmacies => _filterByCity(pharmacies);
   List<Map<String, dynamic>> get filteredSuperMarkets => _filterByCity(superMarkets);
   
+  List<Map<String, dynamic>> get allRestaurants => restaurants;
+  List<Map<String, dynamic>> get allPharmacies => pharmacies;
+  List<Map<String, dynamic>> get allSuperMarkets => superMarkets;
+  
+  double deliveryFeeRate = 1.5;
+  
   Map<String, dynamic>? profile;
   List<dynamic> addresses = [];
   List<dynamic> orders = [];
   List<dynamic> notifications = [];
   List<dynamic> paymentMethods = [];
+
+  String? _preferredPaymentMethod;
+  String get preferredPaymentMethod => _preferredPaymentMethod ?? 'cash';
+
+  Future<void> _loadPaymentPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    _preferredPaymentMethod = prefs.getString('preferred_payment_method') ?? 'cash';
+    notifyListeners();
+  }
   List<dynamic> favorites = [];
 
   // Cart Data
   List<Map<String, dynamic>> cartItems = [];
+
+  // Tracks the business whose products are in the cart (used for distance calculation)
+  Map<String, dynamic>? _currentCartBusiness;
+
+  void setCurrentBusiness(Map<String, dynamic>? business) {
+    _currentCartBusiness = business;
+    notifyListeners();
+  }
+
+  bool get isCurrentBusinessOpen {
+    return _currentCartBusiness?['is_open'] == true;
+  }
+
+
+  /// Returns the primary address map {latitude, longitude} of the business in the cart, or null.
+  Map<String, dynamic>? get businessAddress {
+    final appUser = _currentCartBusiness?['app_user'] ?? {};
+    final userAddresses = appUser['user_adresse'] as List<dynamic>? ?? [];
+    if (userAddresses.isEmpty) return null;
+    final primary = userAddresses.firstWhere(
+      (ua) => ua['is_default'] == true,
+      orElse: () => userAddresses.first,
+    );
+    return primary['adresse'] as Map<String, dynamic>?;
+  }
+
 
   void addToCart(Map<String, dynamic> item) {
     cartItems.add(item);
@@ -112,7 +155,8 @@ class ClientDataProvider extends ChangeNotifier {
       fetchAddresses(),
       fetchNotifications(),
       fetchPaymentMethods(),
-      fetchFavorites()
+      fetchFavorites(),
+      _fetchAppConfigs()
     ]);
     _setLoading(false);
   }
@@ -180,6 +224,27 @@ class ClientDataProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  int get unreadNotificationsCount {
+    return notifications.where((n) => n['est_lu'] == false).length;
+  }
+
+  Future<void> _fetchAppConfigs() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final config = await supabase
+          .from('app_config')
+          .select('valeur')
+          .eq('cle', 'prix_par_km')
+          .maybeSingle();
+      if (config != null && config['valeur'] != null) {
+        deliveryFeeRate = double.tryParse(config['valeur'].toString()) ?? 1.5;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching app_config: $e');
+    }
+  }
+
   Future<void> fetchPaymentMethods() async {
     paymentMethods = await apiService.getPaymentMethods();
     notifyListeners();
@@ -198,8 +263,21 @@ class ClientDataProvider extends ChangeNotifier {
   }
 
   Future<bool> setDefaultPaymentMethod(String id) async {
+    if (id == 'cash') {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('preferred_payment_method', 'cash');
+      _preferredPaymentMethod = 'cash';
+      notifyListeners();
+      return true;
+    }
+
     final success = await apiService.setDefaultPaymentMethod(id);
-    if (success) await fetchPaymentMethods();
+    if (success) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('preferred_payment_method', 'card');
+      _preferredPaymentMethod = 'card';
+      await fetchPaymentMethods();
+    }
     return success;
   }
 

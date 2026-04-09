@@ -1,4 +1,4 @@
-import 'package:app/data/models/commande_model.dart';
+import 'commande_model.dart';
 import 'package:geolocator/geolocator.dart';
 
 class CommandeSupabaseModel extends CommandeModel {

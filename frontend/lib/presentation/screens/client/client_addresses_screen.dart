@@ -86,7 +86,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         addressRelation['id_adresse'].toString(); // the linked address
 
     // We don't have titles in the DB model currently, but we could infer by default status
-    final title = isDefault ? 'Adresse Principale' : 'Adresse';
+    final title = addressRelation['titre'] ?? (isDefault ? 'Adresse Principale' : 'Adresse');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -123,9 +123,12 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         ),
         title: Row(
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (isDefault) ...[
               const SizedBox(width: 8),
@@ -147,7 +150,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
-            ville,
+            addressModel['details'] ?? ville,
             style:
                 const TextStyle(color: AppColors.mutedForeground, height: 1.4),
           ),
@@ -163,6 +166,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Adresse principale mise à jour')));
               }
+            } else if (value == 'edit') {
+              _showEditTitleDialog(idAddress, title);
             } else if (value == 'delete') {
               final success = await context
                   .read<ClientDataProvider>()
@@ -174,6 +179,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
             }
           },
           itemBuilder: (context) => [
+            const PopupMenuItem(
+                value: 'edit', child: Text('Renommer le titre')),
             if (!isDefault)
               const PopupMenuItem(
                   value: 'default', child: Text('Définir par défaut')),
@@ -188,26 +195,76 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     );
   }
 
+  void _showEditTitleDialog(String addressId, String currentTitle) {
+    final titleController = TextEditingController(text: currentTitle);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text('Renommer le titre', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.foreground)),
+        content: TextField(
+          controller: titleController,
+          decoration: InputDecoration(
+            hintText: 'Nouveau titre',
+            filled: true,
+            fillColor: AppColors.card,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              titleController.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Annuler', style: TextStyle(color: AppColors.mutedForeground)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              final newTitle = titleController.text.trim();
+              if (newTitle.isNotEmpty) {
+                final success = await context.read<ClientDataProvider>().updateAddress(addressId, {'titre': newTitle});
+                if (mounted && success) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Titre mis à jour')));
+                  Navigator.pop(context);
+                }
+              }
+              titleController.dispose();
+            },
+            child: const Text('Enregistrer', style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddAddressBottomSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return const _AddAddressBottomSheet();
+        return const AddAddressBottomSheet();
       },
     );
   }
 }
 
-class _AddAddressBottomSheet extends StatefulWidget {
-  const _AddAddressBottomSheet();
+class AddAddressBottomSheet extends StatefulWidget {
+  final Future<bool> Function(Map<String, dynamic> data)? onSave;
+
+  const AddAddressBottomSheet({super.key, this.onSave});
 
   @override
-  State<_AddAddressBottomSheet> createState() => _AddAddressBottomSheetState();
+  State<AddAddressBottomSheet> createState() => AddAddressBottomSheetState();
 }
 
-class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
+class AddAddressBottomSheetState extends State<AddAddressBottomSheet> {
   final _titleController = TextEditingController();
   final _villeController = TextEditingController();
   final _addressController = TextEditingController();
@@ -237,14 +294,13 @@ class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
 
         final addressData = await _locationService.getAddressFromCoordinates(_latitude!, _longitude!);
         if (addressData != null && addressData['address'] != null) {
-          final address = addressData['address'];
+          final address = addressData['address'] ?? {};
           final city = address['city'] ?? address['town'] ?? address['village'] ?? address['state'] ?? 'Inconnue';
-          final road = address['road'] ?? '';
-          final num = address['house_number'] ?? '';
+          final displayName = addressData['display_name'] ?? '';
           
           setState(() {
             _villeController.text = city;
-            _addressController.text = '$num $road'.trim();
+            _addressController.text = displayName;
             if (_titleController.text.isEmpty) {
               _titleController.text = 'Position actuelle';
             }
@@ -268,13 +324,23 @@ class _AddAddressBottomSheetState extends State<_AddAddressBottomSheet> {
     }
 
     setState(() => _isSaving = true);
-    final success = await context.read<ClientDataProvider>().addAddress({
+    
+    final payload = {
       'titre': _titleController.text.isEmpty ? 'Adresse' : _titleController.text,
+      'details': _addressController.text.trim(),
       'ville': _villeController.text,
       'latitude': _latitude,
       'longitude': _longitude,
       'is_default': false,
-    });
+    };
+
+    bool success;
+    if (widget.onSave != null) {
+      success = await widget.onSave!(payload);
+    } else {
+      success = await context.read<ClientDataProvider>().addAddress(payload);
+    }
+
     setState(() => _isSaving = false);
 
     if (mounted) {

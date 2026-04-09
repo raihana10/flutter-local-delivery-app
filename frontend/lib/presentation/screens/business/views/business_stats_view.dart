@@ -21,7 +21,7 @@ class BusinessStatsView extends StatelessWidget {
 
     final stats = provider.stats;
     final totalRevenu = stats['revenus_totaux']?.toString() ?? '0';
-    final totalCommandes = stats['total_commandes']?.toString() ?? '0';
+    final totalCommandes = stats['nb_commandes']?.toString() ?? '0';
     final topProduits = stats['top_produits'] as List<dynamic>? ?? [];
     
     final chartDataRaw = stats['chart_data'] as List<dynamic>? ?? [0, 0, 0, 0, 0, 0, 0];

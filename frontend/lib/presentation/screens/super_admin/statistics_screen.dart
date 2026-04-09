@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:app/core/constants/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:app/data/datasources/super_admin_api_service.dart';
+import '../../../data/datasources/super_admin_api_service.dart';
 import 'package:csv/csv.dart';
-import 'package:app/core/utils/csv_export.dart';
+import '../../../core/utils/csv_export.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});

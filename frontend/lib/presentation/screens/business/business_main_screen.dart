@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:ui';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -7,15 +8,18 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_colors.dart';
-import 'package:app/core/providers/product_provider.dart';
-import 'package:app/data/models/business_model.dart';
-import 'package:app/core/providers/business_data_provider.dart';
+import '../../../core/providers/product_provider.dart';
+import '../../../data/models/business_model.dart';
+import '../../../core/providers/business_data_provider.dart';
+import '../../../core/providers/auth_provider.dart';
+
 import '../../widgets/product_image_placeholder.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import 'views/business_stats_view.dart';
 import 'views/business_notifications_view.dart';
@@ -173,29 +177,51 @@ class _BusinessMainScreenState extends State<BusinessMainScreen> {
   }
 }
 
+// ============ UTILS ============
+String _formatTimeAgo(DateTime? date) {
+  if (date == null) return '';
+  final diff = DateTime.now().difference(date);
+  if (diff.inMinutes < 60) {
+    return '${diff.inMinutes} min';
+  } else if (diff.inHours < 24) {
+    return '${diff.inHours} h';
+  } else {
+    return '${diff.inDays} j';
+  }
+}
+
 // ============ DASHBOARD VIEW ============
-class _DashboardView extends StatelessWidget {
+class _DashboardView extends StatefulWidget {
   final Function(BusinessScreen, {int? index, int? orderId}) onNavigate;
 
   const _DashboardView({
     required this.onNavigate,
+    super.key,
   });
+
+  @override
+  State<_DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<_DashboardView> {
+  bool _isSwitching = false;
 
   @override
   Widget build(BuildContext context) {
     final businessData = context.watch<BusinessDataProvider>();
+    
     final stats = businessData.stats;
     final profile = businessData.profile;
     
-    // Filter orders: less than 24h and NOT delivered
+    final allOrders = (stats['recent_orders'] ?? stats['commandes_recentes'] ?? []) as List<dynamic>;
+    
+    // Filter orders: last 24h & not delivered
     final now = DateTime.now();
-    final ordersList = businessData.orders.where((o) {
+    final ordersList = allOrders.where((o) {
       final createdAt = DateTime.tryParse(o['created_at'].toString());
       final statut = o['statut_commande'] as String? ?? '';
-      
       if (createdAt == null) return false;
       final diff = now.difference(createdAt);
-      
       return diff.inHours < 24 && statut != 'livree';
     }).toList();
 
@@ -203,10 +229,10 @@ class _DashboardView extends StatelessWidget {
     final businessType = profile['type_business'] ?? 'Type de Business';
 
     final revenus = stats['revenus_totaux']?.toString() ?? '0';
-    final nbCommandes = businessData.orders.length.toString();
+    final nbCommandes = allOrders.length.toString();
     final rating = stats['note_moyenne']?.toString() ?? '4.8';
     
-    final isOpen = profile['is_open'] == true;
+    final bool isOpen = profile['is_open'] == true;
 
     return Stack(
       children: [
@@ -260,8 +286,13 @@ class _DashboardView extends StatelessWidget {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        businessData.updateProfile({'is_open': !isOpen});
+                      onTap: _isSwitching ? null : () async {
+                        setState(() => _isSwitching = true);
+                        final success = await businessData.updateProfile({'is_open': !isOpen});
+                        setState(() => _isSwitching = false);
+                        if (!success && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erreur lors de la mise à jour.')));
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -272,26 +303,96 @@ class _DashboardView extends StatelessWidget {
                               : Colors.white.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(
-                          isOpen ? 'Ouvert' : 'Fermé',
-                          style: TextStyle(
-                            color: isOpen ? AppColors.forest : Colors.white60,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isSwitching 
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: AppColors.forest, strokeWidth: 2))
+                            : Text(
+                                isOpen ? 'Ouvert' : 'Fermé',
+                                style: TextStyle(
+                                  color: isOpen ? AppColors.forest : Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => onNavigate(BusinessScreen.notifications),
+                      onTap: () => widget.onNavigate(BusinessScreen.notifications),
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(LucideIcons.bell,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Icon(LucideIcons.bell,
+                                color: Colors.white, size: 20),
+                            if (businessData.unreadNotificationsCount > 0)
+                              Positioned(
+                                top: -6,
+                                right: -6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                  child: Text(
+                                    '${businessData.unreadNotificationsCount}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        if (value == 'profile') {
+                          widget.onNavigate(BusinessScreen.profile);
+                        } else if (value == 'logout') {
+                          await context.read<AuthProvider>().logout();
+                          if (context.mounted) {
+                            Navigator.of(context).pushReplacementNamed('/');
+                          }
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'profile',
+                          child: Row(
+                            children: [
+                              Icon(LucideIcons.user,
+                                  color: AppColors.forest, size: 20),
+                              SizedBox(width: 8),
+                              Text('Profil'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(Icons.logout, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('Déconnexion'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.more_vert,
                             color: Colors.white, size: 20),
                       ),
                     ),
@@ -313,52 +414,14 @@ class _DashboardView extends StatelessWidget {
                     _buildKPI('Note', '$rating ⭐', LucideIcons.star),
                   ],
                 ),
-              ),
-
-              // New Orders Header
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Nouvelles commandes',
-                      style: TextStyle(
-                          color: AppColors.forest, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(width: 8),
-                    _PulseIndicator(),
-                  ],
-                ),
-              ),
-
-              // Orders List
+              ),              // Orders List
               if (ordersList.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                   child: Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: AppColors.warmWhite,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(LucideIcons.packageOpen, color: AppColors.mutedForeground, size: 48),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          "Aucune commande pour l'instant.",
-                          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Ajoutez plus de produits pour mettre votre business en avant et attirer davantage de clients !",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.mutedForeground, fontSize: 13),
-                        ),
-                      ],
+                    child: Text(
+                      "Aucune commande active.",
+                      style: TextStyle(color: AppColors.mutedForeground),
                     ),
                   ),
                 )
@@ -370,63 +433,7 @@ class _DashboardView extends StatelessWidget {
                   itemCount: ordersList.length,
                   itemBuilder: (context, index) {
                     final o = ordersList[index];
-                    final commandeId = o['id_commande'];
-                    final statut = o['statut_commande'] as String? ?? '';
-                    final timeAgo = _formatTimeAgo(
-                        DateTime.tryParse(o['created_at'].toString()));
-                    return GestureDetector(
-                      onTap: () {
-                        onNavigate(BusinessScreen.orderDetail,
-                            orderId: commandeId);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: AppColors.cardShadow,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text('#$commandeId',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.forest)),
-                                    const SizedBox(width: 8),
-                                    Text('${o['client_name']} • $statut',
-                                        style: const TextStyle(
-                                            color: AppColors.mutedForeground,
-                                            fontSize: 12)),
-                                  ],
-                                ),
-                                Text(timeAgo,
-                                    style: const TextStyle(
-                                        color: AppColors.gold,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12)),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text('${o['items']} articles • ${o['total']} MAD',
-                                style: const TextStyle(
-                                    color: AppColors.mutedForeground,
-                                    fontSize: 12)),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: _buildStatusButtons(
-                                  context, commandeId, statut),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                    return _buildOrderCard(o);
                   },
                 ),
             ],
@@ -435,102 +442,88 @@ class _DashboardView extends StatelessWidget {
       ],
     );
   }
-}
 
-String _formatTimeAgo(DateTime? date) {
-  if (date == null) return '';
-  final diff = DateTime.now().difference(date);
-  if (diff.inMinutes < 60) {
-    return '${diff.inMinutes} min';
-  } else if (diff.inHours < 24) {
-    return '${diff.inHours} h';
-  } else {
-    return '${diff.inDays} j';
+  List<Widget> _buildStatusButtons(int commandeId, String statut) {
+    final provider = context.read<BusinessDataProvider>();
+    if (statut == 'confirmee') {
+      return [
+        _buildOrderButton('Commande prête (Préparée)', AppColors.forest, Colors.white, () {
+          provider.updateOrderStatus(commandeId.toString(), 'preparee');
+        }),
+      ];
+    } else if (statut == 'preparee') {
+      return [
+        _buildOrderButton('En attente du livreur', Colors.grey.shade200, Colors.grey.shade700, null),
+      ];
+    } else if (statut == 'en_livraison') {
+      return [
+        _buildOrderButton('En cours de livraison', AppColors.amber, Colors.white, null),
+      ];
+    } else if (statut == 'livree') {
+      return [
+        _buildOrderButton('Livrée', AppColors.sage, Colors.white, null),
+      ];
+    } else {
+      return [
+        Expanded(
+            child: Text(statut.toUpperCase(),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.mutedForeground,
+                    fontSize: 12))),
+      ];
+    }
   }
-}
 
-List<Widget> _buildStatusButtons(
-    BuildContext context, int commandeId, String statut) {
-  final provider = context.read<BusinessDataProvider>();
-  if (statut == 'confirmee') {
-    return [
-      _buildOrderButton('Commande prête (Préparée)', AppColors.forest, Colors.white, () {
-        provider.updateOrderStatus(commandeId, 'preparee');
-      }),
-    ];
-  } else if (statut == 'preparee') {
-    return [
-      _buildOrderButton('En attente du livreur', Colors.grey.shade200, Colors.grey.shade700, null),
-    ];
-  } else if (statut == 'en_livraison') {
-    return [
-      _buildOrderButton('En cours de livraison', AppColors.amber, Colors.white, null),
-    ];
-  } else if (statut == 'livree') {
-    return [
-      _buildOrderButton('Livrée', AppColors.sage, Colors.white, null),
-    ];
-  } else {
-    return [
-      Expanded(
-          child: Text(statut.toUpperCase(),
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.mutedForeground,
-                  fontSize: 12))),
-    ];
-  }
-}
-
-Widget _buildKPI(String label, String value, IconData icon) {
-  return Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppColors.cardShadow,
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.gold, size: 18),
-          const SizedBox(height: 4),
-          Text(value,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: AppColors.forest)),
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.mutedForeground, fontSize: 10)),
-        ],
-      ),
-    ),
-  );
-}
-
-Widget _buildOrderButton(
-    String text, Color bg, Color textCol, VoidCallback? onTap) {
-  return Expanded(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+  Widget _buildKPI(String label, String value, IconData icon) {
+    return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: AppColors.cardShadow,
         ),
-        alignment: Alignment.center,
-        child: Text(
-          text,
-          style: TextStyle(
-              color: textCol, fontWeight: FontWeight.bold, fontSize: 12),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.gold, size: 18),
+            const SizedBox(height: 4),
+            Text(value,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppColors.forest)),
+            Text(label,
+                style: const TextStyle(
+                    color: AppColors.mutedForeground, fontSize: 10)),
+          ],
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+  Widget _buildOrderButton(
+      String text, Color bg, Color textCol, VoidCallback? onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(
+                color: textCol, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildNavButton(String text, VoidCallback onTap) {
     return Expanded(
@@ -553,6 +546,48 @@ Widget _buildOrderButton(
       ),
     );
   }
+
+  Widget _buildOrderCard(dynamic o) {
+    final commandeId = o['id_commande'];
+    final statut = o['statut_commande'] as String? ?? '';
+    final timeAgo = _formatTimeAgo(DateTime.tryParse(o['created_at'].toString()));
+    
+    final clientName = o['client_nom'] ?? o['client_name'] ?? 'Client #$commandeId';
+    final itemsCount = o['items'] ?? o['nb_articles'] ?? '1+';
+    final total = o['prix_total'] ?? o['total'] ?? 0.0;
+    
+    return GestureDetector(
+      onTap: () => widget.onNavigate(BusinessScreen.orderDetail, orderId: commandeId),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: AppColors.cardShadow),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text('#$commandeId', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.forest)),
+                    const SizedBox(width: 8),
+                    Text(clientName, style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+                  ],
+                ),
+                Text(timeAgo, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('$itemsCount articles • $total MAD', style: const TextStyle(color: AppColors.mutedForeground, fontSize: 12)),
+            const SizedBox(height: 12),
+            Row(children: _buildStatusButtons(commandeId, statut)),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ============ CATALOG VIEW ============
 class _CatalogView extends StatelessWidget {
@@ -712,22 +747,48 @@ class _CatalogView extends StatelessWidget {
                                 child: Stack(
                                   children: [
                                     item.image != null && item.image!.startsWith('http')
-                                        ? CachedNetworkImage(
-                                            imageUrl: item.image!,
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) => Shimmer.fromColors(
-                                              baseColor: Colors.grey[300]!,
-                                              highlightColor: Colors.grey[100]!,
-                                              child: Container(color: Colors.white),
-                                            ),
-                                            errorWidget: (context, url, error) => ProductImagePlaceholder(
-                                              type: item.type,
-                                              borderRadius: BorderRadius.zero,
-                                            ),
+                                        ? Stack(
+                                            children: [
+                                              // Blurred background for vertical images
+                                              Positioned.fill(
+                                                child: CachedNetworkImage(
+                                                  imageUrl: item.image!,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                              Positioned.fill(
+                                                child: BackdropFilter(
+                                                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                                  child: Container(color: Colors.white.withOpacity(0.2)),
+                                                ),
+                                              ),
+                                              // Clear foreground image
+                                              Center(
+                                                child: CachedNetworkImage(
+                                                  imageUrl: item.image!,
+                                                  fit: BoxFit.contain,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                  placeholder: (context, url) => Shimmer.fromColors(
+                                                    baseColor: Colors.grey[300]!,
+                                                    highlightColor: Colors.grey[100]!,
+                                                    child: Container(color: Colors.white),
+                                                  ),
+                                                  errorWidget: (context, url, error) => ProductImagePlaceholder(
+                                                    type: item.type,
+                                                    borderRadius: BorderRadius.zero,
+                                                    width: double.infinity,
+                                                    height: double.infinity,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           )
                                         : ProductImagePlaceholder(
                                             type: item.type,
                                             borderRadius: BorderRadius.zero,
+                                            width: double.infinity,
+                                            height: double.infinity,
                                           ),
                                     if (!isAvailable)
                                       Positioned(
@@ -1046,14 +1107,14 @@ class _AddProductViewState extends State<_AddProductView> {
   final _priceController = TextEditingController();
   String _category = 'meal';
   bool _isDispo = true;
-  File? _selectedImage;
+  XFile? _selectedImage;
   bool _isUploading = false;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+      setState(() => _selectedImage = pickedFile);
     }
   }
 
@@ -1115,7 +1176,9 @@ class _AddProductViewState extends State<_AddProductView> {
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: _selectedImage != null
-                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              ? (kIsWeb 
+                                  ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                                  : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
                               : Container(
                                   color: AppColors.warmWhite,
                                   child: Icon(LucideIcons.image, 
@@ -1338,6 +1401,9 @@ class _EditProductViewState extends State<_EditProductView> {
   late TextEditingController _priceController;
   late bool _isDispo;
   late String _category;
+  XFile? _selectedImage;
+  String? _currentImageUrl;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -1351,15 +1417,11 @@ class _EditProductViewState extends State<_EditProductView> {
     _currentImageUrl = p.image;
   }
 
-  File? _selectedImage;
-  String? _currentImageUrl;
-  bool _isUploading = false;
-
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+      setState(() => _selectedImage = pickedFile);
     }
   }
 
@@ -1421,7 +1483,9 @@ class _EditProductViewState extends State<_EditProductView> {
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: _selectedImage != null
-                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              ? (kIsWeb 
+                                  ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                                  : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
                               : (_currentImageUrl != null
                                   ? CachedNetworkImage(
                                       imageUrl: _currentImageUrl!,
@@ -1654,7 +1718,7 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
     if (widget.orderId != null) {
       await context
           .read<BusinessDataProvider>()
-          .updateOrderStatus(widget.orderId!, newStatus);
+          .updateOrderStatus(widget.orderId!.toString(), newStatus);
       _fetchDetails();
     }
   }
@@ -1952,6 +2016,68 @@ class _OrderDetailViewState extends State<_OrderDetailView> {
 
                 const SizedBox(height: 20),
 
+                // Price Summary
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppColors.cardShadow),
+                  child: Builder(builder: (context) {
+                    final subTotal = lines.fold<double>(
+                      0.0,
+                      (sum, l) => sum + ((l['total_ligne'] as num?)?.toDouble() ?? 0.0),
+                    );
+                    final totalDouble = double.tryParse(total) ?? 0.0;
+                    final deliveryFee = totalDouble - subTotal;
+
+                    return Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Sous-total',
+                                style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
+                            Text('${subTotal.toStringAsFixed(1)} MAD',
+                                style: const TextStyle(color: AppColors.forest, fontSize: 13)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Frais de livraison',
+                                style: TextStyle(color: AppColors.mutedForeground, fontSize: 13)),
+                            Text('${deliveryFee.toStringAsFixed(2)} MAD',
+                                style: const TextStyle(color: AppColors.forest, fontSize: 13)),
+                          ],
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(color: AppColors.border),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppColors.forest)),
+                            Text('$total MAD',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppColors.gold)),
+                          ],
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 20),
+
                 // Action Buttons based on status
                 if (statut == 'confirmee') ...[
                   Row(
@@ -2069,7 +2195,7 @@ class _HistoryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final businessData = context.watch<BusinessDataProvider>();
-    final ordersList = businessData.orders;
+    final ordersList = (businessData.stats['recent_orders'] ?? businessData.stats['commandes_recentes'] ?? []) as List<dynamic>;
 
     return Column(
       children: [
@@ -2150,11 +2276,11 @@ class _HistoryView extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('#$commandeId - ${o['client_name']}',
+                                  Text('#$commandeId - ${o['client_nom'] ?? o['client_name'] ?? 'Client'}',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: AppColors.forest)),
-                                  Text('${o['total']} MAD • $statut',
+                                  Text('${o['prix_total'] ?? o['total'] ?? 0} MAD • $statut',
                                       style: const TextStyle(
                                           color: AppColors.mutedForeground,
                                           fontSize: 12)),

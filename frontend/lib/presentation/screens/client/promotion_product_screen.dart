@@ -347,7 +347,7 @@ class _PromotionProductScreenState extends State<PromotionProductScreen>
                                           style: const TextStyle(
                                             fontSize: 24,
                                             fontWeight: FontWeight.w900,
-                                            color: AppColors.primary,
+                                            color: AppColors.destructive,
                                           ),
                                         ),
                                         const SizedBox(width: 10),

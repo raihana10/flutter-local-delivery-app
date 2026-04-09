@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
-import 'package:app/data/models/commande_supabase_model.dart';
+import '../../../data/models/commande_supabase_model.dart';
 import '../../../data/models/commande_model.dart';
 import 'commande_details_dialog.dart';
 

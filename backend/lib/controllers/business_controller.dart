@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:shelf/shelf.dart';
 import '../supabase/supabase_client.dart';
+import '../services/email_service.dart';
+import '../services/promotion_service.dart';
 
 class BusinessController {
   final Map<String, String> _headers = {'content-type': 'application/json'};
+  late final PromotionService _promotionService;
+
+  BusinessController({PromotionService? promotionService}) {
+    _promotionService = promotionService ?? PromotionService(emailService: EmailService.fromEnv());
+  }
 
   Future<Response> getBusinesses(Request request) async {
     try {
@@ -233,21 +241,61 @@ class BusinessController {
       final data = jsonDecode(body);
       final statut = data['statut'];
 
+      // Map status for compatibility (Postgres Enum expects 'preparee' for 'en_preparation')
+      String mappedStatut = statut?.toString() ?? '';
+      if (mappedStatut == 'en_preparation') mappedStatut = 'preparee';
+
+      // Use ONLY 'statut_commande' as the key (table doesn't have a 'statut' column)
       await SupabaseConfig.client
           .from('commande')
-          .update({'statut': statut, 'statut_commande': statut})
+          .update({'statut_commande': mappedStatut})
           .eq('id_commande', int.parse(cid));
 
-      await SupabaseConfig.client
-          .from('timeline')
-          .update({'statut_tmlne': statut})
-          .eq('id_commande', int.parse(cid));
+      // Attempt timeline update (non-fatal)
+      try {
+        await SupabaseConfig.client
+            .from('timeline')
+            .update({'statut_tmlne': mappedStatut})
+            .eq('id_commande', int.parse(cid));
+      } catch (e) {
+        print('Timeline update skipped: $e');
+      }
+
+      /*
+      // Notify Client (Commented out to prevent double notifications if processed by DB trigger)
+      try {
+        print('DEBUG: Notifying client for order $cid with status $statut');
+        final commandeData = await SupabaseConfig.client
+            .from('commande')
+            .select('id_client, client:id_client(id_user)')
+            .eq('id_commande', int.parse(cid))
+            .maybeSingle();
+
+        if (commandeData != null) {
+          final clientObj = commandeData['client'];
+          final idUser = clientObj != null ? clientObj['id_user'] : null;
+          if (idUser != null) {
+            String statusMsg = 'Votre commande N°$cid est passée au statut : $statut';
+            if (statut == 'confirmee') statusMsg = 'Votre commande N°$cid a été confirmée.';
+            if (statut == 'en_preparation' || statut == 'preparee') statusMsg = 'Le restaurant prépare votre commande N°$cid.';
+            if (statut == 'en_livraison') statusMsg = 'Votre commande N°$cid est en cours de livraison !';
+            if (statut == 'livree') statusMsg = 'Votre commande N°$cid a été livrée. Bon appétit !';
+            if (statut == 'annulee') statusMsg = 'Malheureusement, votre commande N°$cid a été annulée.';
+
+            await _createNotification(idUser, 'Mise à jour de commande', statusMsg, 'commande');
+          }
+        }
+      } catch (e) {
+        print('Error notifying client on status update: $e');
+      }
+      */
 
       return Response.ok(
         jsonEncode({'message': 'Updated successfully'}),
         headers: _headers,
       );
     } catch (e) {
+      print('updateCommandeStatut ERROR: $e');
       return Response(
         500,
         body: jsonEncode({'error': e.toString()}),
@@ -320,17 +368,129 @@ class BusinessController {
 
   Future<Response> createPromotion(Request request, String id) async {
     try {
+      print('🔴 START: createPromotion appelé pour business $id');
+      stdout.flush(); // Force flush
+      
       final body = await request.readAsString();
       final data = jsonDecode(body);
 
+      print('📦 Données reçues: $data');
+      stdout.flush();
+
+      // 1. Insérer la promotion (select simple — pas de join complexe)
       final result = await SupabaseConfig.client
           .from('promotion')
           .insert(data)
-          .select()
+          .select('*')
           .single();
+
+      print('✅ PROMOTION CRÉÉE: ID=${result['id_promotion']}');
+      stdout.flush();
+
+      // 2. Récupérer le nom du produit et du business séparément
+      String businessName = 'Un commerce';
+      String productName = 'un produit';
+      try {
+        final produit = await SupabaseConfig.client
+            .from('produit')
+            .select('nom_produit, business(app_user:id_user(nom))')
+            .eq('id_produit', result['id_produit'])
+            .maybeSingle();
+        if (produit != null) {
+          productName = produit['nom_produit'] ?? 'un produit';
+          businessName = produit['business']?['app_user']?['nom'] ?? 'Un commerce';
+        }
+      } catch (e) {
+        print('⚠️ Impossible de récupérer nom produit/business: $e');
+      }
+
+      // 3. Envoyer la notification SEULEMENT aux clients qui ont ce business en FAVORIS
+      try {
+        final remise = result['pourcentage'] ?? 0;
+        final titre = 'Nouvelle Promotion !';
+        final message = '$businessName propose -$remise% sur $productName';
+
+        print('📢 NOTIFICATION PROMO: $message');
+
+        // Récupérer d'abord le id_business du produit
+        int businessId = 0;
+        try {
+          final produitData = await SupabaseConfig.client
+              .from('produit')
+              .select('id_business')
+              .eq('id_produit', result['id_produit'])
+              .maybeSingle();
+          
+          if (produitData != null) {
+            businessId = produitData['id_business'] as int;
+            print('🏪 Business ID: $businessId');
+          }
+        } catch (e) {
+          print('⚠️ Impossible de récupérer le business: $e');
+          return Response.ok(jsonEncode({'data': result}), headers: _headers);
+        }
+
+        // Récupérer les clients qui ont ce business en favoris
+        final favorisClients = await SupabaseConfig.client
+            .from('favoris')
+            .select('id_client')
+            .eq('id_business', businessId)
+            .isFilter('deleted_at', null);
+
+        final favorisClientIds = (favorisClients as List)
+            .map((fav) => fav['id_client'] as int)
+            .toList();
+
+        print('❤️ ${favorisClientIds.length} clients avec ce business en favoris');
+
+        if (favorisClientIds.isEmpty) {
+          print('ℹ️ Aucun client en favoris pour ce business');
+          return Response.ok(jsonEncode({'data': result}), headers: _headers);
+        }
+
+        // Récupérer les id_user correspondants depuis la table client
+        final clientUsers = await SupabaseConfig.client
+            .from('client')
+            .select('id_client, id_user')
+            .inFilter('id_client', favorisClientIds);
+
+        // Créer une notification pour chaque client
+        int notified = 0;
+        for (var clientEntry in clientUsers) {
+          try {
+            final idUser = clientEntry['id_user'] as int;
+            await _createNotification(idUser, titre, message, 'promotion');
+            notified++;
+          } catch (e) {
+            print('⚠️ Erreur notification client: $e');
+          }
+        }
+
+        print('✅ PROMOTION NOTIFIÉE À $notified CLIENTS EN FAVORIS');
+
+        // 4. BONUS: Envoyer aussi des emails aux clients favoris
+        try {
+          final clientEmails = await _promotionService.getClientsEmailsForBusiness(businessId);
+          if (clientEmails.isNotEmpty) {
+            print('📧 Envoi des emails de promotion à ${clientEmails.length} clients...');
+            await _promotionService.sendPromotionEmail(
+              businessName: businessName,
+              productName: productName,
+              discount: remise.toDouble(),
+              clientEmails: clientEmails,
+            );
+          }
+        } catch (emailError) {
+          print('⚠️ Erreur envoi emails (non-bloquant): $emailError');
+        }
+      } catch (notifError, stackTrace) {
+        print('❌ ERREUR NOTIFICATION PROMO: $notifError');
+        print('📋 Stack trace: $stackTrace');
+      }
 
       return Response.ok(jsonEncode({'data': result}), headers: _headers);
     } catch (e) {
+      print('❌ ERREUR CRÉATION PROMOTION: $e');
       return Response(
         500,
         body: jsonEncode({'error': e.toString()}),
@@ -494,6 +654,44 @@ class BusinessController {
       print('BUSINESS STATS ERROR: $e');
       return Response(500,
           body: jsonEncode({'error': e.toString()}), headers: _headers);
+    }
+  }
+
+  Future<void> _createNotification(dynamic idUser, String titre, String message, String type) async {
+    try {
+      print('📝 Création notification: titre=$titre, user=$idUser, type=$type');
+      
+      // Étape 1: Créer la notification
+      final notif = await SupabaseConfig.client
+          .from('notification')
+          .insert({
+            'titre': titre,
+            'message': message,
+            'type': type,
+          })
+          .select()
+          .single();
+
+      print('✅ Notification créée: id_not=${notif['id_not']}');
+
+      // Étape 2: Créer la liaison user_notification
+      final idNot = notif['id_not'];
+      if (idNot == null) {
+        throw Exception('❌ id_not est null après insertion');
+      }
+
+      await SupabaseConfig.client.from('user_notification').insert({
+        'id_user': idUser,
+        'id_not': idNot,
+        'est_lu': false,
+      });
+
+      print('✅ Liaison user_notification créée: user=$idUser, not=$idNot');
+    } catch (e) {
+      print('❌ ERREUR CRÉATION NOTIFICATION: $e');
+      print('📋 Stack trace:');
+      print(e);
+      rethrow; // Relancer l'erreur pour mieux la voir
     }
   }
 }
