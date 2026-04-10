@@ -4,7 +4,8 @@ import '../../core/providers/auth_provider.dart';
 
 class ClientApiService {
   static const String baseUrl =
-      String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+      //String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
+  String.fromEnvironment('API_URL', defaultValue: 'http://127.0.0.1:8084');
   final Dio _dio = Dio();
   final AuthProvider authProvider;
 
