@@ -26,69 +26,106 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   }
 
   Future<void> _loadData() async {
-    final res = await _api.getCommissions();
-    
-    // ✅ Récupérer uniquement les livreurs
-    final livreursRes = await _api.getLivreurs();
+    try {
+      final res = await _api.getCommissions();
+      final livreursRes = await _api.getLivreurs();
 
-    if (mounted) {
-      setState(() {
-        _totalApp = (res['revenus_app_total'] ?? 0).toDouble();
-        _totalLivreurs = (res['revenus_livreurs_total'] ?? 0).toDouble();
-        _totalBusinesses = (res['revenus_businesses_total'] ?? 0).toDouble();
-        _details = res['detail'] ?? [];
-        
-        // ✅ Dédupliquer par id_user
-        final seen = <int>{};
-        _livreurs = livreursRes.where((l) {
-          final id = l['id_user'] as int?;
-          if (id == null || seen.contains(id)) return false;
-          seen.add(id);
-          return true;
-        }).toList();
-        
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _totalApp = (res['revenus_app_total'] ?? 0).toDouble();
+          _totalLivreurs = (res['revenus_livreurs_total'] ?? 0).toDouble();
+          _totalBusinesses = (res['revenus_businesses_total'] ?? 0).toDouble();
+          _details = res['detail'] ?? [];
+          
+          final seen = <int>{};
+          _livreurs = livreursRes.where((l) {
+            final id = l['id_user'] as int?;
+            if (id == null || seen.contains(id)) return false;
+            seen.add(id);
+            return true;
+          }).toList();
+          
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur de chargement: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 900;
+
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 600;
-
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Paiements & Commissions',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: isMobile ? 20 : 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 24),
-              isMobile
-                  ? _buildMobileSummaryCards()
-                  : _buildDesktopSummaryCards(),
-              const SizedBox(height: 32),
-              const Text(
+              SizedBox(height: isMobile ? 16 : 24),
+              
+              // Cartes de résumé
+              if (isMobile)
+                _buildMobileSummaryCards()
+              else if (isTablet)
+                _buildTabletSummaryCards()
+              else
+                _buildDesktopSummaryCards(),
+              
+              SizedBox(height: isMobile ? 24 : 32),
+              
+              // Section détails
+              Text(
                 'Détail par commande',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: isMobile ? 16 : 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 16),
-              isMobile
-                  ? _buildMobilePaymentList()
-                  : _buildDesktopPaymentTable(),
-              const SizedBox(height: 32),
-              const Text(
+              SizedBox(height: isMobile ? 12 : 16),
+              
+              if (isMobile)
+                _buildMobilePaymentList()
+              else
+                _buildDesktopPaymentTable(),
+              
+              SizedBox(height: isMobile ? 24 : 32),
+              
+              // Section livreurs
+              Text(
                 'Gains par livreur',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: isMobile ? 16 : 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 16),
-              _buildLivreurList(),
+              SizedBox(height: isMobile ? 12 : 16),
+              _buildLivreurList(isMobile: isMobile),
             ],
           ),
         );
@@ -101,23 +138,64 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       children: [
         _buildSummaryCard(
           'Total revenus app',
-          '$_totalApp MAD',
+          _formatAmount(_totalApp),
           LucideIcons.coins,
           AppColors.accent,
+          isMobile: true,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildSummaryCard(
           'Total versé livreurs',
-          '$_totalLivreurs MAD',
+          _formatAmount(_totalLivreurs),
           LucideIcons.truck,
           AppColors.secondary,
+          isMobile: true,
+        ),
+        const SizedBox(height: 12),
+        _buildSummaryCard(
+          'Total versé businesses',
+          _formatAmount(_totalBusinesses),
+          LucideIcons.store,
+          AppColors.primary,
+          isMobile: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabletSummaryCards() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Total revenus app',
+                _formatAmount(_totalApp),
+                LucideIcons.coins,
+                AppColors.accent,
+                isMobile: false,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Total versé livreurs',
+                _formatAmount(_totalLivreurs),
+                LucideIcons.truck,
+                AppColors.secondary,
+                isMobile: false,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         _buildSummaryCard(
           'Total versé businesses',
-          '$_totalBusinesses MAD',
+          _formatAmount(_totalBusinesses),
           LucideIcons.store,
           AppColors.primary,
+          isMobile: false,
         ),
       ],
     );
@@ -129,27 +207,30 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         Expanded(
           child: _buildSummaryCard(
             'Total revenus app',
-            '$_totalApp MAD',
+            _formatAmount(_totalApp),
             LucideIcons.coins,
             AppColors.accent,
+            isMobile: false,
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: _buildSummaryCard(
             'Total versé livreurs',
-            '$_totalLivreurs MAD',
+            _formatAmount(_totalLivreurs),
             LucideIcons.truck,
             AppColors.secondary,
+            isMobile: false,
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: _buildSummaryCard(
             'Total versé businesses',
-            '$_totalBusinesses MAD',
+            _formatAmount(_totalBusinesses),
             LucideIcons.store,
             AppColors.primary,
+            isMobile: false,
           ),
         ),
       ],
@@ -158,7 +239,28 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
   Widget _buildMobilePaymentList() {
     if (_details.isEmpty) {
-      return const Center(child: Text('Aucune donnée disponible'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            children: [
+              Icon(
+                Icons.receipt_long,
+                size: 48,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Aucune transaction',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -176,38 +278,125 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // En-tête avec ID et montant total
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '#${comm['id_commande']}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '#${comm['id_commande']}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                     Text(
-                      '${pdxTotal.toStringAsFixed(2)} MAD',
+                      _formatAmount(pdxTotal),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 18,
                         color: AppColors.primary,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildPaymentDetailRow('Distance', '${dist.toStringAsFixed(2)} km'),
-                _buildPaymentDetailRow('Frais livraison', '${fraisLiv.toStringAsFixed(2)} MAD'),
-                const Divider(),
-                _buildPaymentDetailRow('Business (75%)', '${sBus.toStringAsFixed(2)} MAD', color: Colors.blue),
-                _buildPaymentDetailRow('Livreur (85%)', '${sLivr.toStringAsFixed(2)} MAD', color: Colors.orange),
-                _buildPaymentDetailRow('App (25%+15%)', '${app.toStringAsFixed(2)} MAD', color: Colors.green, bold: true),
+                
+                // Info ligne 1
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.straighten,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Distance',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${dist.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                
+                // Info ligne 2
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_shipping,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Frais livraison',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      _formatAmount(fraisLiv),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const Divider(height: 20),
+                
+                // Détail des commissions
+                _buildCompactPaymentRow('Business (75%)', sBus, color: Colors.blue),
+                const SizedBox(height: 4),
+                _buildCompactPaymentRow('Livreur (85%)', sLivr, color: Colors.orange),
+                const SizedBox(height: 4),
+                _buildCompactPaymentRow(
+                  'App (25%+15%)',
+                  app,
+                  color: Colors.green,
+                  bold: true,
+                ),
               ],
             ),
           ),
@@ -216,112 +405,205 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  Widget _buildPaymentDetailRow(String label, String value, {Color? color, bool bold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.mutedForeground,
-            ),
+  Widget _buildCompactPaymentRow(String label, double value, {Color? color, bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.mutedForeground,
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              color: color ?? AppColors.foreground,
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-            ),
+        ),
+        Text(
+          _formatAmount(value),
+          style: TextStyle(
+            fontSize: 13,
+            color: color ?? AppColors.foreground,
+            fontWeight: bold ? FontWeight.bold : FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildDesktopPaymentTable() {
-    return SizedBox(
-      width: double.infinity,
-      child: PaginatedDataTable(
-        rowsPerPage: _details.length > 5 ? 5 : (_details.isEmpty ? 1 : _details.length),
-        columns: const [
-          DataColumn(
-            label: Text('#ID', style: TextStyle(fontWeight: FontWeight.bold)),
+    if (_details.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            children: [
+              Icon(
+                Icons.receipt_long,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Aucune transaction',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
-          DataColumn(
-            label: Text('Distance (km)', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 2,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: 900, // Largeur minimale pour le tableau
+          child: PaginatedDataTable(
+            rowsPerPage: _details.length > 10 ? 10 : (_details.isEmpty ? 1 : _details.length),
+            columns: const [
+              DataColumn(
+                label: Text('#ID', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              DataColumn(
+                label: Text('Distance', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              DataColumn(
+                label: Text('Produits', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              DataColumn(
+                label: Text('Livraison', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              DataColumn(
+                label: Text('Business', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              DataColumn(
+                label: Text('Livreur', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              DataColumn(
+                label: Text('App', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+            source: _PaymentDataTableSource(data: _details),
+            columnSpacing: 20,
+            horizontalMargin: 16,
+            headingRowHeight: 56,
           ),
-          DataColumn(
-            label: Text('Prix produits', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-            label: Text('Frais livraison', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-            label: Text('Business(×75%)', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-            label: Text('Livreur(×85%)', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          DataColumn(
-            label: Text('App(25%+15%)', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-        source: _PaymentDataTableSource(data: _details),
+        ),
       ),
     );
   }
 
-  Widget _buildLivreurList() {
-    if (_livreurs.isEmpty) return const Text('Aucun livreur trouvé.');
+  Widget _buildLivreurList({required bool isMobile}) {
+    if (_livreurs.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Text(
+            'Aucun livreur trouvé',
+            style: TextStyle(
+              fontSize: isMobile ? 14 : 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      );
+    }
+    
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _livreurs.length,
       itemBuilder: (ctx, i) {
         final liv = _livreurs[i];
-        return _LivreurListItem(livreur: liv, api: _api);
+        return _LivreurListItem(
+          livreur: liv,
+          api: _api,
+          isMobile: isMobile,
+        );
       },
     );
   }
 
   Widget _buildSummaryCard(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color, {
+    required bool isMobile,
+  }) {
     return Card(
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: color, size: 28),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: isMobile ? 20 : 24,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: Text(title,
-                        style: const TextStyle(
-                            fontSize: 14, color: AppColors.mutedForeground))),
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: isMobile ? 13 : 14,
+                      color: AppColors.mutedForeground,
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            SizedBox(height: isMobile ? 12 : 16),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: isMobile ? 20 : 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatAmount(double amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(2)}M MAD';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}k MAD';
+    }
+    return '${amount.toStringAsFixed(2)} MAD';
   }
 }
 
 class _LivreurListItem extends StatefulWidget {
   final dynamic livreur;
   final SuperAdminApiService api;
-  const _LivreurListItem({required this.livreur, required this.api});
+  final bool isMobile;
+  
+  const _LivreurListItem({
+    required this.livreur,
+    required this.api,
+    required this.isMobile,
+  });
 
   @override
   State<_LivreurListItem> createState() => _LivreurListItemState();
@@ -339,51 +621,156 @@ class _LivreurListItemState extends State<_LivreurListItem> {
   }
 
   Future<void> _loadGains() async {
-    final livreurData = widget.livreur['livreur'];
-    final idLivreur = livreurData is List && livreurData.isNotEmpty
-        ? livreurData[0]['id_livreur']
-        : (livreurData is Map ? livreurData['id_livreur'] : null);
+    try {
+      final livreurData = widget.livreur['livreur'];
+      final idLivreur = livreurData is List && livreurData.isNotEmpty
+          ? livreurData[0]['id_livreur']
+          : (livreurData is Map ? livreurData['id_livreur'] : null);
 
-    if (idLivreur == null) {
-      if (mounted) {
-        setState(() { _gains = 0; _nbCourses = 0; _loading = false; });
+      if (idLivreur == null) {
+        if (mounted) {
+          setState(() {
+            _gains = 0;
+            _nbCourses = 0;
+            _loading = false;
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    // idLivreur should be an int or parsed to int
-    final parsedId = idLivreur is int ? idLivreur : int.tryParse(idLivreur.toString()) ?? 0;
-
-    final res = await widget.api.getLivreurGains(parsedId);
-    if (mounted) {
-      setState(() {
-        _gains = (res['total_gains'] ?? 0).toDouble();
-        _nbCourses = (res['nb_courses'] ?? 0) as int;
-        _loading = false;
-      });
+      final parsedId = idLivreur is int ? idLivreur : int.tryParse(idLivreur.toString()) ?? 0;
+      final res = await widget.api.getLivreurGains(parsedId);
+      
+      if (mounted) {
+        setState(() {
+          _gains = (res['total_gains'] ?? 0).toDouble();
+          _nbCourses = (res['nb_courses'] ?? 0) as int;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  String _formatGains(double amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}k';
+    }
+    return amount.toStringAsFixed(0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = widget.isMobile;
+    
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(child: Icon(LucideIcons.truck)),
-        title: Text(widget.livreur['nom'] ?? 'Inconnu'),
-        subtitle: _loading 
-            ? const Text('Chargement...')
-            : Text('$_nbCourses courses'),
-        trailing: _loading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            : Text('$_gains MAD',
-                style: const TextStyle(
+      margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 16,
+          vertical: isMobile ? 8 : 12,
+        ),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: isMobile ? 40 : 48,
+              height: isMobile ? 40 : 48,
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                LucideIcons.truck,
+                size: isMobile ? 20 : 24,
+                color: AppColors.secondary,
+              ),
+            ),
+            SizedBox(width: isMobile ? 12 : 16),
+            
+            // Infos
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.livreur['nom'] ?? 'Inconnu',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? 14 : 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  if (_loading)
+                    SizedBox(
+                      height: 12,
+                      width: 60,
+                      child: LinearProgressIndicator(
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary.withOpacity(0.5),
+                        ),
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.delivery_dining,
+                          size: isMobile ? 12 : 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$_nbCourses course${_nbCourses > 1 ? 's' : ''}',
+                          style: TextStyle(
+                            fontSize: isMobile ? 12 : 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            
+            // Gains
+            if (_loading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 12,
+                  vertical: isMobile ? 4 : 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+                ),
+                child: Text(
+                  '${_formatGains(_gains)} MAD',
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.green)),
+                    fontSize: isMobile ? 13 : 14,
+                    color: Colors.green[700],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -391,41 +778,70 @@ class _LivreurListItemState extends State<_LivreurListItem> {
 
 class _PaymentDataTableSource extends DataTableSource {
   final List<dynamic> data;
+  
   _PaymentDataTableSource({required this.data});
+
+  String _formatCompact(double amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}k';
+    }
+    return amount.toStringAsFixed(2);
+  }
 
   @override
   DataRow? getRow(int index) {
     if (index >= data.length) return null;
+    
     final comm = data[index];
-    final app = (comm['revenus_app'] ?? 0).toDouble().toStringAsFixed(2);
-    final sLivr = (comm['revenus_livreur'] ?? 0).toDouble().toStringAsFixed(2);
-    final sBus = (comm['revenus_business'] ?? 0).toDouble().toStringAsFixed(2);
-    final pdxTotal = (comm['prix_total'] ?? 0).toDouble().toStringAsFixed(2);
-    final fraisLiv =
-        (comm['frais_livraison'] ?? 0).toDouble().toStringAsFixed(2);
-    final dist = (comm['distance_km'] ?? 0).toDouble().toStringAsFixed(2);
+    final app = (comm['revenus_app'] ?? 0).toDouble();
+    final sLivr = (comm['revenus_livreur'] ?? 0).toDouble();
+    final sBus = (comm['revenus_business'] ?? 0).toDouble();
+    final pdxTotal = (comm['prix_total'] ?? 0).toDouble();
+    final fraisLiv = (comm['frais_livraison'] ?? 0).toDouble();
+    final dist = (comm['distance_km'] ?? 0).toDouble();
 
     return DataRow(
       cells: [
-        DataCell(Text('#${comm['id_commande']}',
-            style: const TextStyle(fontWeight: FontWeight.bold))),
-        DataCell(Text('$dist km')),
-        DataCell(Text('$pdxTotal MAD')),
-        DataCell(Text('$fraisLiv MAD')),
-        DataCell(Text('$sBus MAD', style: const TextStyle(color: Colors.blue))),
         DataCell(
-            Text('$sLivr MAD', style: const TextStyle(color: Colors.orange))),
-        DataCell(Text('$app MAD',
+          Text(
+            '#${comm['id_commande']}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataCell(Text('${dist.toStringAsFixed(1)} km')),
+        DataCell(Text('${_formatCompact(pdxTotal)} MAD')),
+        DataCell(Text('${_formatCompact(fraisLiv)} MAD')),
+        DataCell(
+          Text(
+            '${_formatCompact(sBus)} MAD',
+            style: const TextStyle(color: Colors.blue),
+          ),
+        ),
+        DataCell(
+          Text(
+            '${_formatCompact(sLivr)} MAD',
+            style: const TextStyle(color: Colors.orange),
+          ),
+        ),
+        DataCell(
+          Text(
+            '${_formatCompact(app)} MAD',
             style: const TextStyle(
-                color: Colors.green, fontWeight: FontWeight.bold))),
+              color: Colors.green,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ],
     );
   }
 
   @override
   bool get isRowCountApproximate => false;
+  
   @override
   int get rowCount => data.length;
+  
   @override
   int get selectedRowCount => 0;
 }

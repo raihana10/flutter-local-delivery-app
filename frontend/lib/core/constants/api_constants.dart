@@ -6,7 +6,7 @@ class ApiConstants {
   // --- Base URL ---
   // TODO: Remplacer par l'URL réelle du backend Node.js
   static const String baseUrl =
-      'http://192.168.100.10:8084/api'; // Updated for physical device
+      'http://localhost:8084/api'; // Updated for local development
 
   // --- Endpoints Livreur ---
   static const String livreurStatus =

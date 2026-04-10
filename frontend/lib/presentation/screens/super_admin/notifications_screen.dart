@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/datasources/super_admin_api_service.dart';
 
@@ -44,35 +45,74 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _sendNotification() async {
     if (_formKey.currentState!.validate()) {
       try {
-        final success = await _apiService.sendNotification({
-          'titre': _titleController.text,
-          'message': _messageController.text,
-          'type': _selectedRole,
-        });
+        // Step 1: Create notification in notification table
+        final notif = await Supabase.instance.client
+            .from('notification')
+            .insert({
+              'titre': _titleController.text,
+              'message': _messageController.text,
+              'type': _selectedRole,
+              'date': DateTime.now().toIso8601String(),
+            })
+            .select()
+            .single();
 
-        if (success) {
-          _titleController.clear();
-          _messageController.clear();
-          await _loadNotifs();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Notification envoyée avec succès au groupe : $_selectedRole'),
-                backgroundColor: Colors.green,
-              ),
-            );
+        print('✅ Notification créée: ID=${notif['id_not']}');
+
+        // Step 2: Link to users via user_notification
+        var query = Supabase.instance.client.from('app_user').select('id_user');
+        
+        if (_selectedRole == 'Clients') {
+          query = query.eq('role', 'client');
+        } else if (_selectedRole == 'Livreurs') {
+          query = query.eq('role', 'livreur');
+        } else if (_selectedRole == 'Commerce') {
+          query = query.eq('role', 'business');
+        }
+        
+        final targetUsers = await query;
+        print('👥 Utilisateurs ciblés: ${targetUsers.length}');
+        
+        if (targetUsers.isNotEmpty) {
+          final insertData = targetUsers.map((u) => <String, dynamic>{
+            'id_user': u['id_user'],
+            'id_not': notif['id_not'],
+            'est_lu': false,
+          }).toList();
+          
+          print('💾 Insertion de ${insertData.length} liens user_notification');
+          try {
+            await Supabase.instance.client.from('user_notification').insert(insertData);
+            print('✅ Insertion multiple réussie');
+          } catch (e) {
+            print('❌ Erreur insertion multiple: $e');
+            // Réessayer une par une
+            for (final data in insertData) {
+              try {
+                await Supabase.instance.client.from('user_notification').insert(data);
+              } catch (e2) {
+                print('❌ Erreur insertion individuelle pour user ${data['id_user']}: $e2');
+              }
+            }
           }
         } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Erreur lors de l\'envoi de la notification'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          print('⚠️ Aucun utilisateur trouvé pour le type: $_selectedRole');
+        }
+
+        _titleController.clear();
+        _messageController.clear();
+        await _loadNotifs();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Notification envoyée avec succès au groupe : $_selectedRole (${targetUsers.length} utilisateurs)'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       } catch (e) {
+        print('❌ Erreur envoi notification: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
