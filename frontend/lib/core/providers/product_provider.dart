@@ -274,7 +274,10 @@ class ProductProvider with ChangeNotifier {
     if (extension == 'csv') {
       try {
         final input = file.readAsStringSync();
-        final rows = const CsvToListConverter().convert(input);
+        String delimiter = ',';
+        if (input.split('\n').first.contains(';')) delimiter = ';';
+        
+        final rows = CsvToListConverter(fieldDelimiter: delimiter).convert(input);
         for (var i = 1; i < rows.length; i++) {
           if (rows[i].length >= 2) {
             items.add(Produit(

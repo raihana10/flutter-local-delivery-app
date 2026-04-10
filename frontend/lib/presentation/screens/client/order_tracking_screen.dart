@@ -210,31 +210,45 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         LatLng? riderLatLng;
         Map<String, dynamic>? livreurData;
 
-        final tlRaw = data['timeline'];
-        Map<String, dynamic>? tl;
-        if (tlRaw is List && tlRaw.isNotEmpty) {
-          final found = tlRaw.firstWhere(
-            (t) => t['position_order'] != null,
-            orElse: () => tlRaw.first
-          );
-          if (found != null) tl = Map<String, dynamic>.from(found);
-        } else if (tlRaw is Map) {
-          tl = Map<String, dynamic>.from(tlRaw);
-        }
+        // Force a robust distinct fetch for timeline to bypass limited join arrays
+        try {
+          final tlRes = await supabase
+              .from('timeline')
+              .select('id_livreur, position_order, statut_tmlne, livreur(app_user(nom, num_tl))')
+              .eq('id_commande', orderId)
+              .order('id_timeline', ascending: false)
+              .limit(1);
 
-        if (tl != null) {
-          final pos = tl['position_order'];
-          if (pos is Map) {
-            debugPrint('TRACKER: Raw position_order from DB: $pos');
-            final lat = double.tryParse(pos['latitude']?.toString() ?? '');
-            final lng = double.tryParse(pos['longitude']?.toString() ?? '');
-            if (lat != null && lng != null && lat != 0 && lng != 0) {
-              riderLatLng = LatLng(lat, lng);
-              debugPrint('TRACKER: New rider location parsed: $riderLatLng');
+          if (tlRes.isNotEmpty) {
+            final tl = tlRes.first;
+            final pos = tl['position_order'];
+            if (pos is Map) {
+              debugPrint('TRACKER: Raw position_order from DB: $pos');
+              final lat = double.tryParse(pos['latitude']?.toString() ?? '');
+              final lng = double.tryParse(pos['longitude']?.toString() ?? '');
+              if (lat != null && lng != null && lat != 0 && lng != 0) {
+                riderLatLng = LatLng(lat, lng);
+                debugPrint('TRACKER: New rider location parsed: $riderLatLng');
+              }
+            }
+            
+            final livRaw = tl['livreur'];
+            if (livRaw is Map) {
+              livreurData = Map<String, dynamic>.from(livRaw);
+            } else if (tl['id_livreur'] != null) {
+              // Manual fallback if the join didn't work natively due to RLS depth limits
+              final fallbackLiv = await supabase
+                  .from('livreur')
+                  .select('app_user(nom, num_tl)')
+                  .eq('id_livreur', tl['id_livreur'])
+                  .maybeSingle();
+              if (fallbackLiv != null) {
+                livreurData = fallbackLiv;
+              }
             }
           }
-          final livRaw = tl['livreur'];
-          if (livRaw is Map) livreurData = Map<String, dynamic>.from(livRaw);
+        } catch (e) {
+          debugPrint('TRACKER: Timeline fetch error: $e');
         }
 
         // --- IMPROVED FALLBACK LOGIC ---
