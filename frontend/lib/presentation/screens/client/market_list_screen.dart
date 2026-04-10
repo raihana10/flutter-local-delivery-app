@@ -1293,7 +1293,7 @@ class _MarketListScreenState extends State<MarketListScreen>
 
                             Consumer<ClientDataProvider>(
                               builder: (context, provider, _) {
-                                final isFav = provider.favoriteBusinessIds.contains(idBusiness);
+                                final isFav = provider.isFavoriteBusiness(idBusiness);
                                 return GestureDetector(
                                   onTap: () {
                                     provider.toggleFavorite(idBusiness);
