@@ -2,7 +2,7 @@ class ApiConstants {
   // --- Mode développement ---
   // Mettre à false quand le backend est prêt
   static const bool useMockData = true;
-
+  //'http://192.168.100.10:8084/api'; // Updated for physical device
   // --- Base URL ---
   // TODO: Remplacer par l'URL réelle du backend Node.js
   static const String baseUrl =
