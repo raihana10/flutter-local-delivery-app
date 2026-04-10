@@ -53,7 +53,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         if (success) {
           _titleController.clear();
           _messageController.clear();
-          // Rafraîchir la liste des notifications
           await _loadNotifs();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -88,62 +87,98 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 800;
+    final isTablet = screenWidth >= 600 && screenWidth < 800;
 
-    return SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Centre de Notifications',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(screenWidth < 600 ? 16.0 : 24.0),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
             ),
-            const SizedBox(height: 24),
-            if (isDesktop)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 1, child: _buildSendForm()),
-                  const SizedBox(width: 24),
-                  Expanded(flex: 2, child: _buildHistoryLog()),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  _buildSendForm(),
-                  const SizedBox(height: 24),
-                  _buildHistoryLog(),
-                ],
-              )
-          ],
-        ));
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Centre de Notifications',
+                  style: TextStyle(
+                    fontSize: screenWidth < 600 ? 20 : 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: screenWidth < 600 ? 16 : 24),
+                if (isDesktop)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 1, child: _buildSendForm(isDesktop: true)),
+                      SizedBox(width: screenWidth < 600 ? 16 : 24),
+                      Expanded(flex: 2, child: _buildHistoryLog()),
+                    ],
+                  )
+                else if (isTablet)
+                  Column(
+                    children: [
+                      _buildSendForm(isDesktop: false),
+                      SizedBox(height: 24),
+                      _buildHistoryLog(),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      _buildSendForm(isDesktop: false),
+                      SizedBox(height: 16),
+                      _buildHistoryLog(),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  Widget _buildSendForm() {
+  Widget _buildSendForm({required bool isDesktop}) {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Envoyer une nouvelle notification',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 24),
-              const Text('Cible',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'Envoyer une nouvelle notification',
+                style: TextStyle(
+                  fontSize: isDesktop ? 18 : 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: isDesktop ? 24 : 16),
+              Text(
+                'Cible',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isDesktop ? 16 : 14,
+                ),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _selectedRole,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 16 : 12,
+                    vertical: isDesktop ? 12 : 10,
+                  ),
                 ),
                 items: ['Tous', 'Clients', 'Livreurs', 'Commerce']
                     .map((String value) {
@@ -156,38 +191,74 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   setState(() => _selectedRole = newValue!);
                 },
               ),
-              const SizedBox(height: 16),
-              const Text('Titre',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: isDesktop ? 16 : 12),
+              Text(
+                'Titre',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isDesktop ? 16 : 14,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
                   hintText: 'Ex: Nouvelle mise à jour !',
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 16 : 12,
+                    vertical: isDesktop ? 12 : 10,
+                  ),
                 ),
                 validator: (v) => v!.isEmpty ? 'Titre requis' : null,
               ),
-              const SizedBox(height: 16),
-              const Text('Message',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: isDesktop ? 16 : 12),
+              Text(
+                'Message',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isDesktop ? 16 : 14,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _messageController,
-                maxLines: 4,
+                maxLines: isDesktop ? 4 : 3,
                 decoration: InputDecoration(
                   hintText: 'Votre message ici...',
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 16 : 12,
+                    vertical: isDesktop ? 12 : 10,
+                  ),
                 ),
                 validator: (v) => v!.isEmpty ? 'Message requis' : null,
               ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                icon: const Icon(LucideIcons.send),
-                label: const Text('Envoyer Notification Push'),
-                onPressed: _sendNotification,
+              SizedBox(height: isDesktop ? 24 : 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: Icon(
+                    LucideIcons.send,
+                    size: isDesktop ? 24 : 20,
+                  ),
+                  label: Text(
+                    'Envoyer Notification Push',
+                    style: TextStyle(
+                      fontSize: isDesktop ? 16 : 14,
+                    ),
+                  ),
+                  onPressed: _sendNotification,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      vertical: isDesktop ? 16 : 12,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -196,17 +267,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildHistoryLog() {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Historique des Envois & Alertes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
+Widget _buildHistoryLog() {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isSmallScreen = screenWidth < 600;
+
+  return Card(
+    elevation: 2,
+    child: Padding(
+      padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Historique des Envois & Alertes',
+            style: TextStyle(
+              fontSize: isSmallScreen ? 16 : 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: isSmallScreen ? 16 : 24),
+          if (notifications.isEmpty)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 20 : 32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.notifications_off,
+                      size: isSmallScreen ? 48 : 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Aucune notification',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 14 : 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -214,34 +317,137 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               separatorBuilder: (context, index) => const Divider(),
               itemBuilder: (context, index) {
                 final notif = notifications[index];
-                final isAlert =
-                    notif['type'] == 'alert' || notif['type'] == 'warning';
+                final isAlert = notif['type'] == 'alert' || notif['type'] == 'warning';
+                
+                // Formater la date pour qu'elle soit plus courte
+                final dateString = _formatDate(notif['date']);
 
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: isAlert
-                        ? AppColors.destructive.withOpacity(0.1)
-                        : Colors.blue.withOpacity(0.1),
-                    child: Icon(
-                      isAlert
-                          ? Icons.warning_amber_rounded
-                          : Icons.notifications_none,
-                      color: isAlert ? AppColors.destructive : Colors.blue,
-                    ),
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Icône
+                      CircleAvatar(
+                        radius: isSmallScreen ? 20 : 24,
+                        backgroundColor: isAlert
+                            ? AppColors.destructive.withOpacity(0.1)
+                            : Colors.blue.withOpacity(0.1),
+                        child: Icon(
+                          isAlert
+                              ? Icons.warning_amber_rounded
+                              : Icons.notifications_none,
+                          size: isSmallScreen ? 20 : 24,
+                          color: isAlert ? AppColors.destructive : Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Contenu texte
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Titre et date sur la même ligne
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    notif['titre'],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isSmallScreen ? 14 : 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  dateString,
+                                  style: TextStyle(
+                                    fontSize: isSmallScreen ? 10 : 12,
+                                    color: AppColors.mutedForeground,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            // Message sur plusieurs lignes
+                            Text(
+                              notif['message'],
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 12 : 14,
+                                color: Colors.grey[700],
+                              ),
+                              maxLines: isSmallScreen ? 3 : 4,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            // Info supplémentaire : type de notification
+                            if (isSmallScreen)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isAlert
+                                        ? AppColors.destructive.withOpacity(0.1)
+                                        : Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    notif['type'] ?? 'info',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isAlert
+                                          ? AppColors.destructive
+                                          : Colors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  title: Text(notif['titre'],
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(notif['message']),
-                  trailing: Text(notif['date'],
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.mutedForeground)),
                 );
               },
-            )
-          ],
-        ),
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
+
+// Fonction pour formater la date de façon plus courte
+String _formatDate(String dateString) {
+  try {
+    final date = DateTime.parse(dateString);
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 365) {
+      return '${difference.inDays ~/ 365} an${difference.inDays ~/ 365 > 1 ? 's' : ''}';
+    } else if (difference.inDays > 30) {
+      return '${difference.inDays ~/ 30} mois';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}j';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
+    } else {
+      return 'À l\'instant';
+    }
+  } catch (e) {
+    // Si le parsing échoue, retourner la date brute ou la tronquer
+    if (dateString.length > 10) {
+      return dateString.substring(0, 10);
+    }
+    return dateString;
+  }
+} }

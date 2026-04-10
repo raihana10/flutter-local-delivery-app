@@ -41,12 +41,22 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
       _isLoading = true;
     });
 
+    print('[ADMIN LOGIN] Email: $email, API: http://localhost:8084');
+
     try {
-      final dio = Dio();
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+        ),
+      );
       // Replace localhost with your backend URL when deploying
       const apiUrl = String.fromEnvironment('API_URL',
-          defaultValue: 'http://192.168.100.10:8084');
+          defaultValue: 'http://localhost:8084');
 
+      print('[ADMIN LOGIN] Sending request to: $apiUrl/admin/login');
+      
       final response = await dio.post(
         '$apiUrl/admin/login',
         data: {
@@ -54,6 +64,9 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
           'password': password,
         },
       );
+
+      print('[ADMIN LOGIN] Response status: ${response.statusCode}');
+      print('[ADMIN LOGIN] Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -68,12 +81,43 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
             Navigator.of(context)
                 .pushReplacementNamed('/super_admin/dashboard');
           }
+        } else {
+          // Handle case where success is false but status is 200
+          String errorMessage = data['error'] ?? 'Identifiants invalides';
+          print('[ADMIN LOGIN] Login failed: $errorMessage');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorMessage)),
+            );
+          }
+        }
+      } else {
+        // Handle non-200 status codes
+        String errorMessage = 'Erreur serveur (${response.statusCode})';
+        if (response.data != null && response.data['error'] != null) {
+          errorMessage = response.data['error'];
+        }
+        print('[ADMIN LOGIN] Server error: $errorMessage');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
         }
       }
     } on DioException catch (e) {
       String errorMessage = 'Erreur de connexion';
+      print('[ADMIN LOGIN] DIO Exception: ${e.type}');
+      print('[ADMIN LOGIN] Status code: ${e.response?.statusCode}');
+      print('[ADMIN LOGIN] Response: ${e.response?.data}');
+      
       if (e.response != null && e.response?.data != null) {
         errorMessage = e.response?.data['error'] ?? errorMessage;
+      } else if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Délai de connexion dépassé';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Délai de réponse dépassé';
+      } else if (e.type == DioExceptionType.unknown) {
+        errorMessage = 'Erreur réseau: ${e.message}';
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,6 +125,7 @@ class _SuperAdminLoginScreenState extends State<SuperAdminLoginScreen> {
         );
       }
     } catch (e) {
+      print('[ADMIN LOGIN] Unexpected error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: ${e.toString()}')),
