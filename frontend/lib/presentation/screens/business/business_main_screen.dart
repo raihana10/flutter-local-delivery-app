@@ -1111,10 +1111,23 @@ class _AddProductViewState extends State<_AddProductView> {
   bool _isUploading = false;
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() => _selectedImage = pickedFile);
+    try {
+      if (kIsWeb || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+        );
+        if (result != null && result.files.single.path != null) {
+          setState(() => _selectedImage = XFile(result.files.single.path!));
+        }
+      } else {
+        final picker = ImagePicker();
+        final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+        if (pickedFile != null) {
+          setState(() => _selectedImage = pickedFile);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
     }
   }
 
@@ -1418,10 +1431,23 @@ class _EditProductViewState extends State<_EditProductView> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() => _selectedImage = pickedFile);
+    try {
+      if (kIsWeb || Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+        );
+        if (result != null && result.files.single.path != null) {
+          setState(() => _selectedImage = XFile(result.files.single.path!));
+        }
+      } else {
+        final picker = ImagePicker();
+        final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+        if (pickedFile != null) {
+          setState(() => _selectedImage = pickedFile);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
     }
   }
 
