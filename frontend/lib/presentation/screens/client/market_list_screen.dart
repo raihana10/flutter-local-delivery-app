@@ -538,15 +538,17 @@ class _MarketListScreenState extends State<MarketListScreen>
                                                         size: 16,
                                                       ),
                                                       const SizedBox(width: 6),
-                                                      Consumer<ClientDataProvider>(
-                                                        builder: (context, data, _) => Text(
-                                                          '${data.currentCity}, Maroc',
-                                                          style: TextStyle(
-                                                            color:
-                                                                AppColors.accent,
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w600,
+                                                      Flexible(
+                                                        child: Consumer<ClientDataProvider>(
+                                                          builder: (context, data, _) => Text(
+                                                            '${data.currentCity}, Maroc',
+                                                            style: const TextStyle(
+                                                              color: AppColors.accent,
+                                                              fontSize: 13,
+                                                              fontWeight: FontWeight.w600,
+                                                            ),
+                                                            overflow: TextOverflow.ellipsis,
+                                                            maxLines: 1,
                                                           ),
                                                         ),
                                                       ),
@@ -1289,6 +1291,25 @@ class _MarketListScreenState extends State<MarketListScreen>
                               ),
                             ),
 
+                            Consumer<ClientDataProvider>(
+                              builder: (context, provider, _) {
+                                final isFav = provider.favoriteBusinessIds.contains(idBusiness);
+                                return GestureDetector(
+                                  onTap: () {
+                                    provider.toggleFavorite(idBusiness);
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                    child: Icon(
+                                      isFav ? Icons.favorite : Icons.favorite_border,
+                                      color: isFav ? AppColors.destructive : AppColors.mutedForeground,
+                                      size: 20,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
@@ -1358,23 +1379,6 @@ class _MarketListScreenState extends State<MarketListScreen>
                                   color: AppColors.mutedForeground,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.gold.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                'Livraison 15 DH',
-                                style: TextStyle(
-                                  color: AppColors.gold,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ),
