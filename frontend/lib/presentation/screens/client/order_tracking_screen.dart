@@ -342,12 +342,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         if (points.length == 1) {
           _mapController.move(points.first, 15.0);
         } else {
-          double minLat = points.map((p) => p.latitude).reduce((a, b) => a < b ? a : b);
-          double maxLat = points.map((p) => p.latitude).reduce((a, b) => a > b ? a : b);
-          double minLng = points.map((p) => p.longitude).reduce((a, b) => a < b ? a : b);
-          double maxLng = points.map((p) => p.longitude).reduce((a, b) => a > b ? a : b);
-          
-          _mapController.move(LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2), 13.5);
+          final bounds = LatLngBounds.fromPoints(points);
+          _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)));
         }
       } catch (err) {
         debugPrint('MapController not ready yet: $err');
