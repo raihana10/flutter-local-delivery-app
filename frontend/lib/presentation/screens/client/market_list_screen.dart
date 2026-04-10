@@ -1293,7 +1293,7 @@ class _MarketListScreenState extends State<MarketListScreen>
 
                             Consumer<ClientDataProvider>(
                               builder: (context, provider, _) {
-                                final isFav = provider.favoriteBusinessIds.contains(idBusiness);
+                                final isFav = provider.isFavoriteBusiness(idBusiness.toString());
                                 return GestureDetector(
                                   onTap: () {
                                     provider.toggleFavorite(idBusiness);
@@ -1562,9 +1562,29 @@ class _MarketListScreenState extends State<MarketListScreen>
               ..._filteredRestaurants.asMap().entries.map((entry) {
                 final index = entry.key;
                 final res = entry.value;
-                if (res['latitude'] == null || res['longitude'] == null) return null;
+                final appUser = res['app_user'] ?? {};
+                final userAddresses = appUser['user_adresse'] as List<dynamic>? ?? [];
+                Map<String, dynamic>? primaryAddress;
+                if (userAddresses.isNotEmpty) {
+                  final primaryUa = userAddresses.firstWhere(
+                    (ua) => ua['is_default'] == true,
+                    orElse: () => userAddresses.first,
+                  );
+                  primaryAddress = primaryUa is Map ? primaryUa['adresse'] as Map<String, dynamic>? : null;
+                }
+                
+                final lat = primaryAddress?['latitude'];
+                final lng = primaryAddress?['longitude'];
+                
+                if (lat == null || lng == null) return null;
+                
+                final double latVal = lat is String ? double.tryParse(lat) ?? 0.0 : (lat as num).toDouble();
+                final double lngVal = lng is String ? double.tryParse(lng) ?? 0.0 : (lng as num).toDouble();
+                
+                if (latVal == 0.0 && lngVal == 0.0) return null;
+
                 return Marker(
-                  point: LatLng(res['latitude'] as double, res['longitude'] as double),
+                  point: LatLng(latVal, lngVal),
                   width: 50,
                   height: 50,
                   child: GestureDetector(

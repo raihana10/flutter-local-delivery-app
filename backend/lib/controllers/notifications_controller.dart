@@ -56,13 +56,16 @@ class NotificationsController {
       // Step 2: Link generically via user_notification
       if (idUser != null) {
         // Notification ciblée sur un utilisateur précis
+        print('📤 Insertion ciblée pour user_id: $idUser');
         await SupabaseConfig.client.from('user_notification').insert({
           'id_user': idUser,
           'id_not': notif['id_not'],
           'est_lu': false,
         });
+        print('✅ Insertion ciblée réussie');
       } else {
         // Envoi global à un ou plusieurs groupes (Tous, Clients, Livreurs, Commerce)
+        print('📤 Envoi global pour type: $type');
         var query = SupabaseConfig.client.from('app_user').select('id_user');
         
         if (type == 'Clients') {
@@ -74,6 +77,8 @@ class NotificationsController {
         }
         
         final targetUsers = await query;
+        print('👥 Utilisateurs ciblés: ${targetUsers.length}');
+        
         if (targetUsers.isNotEmpty) {
           final insertData = targetUsers.map((u) => <String, dynamic>{
             'id_user': u['id_user'],
@@ -81,7 +86,23 @@ class NotificationsController {
             'est_lu': false,
           }).toList();
           
-          await SupabaseConfig.client.from('user_notification').insert(insertData);
+          print('💾 Insertion de ${insertData.length} liens user_notification');
+          try {
+            await SupabaseConfig.client.from('user_notification').insert(insertData);
+            print('✅ Insertion multiple réussie');
+          } catch (e) {
+            print('❌ Erreur insertion multiple: $e');
+            // Réessayer une par une
+            for (final data in insertData) {
+              try {
+                await SupabaseConfig.client.from('user_notification').insert(data);
+              } catch (e2) {
+                print('❌ Erreur insertion individuelle pour user ${data['id_user']}: $e2');
+              }
+            }
+          }
+        } else {
+          print('⚠️ Aucun utilisateur trouvé pour le type: $type');
         }
       }
 

@@ -10,8 +10,7 @@ class SuperAdminApiService {
     if (u != null && u.trim().isNotEmpty) return u.trim();
     return const String.fromEnvironment(
       'API_URL',
-      //defaultValue: 'http://192.168.100.10:8084',
-      defaultValue: 'http://127.0.0.1:8084',
+      defaultValue: 'http://localhost:8084',
     );
   }
 
@@ -250,7 +249,7 @@ class SuperAdminApiService {
   Future<List<dynamic>> getAdminBusinesses() async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.get('$baseUrl/admin/business', options: options);
+      final res = await _dio.get('$baseUrl/business', options: options);
       return res.data['data'] as List<dynamic>;
     } catch (e) {
       return [];
@@ -261,7 +260,7 @@ class SuperAdminApiService {
     try {
       final options = await _getAuthOptions();
       final res =
-          await _dio.get('$baseUrl/admin/business/$id', options: options);
+          await _dio.get('$baseUrl/business/$id', options: options);
       return res.data['data'];
     } catch (e) {
       return {'error': e.toString()};
@@ -272,7 +271,7 @@ class SuperAdminApiService {
   Future<List<dynamic>> getBusinessProduits(int id) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.get('$baseUrl/admin/business/$id/produits',
+      final res = await _dio.get('$baseUrl/business/$id/produits',
           options: options);
       return res.data['data'] as List<dynamic>;
     } catch (e) {
@@ -284,7 +283,7 @@ class SuperAdminApiService {
       int id, Map<String, dynamic> data) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.post('$baseUrl/admin/business/$id/produits',
+      final res = await _dio.post('$baseUrl/business/$id/produits',
           data: data, options: options);
       return res.data;
     } catch (e) {
@@ -296,7 +295,7 @@ class SuperAdminApiService {
       int id, int pid, Map<String, dynamic> data) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.patch('$baseUrl/admin/business/$id/produits/$pid',
+      final res = await _dio.patch('$baseUrl/business/$id/produits/$pid',
           data: data, options: options);
       return res.data;
     } catch (e) {
@@ -307,7 +306,7 @@ class SuperAdminApiService {
   Future<Map<String, dynamic>> deleteProduit(int id, int pid) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.delete('$baseUrl/admin/business/$id/produits/$pid',
+      final res = await _dio.delete('$baseUrl/business/$id/produits/$pid',
           options: options);
       return res.data;
     } catch (e) {
@@ -325,7 +324,7 @@ class SuperAdminApiService {
           'Content-Type': 'text/plain',
         },
       );
-      final res = await _dio.post('$baseUrl/admin/business/$id/produits/import',
+      final res = await _dio.post('$baseUrl/business/$id/produits/import',
           data: csvContent, options: customOptions);
       return res.data;
     } catch (e) {
@@ -337,7 +336,7 @@ class SuperAdminApiService {
   Future<List<dynamic>> getBusinessCommandes(int id) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.get('$baseUrl/admin/business/$id/commandes',
+      final res = await _dio.get('$baseUrl/business/$id/commandes',
           options: options);
       return res.data['data'] as List<dynamic>;
     } catch (e) {
@@ -350,7 +349,7 @@ class SuperAdminApiService {
     try {
       final options = await _getAuthOptions();
       final res = await _dio.patch(
-          '$baseUrl/admin/business/$id/commandes/$cid/statut',
+          '$baseUrl/business/$id/commandes/$cid/statut',
           data: {'statut': statut},
           options: options);
       return res.data;
@@ -364,7 +363,7 @@ class SuperAdminApiService {
       int id, Map<String, dynamic> hours) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.patch('$baseUrl/admin/business/$id/hours',
+      final res = await _dio.patch('$baseUrl/business/$id/hours',
           data: hours, options: options);
       return res.data;
     } catch (e) {
@@ -376,7 +375,7 @@ class SuperAdminApiService {
   Future<List<dynamic>> getBusinessPromotions(int id) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.get('$baseUrl/admin/business/$id/promotions',
+      final res = await _dio.get('$baseUrl/business/$id/promotions',
           options: options);
       return res.data['data'] as List<dynamic>;
     } catch (e) {
@@ -388,7 +387,7 @@ class SuperAdminApiService {
       int id, Map<String, dynamic> data) async {
     try {
       final options = await _getAuthOptions();
-      final res = await _dio.post('$baseUrl/admin/business/$id/promotions',
+      final res = await _dio.post('$baseUrl/business/$id/promotions',
           data: data, options: options);
       return res.data;
     } catch (e) {
@@ -400,7 +399,7 @@ class SuperAdminApiService {
     try {
       final options = await _getAuthOptions();
       final res = await _dio.delete(
-          '$baseUrl/admin/business/$id/promotions/$pid',
+          '$baseUrl/business/$id/promotions/$pid',
           options: options);
       return res.data;
     } catch (e) {
@@ -413,7 +412,7 @@ class SuperAdminApiService {
     try {
       final options = await _getAuthOptions();
       final res =
-          await _dio.get('$baseUrl/admin/business/$id/stats', options: options);
+          await _dio.get('$baseUrl/business/$id/stats', options: options);
       return res.data['data'] as Map<String, dynamic>;
     } catch (e) {
       return {'error': e.toString()};

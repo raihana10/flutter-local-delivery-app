@@ -1,12 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-<<<<<<< HEAD
-export "FLUTTER_ROOT=C:\flutter"
-export "FLUTTER_APPLICATION_PATH=C:\Users\PC\flutter-local-delivery-app\frontend"
-=======
 export "FLUTTER_ROOT=/opt/homebrew/share/flutter"
 export "FLUTTER_APPLICATION_PATH=/Users/mac/Documents/livraison_app/frontend"
->>>>>>> 95a86ce197042d5969a5e46b210858817c68c88b
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_TARGET=/Users/mac/Documents/livraison_app/frontend/lib/main.dart"
 export "FLUTTER_BUILD_DIR=build"

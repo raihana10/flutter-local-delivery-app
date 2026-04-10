@@ -2,18 +2,23 @@ import 'package:dio/dio.dart';
 import '../../core/providers/auth_provider.dart';
 
 class BusinessApiService {
-  static const String baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://127.0.0.1:8084');
+  static const String baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8084');
   final Dio _dio = Dio();
   final AuthProvider authProvider;
   final int? overrideBusinessId;
+  int? resolvedBusinessId;
 
   BusinessApiService(this.authProvider, {this.overrideBusinessId});
 
+  void setResolvedBusinessId(int? id) {
+    resolvedBusinessId = id;
+  }
+
   Options _getAuthOptions() {
-    // We use the app_user ID (which is authProvider.user?.id) or override
-    final userId = overrideBusinessId ?? authProvider.user?.id;
+    // Prioriser l'ID business résolu, sinon utiliser l'override ou l'ID utilisateur
+    final businessId = resolvedBusinessId ?? overrideBusinessId ?? authProvider.user?.id;
     return Options(headers: {
-      if (userId != null) 'x-business-id': userId.toString(),
+      if (businessId != null) 'x-business-id': businessId.toString(),
       'Content-Type': 'application/json',
     });
   }

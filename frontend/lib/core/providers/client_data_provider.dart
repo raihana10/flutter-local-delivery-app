@@ -36,22 +36,38 @@ class ClientDataProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _normalizeString(String input) {
+    var withDia = 'ÀÁÂÃÄÅàáâãäåÒÓÔÕÖØòóôõöøÈÉÊËèéêëÇçÌÍÎÏìíîïÙÚÛÜùúûüÿÑñ';
+    var withoutDia = 'AAAAAAaaaaaaOOOOOOooooooEEEEeeeeCcIIIIiiiiUUUUuuuuyNn';
+    var output = input.toLowerCase().trim();
+    for (int i = 0; i < withDia.length; i++) {
+      output = output.replaceAll(withDia[i], withoutDia[i]);
+    }
+    return output;
+  }
+
   List<Map<String, dynamic>> _filterByCity(List<Map<String, dynamic>> list) {
-    final city = currentCity.toLowerCase().trim();
+    final city = _normalizeString(currentCity);
     if (city.isEmpty) return list;
     
-    return list.where((b) {
+    var filtered = list.where((b) {
       final appUser = b['app_user'] ?? {};
       final userAddresses = appUser['user_adresse'] as List<dynamic>? ?? [];
       if (userAddresses.isEmpty) return true; // Show businesses with no address
       
       for (var ua in userAddresses) {
         final adr = ua['adresse'] ?? {};
-        final v = (adr['ville'] ?? '').toString().toLowerCase().trim();
+        final v = _normalizeString((adr['ville'] ?? '').toString());
         if (v == city) return true;
       }
       return false;
     }).toList();
+
+    if (filtered.isEmpty) {
+      return list;
+    }
+
+    return filtered;
   }
 
   List<Map<String, dynamic>> get filteredRestaurants => _filterByCity(restaurants);

@@ -6,7 +6,7 @@ class ApiConstants {
   // --- Base URL ---
   // TODO: Remplacer par l'URL réelle du backend Node.js
   static const String baseUrl =
-      'http://127.0.0.1:8084/api'; // Updated for ADB reverse port forwarding
+      'http://localhost:8084/api'; // Updated for local development
 
   // --- Endpoints Livreur ---
   static const String livreurStatus =

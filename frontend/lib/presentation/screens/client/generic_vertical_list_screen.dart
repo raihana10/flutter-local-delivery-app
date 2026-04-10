@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import 'restaurant_detail_screen.dart';
 import '../../../data/models/business_model.dart';
+import '../../widgets/promotions_banner.dart';
 
 class GenericVerticalListScreen extends StatelessWidget {
   final String title;
@@ -44,7 +45,7 @@ class GenericVerticalListScreen extends StatelessWidget {
 
   Widget _buildPromoCard(dynamic promo) {
     if (promo is Promotion) {
-      return _buildRealPromoCard(promo);
+      return RealPromoCard(promo: promo);
     }
 
     final Map<String, dynamic> promoMap = promo as Map<String, dynamic>;
@@ -123,49 +124,7 @@ class GenericVerticalListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRealPromoCard(Promotion promo) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.forest, AppColors.primary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.forest.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              promo.produit?.nom ?? 'Promotion',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '-${promo.pourcentage.toInt()}% sur ce produit !',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildBusinessCard(
       BuildContext context, Map<String, dynamic> info, int index) {

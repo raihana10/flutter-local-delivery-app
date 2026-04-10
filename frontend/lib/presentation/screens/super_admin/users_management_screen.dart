@@ -680,11 +680,20 @@ Widget _buildPaginatedTable(String role) {
               onViewDetails: _showUserModal,
               onValidate: _showDocumentValidationModal,
               onManageBusiness: (user) {
-                final idUser = user['id_user'] as int?;
+                // Extraire l'ID business des données imbriquées
+                int? idBusiness;
+                if (user['business'] != null) {
+                  final businessData = (user['business'] is List && user['business'].isNotEmpty) 
+                      ? user['business'][0] 
+                      : user['business'];
+                  if (businessData is Map) {
+                    idBusiness = businessData['id_business'] as int?;
+                  }
+                }
 
-                if (idUser == null) {
+                if (idBusiness == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ID user introuvable')),
+                    const SnackBar(content: Text('ID business introuvable')),
                   );
                   return;
                 }
@@ -695,9 +704,9 @@ Widget _buildPaginatedTable(String role) {
                     builder: (context) => ChangeNotifierProvider(
                       create: (ctx) => BusinessDataProvider(
                         authProvider: ctx.read<AuthProvider>(),
-                        overrideBusinessId: idUser,
+                        overrideBusinessId: user['id_user'], // Passer l'ID utilisateur pour loadIdBusinessPk
                       ),
-                      child: BusinessMainScreen(idBusiness: idUser),
+                      child: BusinessMainScreen(idBusiness: idBusiness), // Passer l'ID business réel
                     ),
                   ),
                 );
