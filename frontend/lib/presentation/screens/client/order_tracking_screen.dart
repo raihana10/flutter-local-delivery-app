@@ -254,12 +254,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         // --- IMPROVED FALLBACK LOGIC ---
         final status = data['statut_commande'] as String? ?? '';
         bool isMock = false;
+        
+        // Force mock specifically for simulator location bugs (e.g. SF to Morocco distance > 100km)
+        if (riderLatLng != null && bizLatLng != null) {
+           final distToBiz = Geolocator.distanceBetween(
+                riderLatLng.latitude, riderLatLng.longitude,
+                bizLatLng.latitude, bizLatLng.longitude) / 1000.0;
+           if (distToBiz > 100.0) {
+              debugPrint('TRACKER: Rider is unreasonably far ($distToBiz km). Assuming Simulator GPS bug. Mocking location.');
+              riderLatLng = null; // Force mock
+           }
+        }
+
         if (riderLatLng == null && livreurData != null) {
           if (status == 'confirmee' || status == 'preparee') {
             riderLatLng = bizLatLng;
             isMock = true;
           } else if (status == 'en_livraison' && bizLatLng != null && clientLatLng != null) {
-            // Mock at 50% distance if en_route but no GPS yet
+            // Mock at 50% distance to show the rider between business and client
             riderLatLng = LatLng(
               bizLatLng.latitude + (clientLatLng.latitude - bizLatLng.latitude) * 0.5,
               bizLatLng.longitude + (clientLatLng.longitude - bizLatLng.longitude) * 0.5,
